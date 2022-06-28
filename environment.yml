@@ -1,0 +1,29 @@
+name: accompanion
+
+channels:
+  - anaconda
+  - pytorch
+  - defaults
+
+dependencies:
+  - python=3.7
+  - Cython
+  - matplotlib
+  - numpy
+  - pytorch
+  - scipy
+  - tqdm
+  - pip
+
+  - pip:
+    - fastdtw
+    - librosa
+    - opencv-python-headless
+    - mido
+    - python-rtmidi
+    - madmom
+    - partitura
+    - pyfluidsynth
+    - PyQt5
+    - pyqtgraph
+    - git+https://github.com/OFAI/basismixer.git
