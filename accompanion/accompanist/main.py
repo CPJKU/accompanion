@@ -13,37 +13,44 @@ from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 
 from scipy.interpolate import interp1d
 
-from accompanion.MIDI_input import create_midi_poll, POLLING_PERIOD
-from accompanion.MIDI_file_player import get_midi_file_player
-from accompanion.MIDI_sequencing_threads import ScoreSequencer
-from accompanion.MIDI_routing import MidiRouter
+from accompanion.accompanist.MIDI_input import create_midi_poll, POLLING_PERIOD
+from accompanion.accompanist.MIDI_file_player import get_midi_file_player
+from accompanion.accompanist.MIDI_sequencing_threads import ScoreSequencer
+from accompanion.accompanist.MIDI_routing import MidiRouter
 
-from mtchmkr.features_midi import PianoRollProcessor
-from mtchmkr.alignment_online_oltw_custom import (
+from accompanion.mtchmkr.features_midi import PianoRollProcessor
+from accompanion.mtchmkr.alignment_online_oltw_custom import (
     OnlineTimeWarping,
 )
 
-from mtchmkr.utils_generic import SequentialOutputProcessor
+from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
 from misc.partitura_utils import get_beat_conversion
 
-from accompanion.score import (part_to_score,
-                               alignment_to_score,
-                               AccompanimentScore)
+from accompanion.accompanist.score import (
+    part_to_score,
+    alignment_to_score,
+    AccompanimentScore,
+)
 
-from accompanion.accompaniment_decoder import (OnlinePerformanceCodec,
-                                               Accompanist,
-                                               moving_average_offline)
-import accompanion.tempo_models as tempo_models
+from accompanion.accompanist.accompaniment_decoder import (
+    OnlinePerformanceCodec,
+    Accompanist,
+    moving_average_offline,
+)
+import accompanion.accompanist.tempo_models as tempo_models
 
-from misc.partitura_utils import get_time_maps_from_alignment, \
-    partitura_to_framed_midi_custom as partitura_to_framed_midi, \
-    get_beat_conversion, DECAY_VALUE
+from accompanion.misc.partitura_utils import (
+    get_time_maps_from_alignment,
+    partitura_to_framed_midi_custom as partitura_to_framed_midi,
+    get_beat_conversion,
+    DECAY_VALUE,
+)
 
-from accompanion.ceus_mediator import CeusMediator
-from accompanion.note_tracker import NoteTracker
-from accompanion.onset_tracker import OnsetTracker
-from accompanion.trackers import DummyMultiDTWTracker
+from accompanion.accompanist.ceus_mediator import CeusMediator
+from accompanion.accompanist.note_tracker import NoteTracker
+from accompanion.accompanist.onset_tracker import OnsetTracker
+from accompanion.accompanist.trackers import DummyMultiDTWTracker
 
 # platform checking
 import platform
@@ -66,46 +73,50 @@ if PLATFORM == "Linux":
 elif PLATFORM == "Darwin":
     MIDI_DRIVER = "coreaudio"
 elif PLATFORM == "Windows":
-    print('Experimental Windows support')
+    print("Experimental Windows support")
     MIDI_DRIVER = None
 
 if PLATFORM != "Windows":
-    from accompanion.fluid import FluidsynthPlayer
+    from accompanion.accompanist.fluid import FluidsynthPlayer
 else:
-    from accompanion.fluid import FluidsynthPlayerWindows as FluidsynthPlayer
+    from accompanion.accompanist.fluid import (
+        FluidsynthPlayerWindows as FluidsynthPlayer,
+    )
+
 
 class ACCompanion(ACC_PARENT):
     def __init__(
-            self, solo_fn, acc_fn,
-            midi_fn=None,
-            init_bpm=60,
-            init_velocity=60,
-            polling_period=POLLING_PERIOD,
-            follower='OnlineTimeWarping',
-            follower_kwargs={'window_size': 80,
-                             'step_size': 10},
-            ground_truth_match=None,
-            router_kwargs={},
-            tempo_model=tempo_models.LSM,
-            tempo_model_kwargs={},
-            accompaniment_match=None,
-            tap_tempo=False,
-            pipe=None,
-            use_ceus_mediator=False,
-            performance_codec_kwargs={
-                "velocity_trend_ma_alpha": 0.6,
-                "articulation_ma_alpha": 0.4,
-                "velocity_dev_scale": 70,
-                "velocity_min": 20,
-                "velocity_max": 100,
-                "velocity_solo_scale": 0.85,
-                "timing_scale": 0.001,
-                "log_articulation_scale": 0.1,
-                "mechanical_delay": 0.
-            },
-            adjust_following_rate=0.1,
-            tempo_tapping=None,
-            bypass_audio=False  # bypass fluidsynth audio
+        self,
+        solo_fn,
+        acc_fn,
+        midi_fn=None,
+        init_bpm=60,
+        init_velocity=60,
+        polling_period=POLLING_PERIOD,
+        follower="OnlineTimeWarping",
+        follower_kwargs={"window_size": 80, "step_size": 10},
+        ground_truth_match=None,
+        router_kwargs={},
+        tempo_model=tempo_models.LSM,
+        tempo_model_kwargs={},
+        accompaniment_match=None,
+        tap_tempo=False,
+        pipe=None,
+        use_ceus_mediator=False,
+        performance_codec_kwargs={
+            "velocity_trend_ma_alpha": 0.6,
+            "articulation_ma_alpha": 0.4,
+            "velocity_dev_scale": 70,
+            "velocity_min": 20,
+            "velocity_max": 100,
+            "velocity_solo_scale": 0.85,
+            "timing_scale": 0.001,
+            "log_articulation_scale": 0.1,
+            "mechanical_delay": 0.0,
+        },
+        adjust_following_rate=0.1,
+        tempo_tapping=None,
+        bypass_audio=False,  # bypass fluidsynth audio
     ):
         super(ACCompanion, self).__init__()
 
@@ -176,13 +187,10 @@ class ACCompanion(ACC_PARENT):
         # Rate in "loops_without_update"  for adjusting the score
         # follower with expected position at the
         # current tempo
-        self.afr = np.round(
-            1 / self.polling_period * self.adjust_following_rate
-        )
+        self.afr = np.round(1 / self.polling_period * self.adjust_following_rate)
 
         # bypass fluidsynth audio
         self.bypass_audio = bypass_audio
-
 
     @property
     def beat_period(self):
@@ -212,26 +220,24 @@ class ACCompanion(ACC_PARENT):
 
         for i, fn in enumerate(self.solo_fn):
 
-            if fn.endswith('.match'):
+            if fn.endswith(".match"):
                 if i == 0:
-                    solo_ppart, alignment, self.solo_spart = \
-                        partitura.load_match(
-                            fn=fn,
-                            create_part=True,
-                            first_note_at_zero=True)
+                    solo_ppart, alignment, self.solo_spart = partitura.load_match(
+                        fn=fn, create_part=True, first_note_at_zero=True
+                    )
                 else:
                     solo_ppart, alignment = partitura.load_match(
-                        fn=fn,
-                        create_part=False,
-                        first_note_at_zero=True)
+                        fn=fn, create_part=False, first_note_at_zero=True
+                    )
 
-                ptime_to_stime_map, stime_to_ptime_map = \
-                    get_time_maps_from_alignment(
-                        ppart_or_note_array=solo_ppart,
-                        spart_or_note_array=self.solo_spart,
-                        alignment=alignment)
+                ptime_to_stime_map, stime_to_ptime_map = get_time_maps_from_alignment(
+                    ppart_or_note_array=solo_ppart,
+                    spart_or_note_array=self.solo_spart,
+                    alignment=alignment,
+                )
                 self.solo_parts.append(
-                    (solo_ppart, ptime_to_stime_map, stime_to_ptime_map))
+                    (solo_ppart, ptime_to_stime_map, stime_to_ptime_map)
+                )
             else:
                 solo_spart = partitura.load_musicxml(fn)
 
@@ -259,9 +265,7 @@ class ACCompanion(ACC_PARENT):
             )
             acc_notes = list(
                 alignment_to_score(
-                    fn_or_spart=acc_spart,
-                    ppart=acc_ppart,
-                    alignment=acc_alignment
+                    fn_or_spart=acc_spart, ppart=acc_ppart, alignment=acc_alignment
                 ).notes
             )
             pc = get_performance_codec(
@@ -270,7 +274,7 @@ class ACCompanion(ACC_PARENT):
                     "velocity_dev",
                     "beat_period",
                     "timing",
-                    "articulation_log"
+                    "articulation_log",
                 ]
             )
             bm_params, _, u_onset_idx = pc.encode(
@@ -284,45 +288,39 @@ class ACCompanion(ACC_PARENT):
 
             # TODO Use the solo part to compute the moving average
             vt_ma = moving_average_offline(
-                parameter=bm_params_onsetwise['velocity_trend'],
-                alpha=self.performance_codec_kwargs.get(
-                    "velocity_trend_ma_alpha", 0.6
-                )
+                parameter=bm_params_onsetwise["velocity_trend"],
+                alpha=self.performance_codec_kwargs.get("velocity_trend_ma_alpha", 0.6),
             )
 
             velocity_trend = onsetwise_to_notewise(
-                bm_params_onsetwise['velocity_trend'] / vt_ma,
-                u_onset_idx
+                bm_params_onsetwise["velocity_trend"] / vt_ma, u_onset_idx
             )
 
             if self.tempo_model.has_tempo_expectations:
                 # get iterable of the tempo expectations
                 self.tempo_model.tempo_expectations_func = interp1d(
-                    np.unique(acc_spart.note_array['onset_beat']),
-                    bm_params_onsetwise['beat_period'],
+                    np.unique(acc_spart.note_array["onset_beat"]),
+                    bm_params_onsetwise["beat_period"],
                     bounds_error=False,
-                    kind='previous',
+                    kind="previous",
                     fill_value=(
-                        bm_params_onsetwise['beat_period'][0],
-                        bm_params_onsetwise['beat_period'][-1]
-                    )
+                        bm_params_onsetwise["beat_period"][0],
+                        bm_params_onsetwise["beat_period"][-1],
+                    ),
                 )
-                self.init_bp = bm_params_onsetwise['beat_period'][0]
+                self.init_bp = bm_params_onsetwise["beat_period"][0]
 
-            vd_scale = self.performance_codec_kwargs.get(
-                "velocity_dev_scale", 90
-            )
-            velocity_dev = bm_params['velocity_dev'] * vd_scale
+            vd_scale = self.performance_codec_kwargs.get("velocity_dev_scale", 90)
+            velocity_dev = bm_params["velocity_dev"] * vd_scale
 
-            timing_scale = self.performance_codec_kwargs.get(
-                "timing_scale", 1.0)
-            timing = bm_params['timing'] * timing_scale
+            timing_scale = self.performance_codec_kwargs.get("timing_scale", 1.0)
+            timing = bm_params["timing"] * timing_scale
             print(np.mean(np.abs(timing)))
             lart_scale = self.performance_codec_kwargs.get(
                 "log_articulation_scale", 1.0
-                )
-            log_articulation = bm_params['articulation_log'] * lart_scale
-            #log_articulation = None
+            )
+            log_articulation = bm_params["articulation_log"] * lart_scale
+            # log_articulation = None
             log_bpr = None
 
         self.acc_score = AccompanimentScore(
@@ -332,7 +330,7 @@ class ACCompanion(ACC_PARENT):
             velocity_dev=velocity_dev,
             timing=timing,
             log_articulation=log_articulation,
-            log_bpr=log_bpr
+            log_bpr=log_bpr,
         )
 
         pc = OnlinePerformanceCodec(
@@ -340,12 +338,11 @@ class ACCompanion(ACC_PARENT):
             velocity_ave=64,
             init_eq_onset=0.0,
             tempo_model=self.tempo_model,
-            **self.performance_codec_kwargs
+            **self.performance_codec_kwargs,
         )
 
         self.accompanist = Accompanist(
-            accompaniment_score=self.acc_score,
-            performance_codec=pc
+            accompaniment_score=self.acc_score, performance_codec=pc
         )
 
         if self.use_mediator:
@@ -354,7 +351,7 @@ class ACCompanion(ACC_PARENT):
         self.seq = ScoreSequencer(
             score_or_notes=self.acc_score,
             outport=self.router.acc_output_to_sound_port,
-            mediator=self.mediator
+            mediator=self.mediator,
         )
         self.seq.panic_button()
 
@@ -368,9 +365,7 @@ class ACCompanion(ACC_PARENT):
         self.accompanist.pc.note_tracker = self.note_tracker
 
     def setup_score_follower(self):
-        pipeline = SequentialOutputProcessor(
-            [PianoRollProcessor(piano_range=True)]
-        )
+        pipeline = SequentialOutputProcessor([PianoRollProcessor(piano_range=True)])
 
         state_to_ref_time_maps = []
         ref_to_state_time_maps = []
@@ -386,7 +381,8 @@ class ACCompanion(ACC_PARENT):
                     part_or_notearray_or_filename=part,
                     is_performance=True,
                     pipeline=pipeline,
-                    polling_period=self.polling_period)[0]
+                    polling_period=self.polling_period,
+                )[0]
 
             else:
                 raise NotImplementedError
@@ -399,20 +395,21 @@ class ACCompanion(ACC_PARENT):
                 self.reference_features = ref_features
 
             # setup score follower
-            if self.follower_type == 'OnlineTimeWarping':
+            if self.follower_type == "OnlineTimeWarping":
                 score_follower = OnlineTimeWarping(
-                    reference_features=ref_features,
-                    **self.follower_kwargs
+                    reference_features=ref_features, **self.follower_kwargs
                 )
             else:
                 raise NotImplementedError
 
             score_followers.append(score_follower)
 
-        self.score_follower = DummyMultiDTWTracker(score_followers,
-                                                   state_to_ref_time_maps,
-                                                   ref_to_state_time_maps,
-                                                   self.polling_period)
+        self.score_follower = DummyMultiDTWTracker(
+            score_followers,
+            state_to_ref_time_maps,
+            ref_to_state_time_maps,
+            self.polling_period,
+        )
 
         self.pipe_out, self.queue, self.midi_input_process = create_midi_poll(
             port_name=self.router.solo_input_to_accompaniment_port_name[1],
@@ -423,7 +420,7 @@ class ACCompanion(ACC_PARENT):
             ),
             return_midi_messages=True,
             thread=USE_THREADS,
-            mediator=self.mediator
+            mediator=self.mediator,
         )
 
     def get_reference_features(self):
@@ -459,19 +456,22 @@ class ACCompanion(ACC_PARENT):
     def get_tempo(self):
         return 60 / self.beat_period
 
-
     def run(self):
 
         if self.router_kwargs.get("acc_output_to_sound_port_name", None) is not None:
             try:
                 # For SynthPorts
-                self.router_kwargs["acc_output_to_sound_port_name"] = self.router_kwargs["acc_output_to_sound_port_name"]()
+                self.router_kwargs[
+                    "acc_output_to_sound_port_name"
+                ] = self.router_kwargs["acc_output_to_sound_port_name"]()
             except TypeError:
                 pass
 
         if self.router_kwargs.get("MIDIPlayer_to_sound_port_name", None) is not None:
             try:
-                self.router_kwargs["MIDIPlayer_to_sound_port_name"] = self.router_kwargs["MIDIPlayer_to_sound_port_name"]()
+                self.router_kwargs[
+                    "MIDIPlayer_to_sound_port_name"
+                ] = self.router_kwargs["MIDIPlayer_to_sound_port_name"]()
             except TypeError:
                 pass
 
@@ -505,20 +505,20 @@ class ACCompanion(ACC_PARENT):
         # self.pipe_out.close()
         # CC: I don't know what happened, but now it takes a bit for the
         # input process to start...
-        #time.sleep(1)
+        # time.sleep(1)
         print("Start listening")
 
         self.perf_frame = None
         self.score_idx = 0
 
         if self.midi_fn is not None:
-            print('Start playing MIDI file')
+            print("Start playing MIDI file")
             self.dummy_solo = get_midi_file_player(
                 port_name=self.router.MIDIPlayer_to_accompaniment_port_name[1],
                 file_name=self.midi_fn,
                 player_class=FluidsynthPlayer,
                 thread=USE_THREADS,
-                bypass_audio=self.bypass_audio
+                bypass_audio=self.bypass_audio,
             )
             self.dummy_solo.start()
 
@@ -538,7 +538,7 @@ class ACCompanion(ACC_PARENT):
             # TODO: Check for potential edge cases
             _, ts_beat_type = self.acc_score.time_signature_map(self.first_score_onset)
             tapping_ibi = get_beat_conversion(self.tempo_tapping[1], ts_beat_type)
-            print(f'Tempo Tapping IBI: {tapping_ibi}')
+            print(f"Tempo Tapping IBI: {tapping_ibi}")
         decay = np.ones(88)
 
         pioi = self.polling_period
@@ -558,7 +558,7 @@ class ACCompanion(ACC_PARENT):
                     # listen to metronome notes for tempo
 
                     if self.tap_tempo:
-                        #print('Get init tempo here')
+                        # print('Get init tempo here')
                         if tempo_counter == 0:
                             tempo_counter += 1
                             prev_metro_time = np.min(
@@ -568,17 +568,20 @@ class ACCompanion(ACC_PARENT):
                         elif tempo_counter < self.tempo_tapping[0]:
                             tempo_counter_backup = tempo_counter
 
-                            for msg, msg_time in input_midi_messages[:self.tempo_tapping[0] - tempo_counter_backup]:
-                                if msg.type == 'note_on' and msg.velocity > 0:
+                            for msg, msg_time in input_midi_messages[
+                                : self.tempo_tapping[0] - tempo_counter_backup
+                            ]:
+                                if msg.type == "note_on" and msg.velocity > 0:
                                     tempo_sum += msg_time - prev_metro_time
 
                                     prev_metro_time = msg_time
                                     tempo_counter += 1
 
                             if tempo_counter == self.tempo_tapping[0]:
-                                self.init_bp = tempo_sum / \
-                                    ((self.tempo_tapping[0] - 1) * tapping_ibi)
-                                print('Init tempo', self.init_bp)
+                                self.init_bp = tempo_sum / (
+                                    (self.tempo_tapping[0] - 1) * tapping_ibi
+                                )
+                                print("Init tempo", self.init_bp)
                                 # start accompaniment if it starts at the
                                 # same time as the solo
                                 # Fix this for a general case
@@ -588,22 +591,31 @@ class ACCompanion(ACC_PARENT):
                                         if self.tempo_model is not None:
                                             # Update beat_period
                                             self.tempo_model.beat_period = self.init_bp
-                                            if hasattr(self.tempo_model, "init_beat_period"):
-                                                self.tempo_model.init_beat_period = self.init_bp
+                                            if hasattr(
+                                                self.tempo_model, "init_beat_period"
+                                            ):
+                                                self.tempo_model.init_beat_period = (
+                                                    self.init_bp
+                                                )
 
                                         if self.acc_score.min_onset < 0:
-                                            print('first onsetacc', self.acc_score.min_onset)
+                                            print(
+                                                "first onsetacc",
+                                                self.acc_score.min_onset,
+                                            )
                                             # TODO: Solve for the general case
-                                            acc_start_time = solo_p_onset + 0.5 * self.init_bp
+                                            acc_start_time = (
+                                                solo_p_onset + 0.5 * self.init_bp
+                                            )
                                         else:
                                             acc_start_time = solo_p_onset + self.init_bp
                                         self.accompanist.accompaniment_step(
                                             solo_s_onset=self.first_score_onset,
-                                            solo_p_onset=acc_start_time
+                                            solo_p_onset=acc_start_time,
                                         )
 
                                         # self.stop_playing()
-                                        print('Start accompaniment')
+                                        print("Start accompaniment")
                                         # start the sequencer in a beat
                                         self.seq.init_time = start_time
                                         sequencer_start = True
@@ -618,34 +630,36 @@ class ACCompanion(ACC_PARENT):
                     self.perf_frame = output.copy()
                     # overwrite velocities to 1 for tracking
                     # TODO think about nicer solution
-                    output[output > 0] = 1.
+                    output[output > 0] = 1.0
 
                     # start playing the performance
                     if not perf_start and (output > 0).any():
                         # Ignore messages after the tapping
                         if np.all(
-                                np.where(output > 0)[0] + 21 ==
-                                self.solo_score.getitem_indexwise(0).pitch):
+                            np.where(output > 0)[0] + 21
+                            == self.solo_score.getitem_indexwise(0).pitch
+                        ):
                             perf_start = True
-                            print('start following!')
+                            print("start following!")
 
                     # Use these onset times?
-                    onset_times = [msg[1] for msg in input_midi_messages
-                                   if msg[0].type in ('note_on', 'note_off')]
-                    onset_time = np.mean(onset_times) \
-                        if len(onset_times) > 0 else 0
+                    onset_times = [
+                        msg[1]
+                        for msg in input_midi_messages
+                        if msg[0].type in ("note_on", "note_off")
+                    ]
+                    onset_time = np.mean(onset_times) if len(onset_times) > 0 else 0
                     new_midi_messages = False
                     decay *= DECAY_VALUE
                     for msg, msg_time in input_midi_messages:
-                        if msg.type in ('note_on', 'note_off'):
+                        if msg.type in ("note_on", "note_off"):
 
-                            if msg.type == 'note_on' and msg.velocity > 0:
+                            if msg.type == "note_on" and msg.velocity > 0:
                                 new_midi_messages = True
-                            midi_msg = (msg.type, msg.note,
-                                        msg.velocity, onset_time)
+                            midi_msg = (msg.type, msg.note, msg.velocity, onset_time)
                             self.note_tracker.track_note(midi_msg)
 
-                            decay[msg.note - 21] = 1.
+                            decay[msg.note - 21] = 1.0
 
                     output *= decay
 
@@ -663,13 +677,12 @@ class ACCompanion(ACC_PARENT):
                         )
 
                         pioi = (
-                                solo_p_onset - prev_solo_p_onset
-                                if prev_solo_p_onset is not None
-                                else self.polling_period
+                            solo_p_onset - prev_solo_p_onset
+                            if prev_solo_p_onset is not None
+                            else self.polling_period
                         )
                         prev_solo_p_onset = solo_p_onset
-                        expected_position = (expected_position + pioi /
-                                             self.beat_period)
+                        expected_position = expected_position + pioi / self.beat_period
 
                         if solo_s_onset is not None:
 
@@ -677,7 +690,7 @@ class ACCompanion(ACC_PARENT):
                                 f"performed onset {solo_s_onset}",
                                 f"expected onset {expected_position}",
                                 f"beat_period {self.beat_period}",
-                                f"adjusted {acc_update or adjusted_sf}"
+                                f"adjusted {acc_update or adjusted_sf}",
                             )
 
                             if not acc_update:
@@ -695,19 +708,22 @@ class ACCompanion(ACC_PARENT):
                             # same time as the solo
                             if solo_starts and onset_index == 0:
                                 if not sequencer_start:
-                                    print('Start accompaniment')
+                                    print("Start accompaniment")
                                     sequencer_start = True
                                     self.accompanist.accompaniment_step(
                                         solo_s_onset=solo_s_onset,
-                                        solo_p_onset=solo_p_onset
+                                        solo_p_onset=solo_p_onset,
                                     )
                                     self.seq.start()
 
-                            if solo_s_onset > self.first_score_onset and not acc_update and not adjusted_sf:
+                            if (
+                                solo_s_onset > self.first_score_onset
+                                and not acc_update
+                                and not adjusted_sf
+                            ):
                                 self.accompanist.accompaniment_step(
-                                        solo_s_onset=solo_s_onset,
-                                        solo_p_onset=solo_p_onset
-                                        )
+                                    solo_s_onset=solo_s_onset, solo_p_onset=solo_p_onset
+                                )
                                 self.beat_period = self.accompanist.pc.bp_ave
                         else:
                             loops_without_update += 1
@@ -718,12 +734,15 @@ class ACCompanion(ACC_PARENT):
                             if self.score_follower.current_position < expected_position:
                                 self.score_follower.update_position(expected_position)
                                 adjusted_sf = True
-                            
+
                         if self.pipe is not None:
                             self.pipe.send(
-                                (self.perf_frame,
-                                 self.get_accompaniment_frame(),
-                                 self.score_idx, self.get_tempo())
+                                (
+                                    self.perf_frame,
+                                    self.get_accompaniment_frame(),
+                                    self.score_idx,
+                                    self.get_tempo(),
+                                )
                             )
 
         except:
@@ -732,38 +751,36 @@ class ACCompanion(ACC_PARENT):
             self.stop_playing()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import argparse
     import glob
 
     if PLATFORM == "Darwin" or PLATFORM == "Linux":
-        multiprocessing.set_start_method('spawn')
+        multiprocessing.set_start_method("spawn")
 
     file_dir = os.path.dirname(os.path.abspath(__file__))
     rel_path_from_CWD = os.path.relpath(file_dir, os.curdir)
 
     piece = "mozart"
 
-    if piece == 'mozart':
+    if piece == "mozart":
 
-        mozart_dir = os.path.join(rel_path_from_CWD, '..', "mozart_data")
+        mozart_dir = os.path.join(rel_path_from_CWD, "..", "mozart_data")
 
-        acc_fn = os.path.join(mozart_dir," Sonata_For_Four_Hands_In_D_Major_k.381_a123-Piano_2.musicxml")
+        acc_fn = os.path.join(
+            mozart_dir, " Sonata_For_Four_Hands_In_D_Major_k.381_a123-Piano_2.musicxml"
+        )
 
-        solo_fn = glob.glob(
-            os.path.join(
-                mozart_dir, "alignments", "primo", "*.match"
-            )
-        )[-2:]
+        solo_fn = glob.glob(os.path.join(mozart_dir, "alignments", "primo", "*.match"))[
+            -2:
+        ]
 
         accompaniment_match = os.path.join(
             mozart_dir, "basismixer_models", "mozart_sonata_secondo.match"
         )
 
-        midi_fn = os.path.join(
-            mozart_dir, "alignments", "mozart_sonata_6_P1.mid"
-        )
+        midi_fn = os.path.join(mozart_dir, "alignments", "mozart_sonata_6_P1.mid")
 
         tempo_tapping = (4, "quarter")
 
@@ -775,17 +792,16 @@ if __name__ == '__main__':
 
         brahms_dir = os.path.join(rel_path_from_CWD, "..", "brahms_data")
         acc_fn = os.path.join(
-            brahms_dir, "musicxml",
-            "Brahms_Hungarian-Dance-5_Secondo.musicxml"
+            brahms_dir, "musicxml", "Brahms_Hungarian-Dance-5_Secondo.musicxml"
         )
-        solo_fn = glob.glob(
-            os.path.join(
-                brahms_dir, "match", "cc_solo", "*.match"
-            )
-        )[-5:]
+        solo_fn = glob.glob(os.path.join(brahms_dir, "match", "cc_solo", "*.match"))[
+            -5:
+        ]
         midi_fn = os.path.join(
-            brahms_dir, "midi", "cc_solo",
-            "Brahms_Hungarian-Dance-5_Primo_2021-07-29_w_tapping.mid"
+            brahms_dir,
+            "midi",
+            "cc_solo",
+            "Brahms_Hungarian-Dance-5_Primo_2021-07-29_w_tapping.mid",
         )
         accompaniment_match = os.path.join(
             brahms_dir, "trained_bm_models", "bm_predictions_2021-08-30.match"
@@ -796,46 +812,55 @@ if __name__ == '__main__':
 
         tempo_model = tempo_models.LTESM
     elif piece == "schubert":
-        schubert_dir = os.path.join(rel_path_from_CWD, '..', "schubert_data")
+        schubert_dir = os.path.join(rel_path_from_CWD, "..", "schubert_data")
         acc_fn = os.path.join(
-            schubert_dir, "Excerpt_2", "musicxml",
-            "Schubert_Rondo_E2_Secondo.musicxml"
+            schubert_dir, "Excerpt_2", "musicxml", "Schubert_Rondo_E2_Secondo.musicxml"
         )
         solo_fn = glob.glob(
             os.path.join(
-
                 # schubert_dir, "Excerpt_2",  "match", "cc_solo", "*.match"
-
-                schubert_dir, "Gerhard", "match", "*.match"
+                schubert_dir,
+                "Gerhard",
+                "match",
+                "*.match",
             )
         )
         midi_fn = os.path.join(
             schubert_dir, "Gerhard", "midi", "gerhard_schubert_1.mid"
-
         )
         accompaniment_match = os.path.join(
-            schubert_dir, # "trained_bm_models", "bm_predictions.match"
-            "Excerpt_2", "match", "bm_secondo",
-            "Schubert_Rondo_E2_Secondo_2021-10-13_01.match"
+            schubert_dir,  # "trained_bm_models", "bm_predictions.match"
+            "Excerpt_2",
+            "match",
+            "bm_secondo",
+            "Schubert_Rondo_E2_Secondo_2021-10-13_01.match",
         )
         tempo_tapping = (3, "eighth")
         tempo_model = tempo_models.LSM
-        init_bpm = 60/1.1
+        init_bpm = 60 / 1.1
 
     elif piece == "gw_full":
 
-        schubert_dir = os.path.join(rel_path_from_CWD, '..', "schubert_data")
+        schubert_dir = os.path.join(rel_path_from_CWD, "..", "schubert_data")
 
-        acc_fn = os.path.join(schubert_dir, "gw_full", "score", "Rondo_in_A_E2_cut62_final-Piano_2.musicxml")
+        acc_fn = os.path.join(
+            schubert_dir,
+            "gw_full",
+            "score",
+            "Rondo_in_A_E2_cut62_final-Piano_2.musicxml",
+        )
 
         solo_fn = glob.glob(os.path.join(schubert_dir, "gw_full", "match", "*.match"))
 
-        midi_fn = os.path.join(schubert_dir, "gw_full", "midi", "gw_final_6_no_pedal.mid")
-
+        midi_fn = os.path.join(
+            schubert_dir, "gw_full", "midi", "gw_final_6_no_pedal.mid"
+        )
 
         # accompaniment_match = os.path.join(schubert_dir, "Gerhard_long", "Schubert_Rondo_E2_cut62-2.match")
         # accompaniment_match = os.path.join(schubert_dir, "gw_full", "basismixer", "test.match")
-        accompaniment_match = os.path.join(schubert_dir, "gw_full", "basismixer", "bm_v4.match")
+        accompaniment_match = os.path.join(
+            schubert_dir, "gw_full", "basismixer", "bm_v4.match"
+        )
         # accompaniment_match = None
 
         tempo_tapping = (3, "eighth")
@@ -843,9 +868,11 @@ if __name__ == '__main__':
         init_bpm = 52
 
     elif piece == "gw_p2":
-        schubert_dir = os.path.join(rel_path_from_CWD, '..', "schubert_data")
+        schubert_dir = os.path.join(rel_path_from_CWD, "..", "schubert_data")
 
-        acc_fn = os.path.join(schubert_dir, "gw_p2", "score", "snippet-Piano_2.musicxml")
+        acc_fn = os.path.join(
+            schubert_dir, "gw_p2", "score", "snippet-Piano_2.musicxml"
+        )
 
         solo_fn = glob.glob(os.path.join(schubert_dir, "gw_p2", "match", "*.match"))
 
@@ -868,60 +895,32 @@ if __name__ == '__main__':
         "--solo-fn",
         help=("Score containing the solo or list of matchfiles"),
         nargs="+",
-        default=solo_fn
+        default=solo_fn,
     )
 
-    parser.add_argument(
-        "--acc-fn",
-        help=("Accompaniment score"),
-        default=acc_fn
-    )
+    parser.add_argument("--acc-fn", help=("Accompaniment score"), default=acc_fn)
 
-    parser.add_argument(
-        "--init-bpm",
-        type=float,
-        default=init_bpm
-    )
+    parser.add_argument("--init-bpm", type=float, default=init_bpm)
 
-    parser.add_argument(
-        "--polling-period",
-        type=float,
-        default=0.01
-    )
+    parser.add_argument("--polling-period", type=float, default=0.01)
 
-    parser.add_argument(
-        "--midi-fn",
-        default=midi_fn
-    )
+    parser.add_argument("--midi-fn", default=midi_fn)
 
-    parser.add_argument(
-        "--follower",
-        default="OnlineTimeWarping"
-    )
+    parser.add_argument("--follower", default="OnlineTimeWarping")
 
-    parser.add_argument(
-        "--live",
-        default=False,
-        action="store_true"
-    )
+    parser.add_argument("--live", default=False, action="store_true")
 
-    parser.add_argument(
-        "--accompaniment-match",
-        default=accompaniment_match
-    )
+    parser.add_argument("--accompaniment-match", default=accompaniment_match)
 
     parser.add_argument(
         "--bypass_audio",
         default=False,
         help="bypass fluidsynth audio",
-        action="store_true"
+        action="store_true",
     )
 
     parser.add_argument(
-        "--use_mediator",
-        default=False,
-        help="use ceus mediator",
-        action="store_true"
+        "--use_mediator", default=False, help="use ceus mediator", action="store_true"
     )
 
     args = parser.parse_args()
@@ -938,20 +937,24 @@ if __name__ == '__main__':
     # maybe we can fix this by using different ports for solo and accompaniment
     assert not args.bypass_audio or args.bypass_audio and args.use_mediator
 
-
-    if PLATFORM in ('Darwin', 'Linux') and not args.live:
+    if PLATFORM in ("Darwin", "Linux") and not args.live:
         # Default for Carlos' Macbook ;)
 
         router_kwargs = dict(
             solo_input_to_accompaniment_port_name=0,
-            acc_output_to_sound_port_name='IAC Driver Web Midi' if args.bypass_audio else FluidsynthPlayer,
-            MIDIPlayer_to_sound_port_name='IAC Driver Web Midi' if args.bypass_audio else FluidsynthPlayer,
+            acc_output_to_sound_port_name="IAC Driver Web Midi"
+            if args.bypass_audio
+            else FluidsynthPlayer,
+            MIDIPlayer_to_sound_port_name="IAC Driver Web Midi"
+            if args.bypass_audio
+            else FluidsynthPlayer,
             MIDIPlayer_to_accompaniment_port_name=0,
             simple_button_input_port_name=None,
         )
 
     else:
         import mido
+
         args.midi_fn = None
 
         # TODO: check if the ports are the same in Linux and Windows
@@ -959,11 +962,11 @@ if __name__ == '__main__':
             "USB-MIDI",  # Essex in Oslo
             "Clavinova",  # Clavinova at WU
             "Silent Piano",  # Yamaha GB1 in Vienna
-            "M-Audio MIDISPORT Uno", # MIDI Interface
-            "Scarlett 18i8 USB", # Focusrite 18i8
+            "M-Audio MIDISPORT Uno",  # MIDI Interface
+            "Scarlett 18i8 USB",  # Focusrite 18i8
             "Babyface (23665044) Port 1",
             "Babyface (23664861) Port 1",
-            "Disklavier"
+            "Disklavier",
         )
 
         available_input_ports = mido.get_input_names()
@@ -1025,19 +1028,20 @@ if __name__ == '__main__':
         init_bpm=args.init_bpm,
         polling_period=args.polling_period,
         follower=args.follower,
-        follower_kwargs={'window_size': 100, 'step_size': 10},
+        follower_kwargs={"window_size": 100, "step_size": 10},
         ground_truth_match=None,
         accompaniment_match=args.accompaniment_match,
         use_ceus_mediator=args.use_mediator,
         tempo_tapping=tempo_tapping,
         adjust_following_rate=0.2,
         tap_tempo=False,
-        bypass_audio=args.bypass_audio)
+        bypass_audio=args.bypass_audio,
+    )
 
     try:
         accompanion.start()
     except KeyboardInterrupt:
-        print('stop_playing')
+        print("stop_playing")
         accompanion.stop_playing()
         accompanion.seq.panic_button()
     finally:
