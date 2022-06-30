@@ -2,7 +2,7 @@ import partitura
 
 import numpy as np
 
-from misc.partitura_utils import get_matched_notes, partitura_to_framed_midi_custom
+from accompanion.misc.partitura_utils import get_matched_notes, partitura_to_framed_midi_custom
 from scipy import interpolate
 
 

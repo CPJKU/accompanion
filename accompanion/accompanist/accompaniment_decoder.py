@@ -3,7 +3,7 @@
 Decode the performance from the accompaniment
 """
 import numpy as np
-from accompanion.expression_tools import friberg_sundberg_rit
+from accompanion.accompanist.expression_tools import friberg_sundberg_rit
 
 
 RIT_LEN = 24

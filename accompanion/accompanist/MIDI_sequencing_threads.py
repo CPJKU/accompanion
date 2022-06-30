@@ -6,7 +6,7 @@ import time
 
 import numpy as np
 
-from visualization.midi_helper import MIDI_KEYS
+from accompanion.visualization.midi_helper import MIDI_KEYS
 from scipy.interpolate import interp1d
 
 

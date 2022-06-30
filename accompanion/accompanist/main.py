@@ -25,7 +25,7 @@ from accompanion.mtchmkr.alignment_online_oltw_custom import (
 
 from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
-from misc.partitura_utils import get_beat_conversion
+from accompanion.misc.partitura_utils import get_beat_conversion
 
 from accompanion.accompanist.score import (
     part_to_score,
@@ -299,7 +299,7 @@ class ACCompanion(ACC_PARENT):
             if self.tempo_model.has_tempo_expectations:
                 # get iterable of the tempo expectations
                 self.tempo_model.tempo_expectations_func = interp1d(
-                    np.unique(acc_spart.note_array["onset_beat"]),
+                    np.unique(acc_spart.note_array()["onset_beat"]),
                     bm_params_onsetwise["beat_period"],
                     bounds_error=False,
                     kind="previous",
@@ -361,7 +361,7 @@ class ACCompanion(ACC_PARENT):
         self.first_score_onset = self.solo_score.unique_onsets.min()
 
         # initialize note tracker
-        self.note_tracker = NoteTracker(self.solo_spart.note_array)
+        self.note_tracker = NoteTracker(self.solo_spart.note_array())
         self.accompanist.pc.note_tracker = self.note_tracker
 
     def setup_score_follower(self):
@@ -592,7 +592,8 @@ class ACCompanion(ACC_PARENT):
                                             # Update beat_period
                                             self.tempo_model.beat_period = self.init_bp
                                             if hasattr(
-                                                self.tempo_model, "init_beat_period"
+                                                self.tempo_model,
+                                                "init_beat_period",
                                             ):
                                                 self.tempo_model.init_beat_period = (
                                                     self.init_bp
@@ -762,35 +763,12 @@ if __name__ == "__main__":
     file_dir = os.path.dirname(os.path.abspath(__file__))
     rel_path_from_CWD = os.path.relpath(file_dir, os.curdir)
 
-    piece = "mozart"
-
-    if piece == "mozart":
-
-        mozart_dir = os.path.join(rel_path_from_CWD, "..", "mozart_data")
-
-        acc_fn = os.path.join(
-            mozart_dir, " Sonata_For_Four_Hands_In_D_Major_k.381_a123-Piano_2.musicxml"
-        )
-
-        solo_fn = glob.glob(os.path.join(mozart_dir, "alignments", "primo", "*.match"))[
-            -2:
-        ]
-
-        accompaniment_match = os.path.join(
-            mozart_dir, "basismixer_models", "mozart_sonata_secondo.match"
-        )
-
-        midi_fn = os.path.join(mozart_dir, "alignments", "mozart_sonata_6_P1.mid")
-
-        tempo_tapping = (4, "quarter")
-
-        init_bpm = 120
-
-        tempo_model = tempo_models.LSM
+    piece = "brahms"
 
     if piece == "brahms":
-
-        brahms_dir = os.path.join(rel_path_from_CWD, "..", "brahms_data")
+        brahms_dir = os.path.join(
+            rel_path_from_CWD, "..", "..", "sample_pieces", "brahms_data"
+        )
         acc_fn = os.path.join(
             brahms_dir, "musicxml", "Brahms_Hungarian-Dance-5_Secondo.musicxml"
         )
@@ -804,85 +782,13 @@ if __name__ == "__main__":
             "Brahms_Hungarian-Dance-5_Primo_2021-07-29_w_tapping.mid",
         )
         accompaniment_match = os.path.join(
-            brahms_dir, "trained_bm_models", "bm_predictions_2021-08-30.match"
+            brahms_dir, "basismixer", "bm_brahms_2021-08-30.match"
         )
 
         tempo_tapping = (4, "quarter")
         init_bpm = 120
 
         tempo_model = tempo_models.LTESM
-    elif piece == "schubert":
-        schubert_dir = os.path.join(rel_path_from_CWD, "..", "schubert_data")
-        acc_fn = os.path.join(
-            schubert_dir, "Excerpt_2", "musicxml", "Schubert_Rondo_E2_Secondo.musicxml"
-        )
-        solo_fn = glob.glob(
-            os.path.join(
-                # schubert_dir, "Excerpt_2",  "match", "cc_solo", "*.match"
-                schubert_dir,
-                "Gerhard",
-                "match",
-                "*.match",
-            )
-        )
-        midi_fn = os.path.join(
-            schubert_dir, "Gerhard", "midi", "gerhard_schubert_1.mid"
-        )
-        accompaniment_match = os.path.join(
-            schubert_dir,  # "trained_bm_models", "bm_predictions.match"
-            "Excerpt_2",
-            "match",
-            "bm_secondo",
-            "Schubert_Rondo_E2_Secondo_2021-10-13_01.match",
-        )
-        tempo_tapping = (3, "eighth")
-        tempo_model = tempo_models.LSM
-        init_bpm = 60 / 1.1
-
-    elif piece == "gw_full":
-
-        schubert_dir = os.path.join(rel_path_from_CWD, "..", "schubert_data")
-
-        acc_fn = os.path.join(
-            schubert_dir,
-            "gw_full",
-            "score",
-            "Rondo_in_A_E2_cut62_final-Piano_2.musicxml",
-        )
-
-        solo_fn = glob.glob(os.path.join(schubert_dir, "gw_full", "match", "*.match"))
-
-        midi_fn = os.path.join(
-            schubert_dir, "gw_full", "midi", "gw_final_6_no_pedal.mid"
-        )
-
-        # accompaniment_match = os.path.join(schubert_dir, "Gerhard_long", "Schubert_Rondo_E2_cut62-2.match")
-        # accompaniment_match = os.path.join(schubert_dir, "gw_full", "basismixer", "test.match")
-        accompaniment_match = os.path.join(
-            schubert_dir, "gw_full", "basismixer", "bm_v4.match"
-        )
-        # accompaniment_match = None
-
-        tempo_tapping = (3, "eighth")
-        tempo_model = tempo_models.LSM
-        init_bpm = 52
-
-    elif piece == "gw_p2":
-        schubert_dir = os.path.join(rel_path_from_CWD, "..", "schubert_data")
-
-        acc_fn = os.path.join(
-            schubert_dir, "gw_p2", "score", "snippet-Piano_2.musicxml"
-        )
-
-        solo_fn = glob.glob(os.path.join(schubert_dir, "gw_p2", "match", "*.match"))
-
-        midi_fn = os.path.join(schubert_dir, "gw_p2", "midi", "gw_snippet_1.mid")
-
-        accompaniment_match = None
-
-        tempo_tapping = (3, "eighth")
-        tempo_model = tempo_models.LSM
-        init_bpm = 52
 
     parser = argparse.ArgumentParser("ACCompanion")
 

@@ -27,9 +27,9 @@ elif PLATFORM == "Windows":
 
 
 if PLATFORM != "Windows":
-    from accompanion.fluid import FluidsynthPlayer
+    from accompanion.accompanist.fluid import FluidsynthPlayer
 else:
-    from accompanion.fluid import FluidsynthPlayerWindows as FluidsynthPlayer
+    from accompanion.accompanist.fluid import FluidsynthPlayerWindows as FluidsynthPlayer
     # unfortunately, this import breaks if fluidsynth is not installed
     # class FluidsynthPlayer(object):
     #     def __init__(self):

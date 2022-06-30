@@ -4,12 +4,14 @@ Objects for representing score information
 """
 import numpy as np
 
-from matchmaker.io.symbolic import load_score
+# from matchmaker.io.symbolic import load_score
+from partitura import load_score
 from mido import Message
 from partitura.score import Part
 from partitura.performance import PerformedPart
 
-from misc.partitura_utils import performance_from_part
+from partitura.utils.music import performance_from_part
+# from accompanion.misc.partitura_utils import performance_from_part
 
 
 class Note(object):
@@ -351,9 +353,9 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     elif isinstance(fn_spart_or_ppart, (Part, PerformedPart)):
         part = fn_spart_or_ppart
 
-    s_note_array = part.note_array
+    s_note_array = part.note_array()
     if isinstance(part, Part):
-        p_note_array = performance_from_part(part, bpm).note_array
+        p_note_array = performance_from_part(part, bpm).note_array()
         time_signature_map = part.time_signature_map
     else:
         p_note_array = s_note_array

@@ -11,14 +11,17 @@ import numpy as np
 from basismixer.performance_codec import get_performance_codec
 from basismixer.utils import get_unique_onset_idxs, notewise_to_onsetwise
 
-from matchmaker.io.midi import POLLING_PERIOD, dummy_pipeline
-from matchmaker.io.symbolic import load_score, load_performance
-from matchmaker.evaluation.midi_score_following import midi_messages_to_framed_midi
+from partitura import load_score, load_performance
+from partitura.utils.music import performance_from_part
+
+# from matchmaker.io.symbolic import load_score, load_performance
+# from matchmaker.evaluation.midi_score_following import midi_messages_to_framed_midi
 
 from partitura.score import Part
 from partitura.performance import PerformedPart
 from scipy.interpolate import interp1d
-DECAY_VALUE = 1.
+
+DECAY_VALUE = 1.0
 
 PPART_FIELDS = [
     ("onset_sec", "f4"),
@@ -30,69 +33,52 @@ PPART_FIELDS = [
     ("id", "U256"),
 ]
 
-
-def performance_from_part(part, bpm=100, velocity=64):
-    """
-    TODO
-    ----
-    * allow for bpm to be a callable or an 2D array with columns (onset, bpm)
-    * allow for velocity to be a callable or a 2D array (onset, velocity)
-    """
-    if not isinstance(part, Part):
-        raise ValueError("The input `part` must be a "
-                         f"`partitura.score.Part` instance, not {type(part)}")
-
-    snote_array = part.note_array
-
-    pnote_array = np.zeros(len(snote_array), dtype=PPART_FIELDS)
-
-    unique_onsets = np.unique(snote_array['onset_beat'])
-    unique_onset_idxs = np.array([np.where(snote_array['onset_beat'] == u)[0]
-                                  for u in unique_onsets],
-                                 dtype=object)
-
-    iois = np.diff(unique_onsets)
-
-    bp = 60 / float(bpm)
-
-    # TODO: allow for variable bpm and velocity
-    pnote_array['duration_sec'] = bp * snote_array['duration_beat']
-    pnote_array['velocity'] = int(velocity)
-    pnote_array['pitch'] = snote_array['pitch']
-    pnote_array['id'] = snote_array['id']
-
-    # if isinstance(bpm, (float, int)):
-    #     bp = float(60 / bpm) * np.ones_like(iois)
-
-    # if isinstance(velocity, float, int):
-    #     velocity = int(velocity) * np.ones(len(iois), dtype=int)
-
-    p_onsets = np.r_[0, np.cumsum(iois * bp)]
-
-    for ix, on in zip(unique_onset_idxs, p_onsets):
-
-        pnote_array['onset_sec'][ix] = on
-
-    ppart = PerformedPart.from_note_array(pnote_array)
-
-    return ppart
+# Default polling period (in seconds)
+POLLING_PERIOD = 0.02
 
 
-def get_time_maps_from_alignment(ppart_or_note_array, spart_or_note_array,
-                                 alignment,
-                                 remove_ornaments=True):
+def dummy_pipeline(inputs):
+    return inputs
+
+
+def midi_messages_to_framed_midi(midi_msgs, msg_times, polling_period, pipeline):
+    n_frames = int(np.ceil(msg_times.max() / polling_period))
+    frame_times = (np.arange(n_frames) + 0.5) * polling_period
+
+    frames = []
+    for cursor in range(n_frames):
+
+        if cursor == 0:
+            # do not leave messages starting at 0 behind!
+            idxs = np.where(msg_times <= polling_period)[0]
+        else:
+            idxs = np.where(
+                np.logical_and(
+                    msg_times > cursor * polling_period,
+                    msg_times <= (cursor + 1) * polling_period,
+                )
+            )[0]
+
+        output = pipeline(
+            (list(zip(midi_msgs[idxs], msg_times[idxs])), frame_times[cursor])
+        )
+        frames.append(output)
+    return frames
+
+
+def get_time_maps_from_alignment(
+    ppart_or_note_array, spart_or_note_array, alignment, remove_ornaments=True
+):
 
     perf_note_array = partitura.utils.ensure_notearray(ppart_or_note_array)
     score_note_array = partitura.utils.ensure_notearray(spart_or_note_array)
 
-    match_idx = get_matched_notes(score_note_array,
-                                  perf_note_array,
-                                  alignment)
+    match_idx = get_matched_notes(score_note_array, perf_note_array, alignment)
 
-    score_onsets = score_note_array[match_idx[:, 0]]['onset_beat']
-    score_durations = score_note_array[match_idx[:, 0]]['duration_beat']
+    score_onsets = score_note_array[match_idx[:, 0]]["onset_beat"]
+    score_durations = score_note_array[match_idx[:, 0]]["duration_beat"]
 
-    perf_onsets = perf_note_array[match_idx[:, 1]]['onset_sec']
+    perf_onsets = perf_note_array[match_idx[:, 1]]["onset_sec"]
 
     score_unique_onsets = np.unique(score_onsets)
 
@@ -101,31 +87,33 @@ def get_time_maps_from_alignment(ppart_or_note_array, spart_or_note_array,
         # ornaments (grace notes) do not have a duration
         score_unique_onset_idxs = np.array(
             [
-                np.where(np.logical_and(score_onsets == u,
-                                        score_durations > 0))[0]
+                np.where(np.logical_and(score_onsets == u, score_durations > 0))[0]
                 for u in score_unique_onsets
             ],
-            dtype=object
+            dtype=object,
         )
 
     else:
         score_unique_onset_idxs = np.array(
-            [np.where(score_onsets == u)[0] for u in score_unique_onsets],
-            dtype=object)
+            [np.where(score_onsets == u)[0] for u in score_unique_onsets], dtype=object
+        )
 
-    eq_perf_onsets = np.array([np.mean(perf_onsets[u])
-                               for u in score_unique_onset_idxs])
+    eq_perf_onsets = np.array(
+        [np.mean(perf_onsets[u]) for u in score_unique_onset_idxs]
+    )
 
     ptime_to_stime_map = interp1d(
         x=eq_perf_onsets,
         y=score_unique_onsets,
         bounds_error=False,
-        fill_value='extrapolate')
+        fill_value="extrapolate",
+    )
     stime_to_ptime_map = interp1d(
         y=eq_perf_onsets,
         x=score_unique_onsets,
         bounds_error=False,
-        fill_value='extrapolate')
+        fill_value="extrapolate",
+    )
 
     return ptime_to_stime_map, stime_to_ptime_map
 
@@ -146,18 +134,17 @@ def get_matched_notes(spart_note_array, ppart_note_array, gt_alignment):
     matched_idxs = []
     for al in gt_alignment:
         # Get only matched notes (i.e., ignore inserted or deleted notes)
-        if al['label'] == 'match':
+        if al["label"] == "match":
 
             # if ppart_note_array['id'].dtype != type(al['performance_id']):
-            if not isinstance(ppart_note_array['id'], type(al['performance_id'])):
-                p_id = str(al['performance_id'])
+            if not isinstance(ppart_note_array["id"], type(al["performance_id"])):
+                p_id = str(al["performance_id"])
             else:
-                p_id = al['performance_id']
+                p_id = al["performance_id"]
 
-            p_idx = int(np.where(
-                ppart_note_array['id'] == p_id)[0])
+            p_idx = int(np.where(ppart_note_array["id"] == p_id)[0])
 
-            s_idx = np.where(spart_note_array['id'] == al['score_id'])[0]
+            s_idx = np.where(spart_note_array["id"] == al["score_id"])[0]
 
             if len(s_idx) > 0:
                 s_idx = int(s_idx)
@@ -166,17 +153,20 @@ def get_matched_notes(spart_note_array, ppart_note_array, gt_alignment):
     return np.array(matched_idxs)
 
 
-def partitura_to_framed_midi_custom(part_or_notearray_or_filename,
-                                    polling_period=POLLING_PERIOD,
-                                    pipeline=dummy_pipeline,
-                                    is_performance=False,
-                                    tempo_curve=None,
-                                    score_bpm=100,
-                                    return_reference=False):
+def partitura_to_framed_midi_custom(
+    part_or_notearray_or_filename,
+    polling_period=POLLING_PERIOD,
+    pipeline=dummy_pipeline,
+    is_performance=False,
+    tempo_curve=None,
+    score_bpm=100,
+    return_reference=False,
+):
     # Allow for loading all valid representations in partitura
-    if isinstance(part_or_notearray_or_filename,
-                  (partitura.score.Part,
-                   partitura.performance.PerformedPart)):
+    if isinstance(
+        part_or_notearray_or_filename,
+        (partitura.score.Part, partitura.performance.PerformedPart),
+    ):
         reference = part_or_notearray_or_filename
     elif isinstance(part_or_notearray_or_filename, np.ndarray):
         # ensure that note array is a structured note array
@@ -203,8 +193,13 @@ def partitura_to_framed_midi_custom(part_or_notearray_or_filename,
         unique_onsets = np.unique(ref_notearray[onset_u])
         if tempo_curve is None:
             default_bp = 60 / score_bpm
-            tempo_curve = interp1d(unique_onsets, [default_bp]*len(unique_onsets), bounds_error=False,
-                                   kind='previous', fill_value=(default_bp, default_bp))
+            tempo_curve = interp1d(
+                unique_onsets,
+                [default_bp] * len(unique_onsets),
+                bounds_error=False,
+                kind="previous",
+                fill_value=(default_bp, default_bp),
+            )
 
         # compute note_ons with respect to the given tempo curve
         bp = tempo_curve(unique_onsets).astype(np.float32)
@@ -212,35 +207,38 @@ def partitura_to_framed_midi_custom(part_or_notearray_or_filename,
         iois = np.diff(unique_onsets) * bp[:-1]
         unique_note_ons = np.r_[0, np.cumsum(iois)]
 
-        onset_to_note_on_map = interp1d(unique_onsets, unique_note_ons,
-                                        bounds_error='extrapolate')
+        onset_to_note_on_map = interp1d(
+            unique_onsets, unique_note_ons, bounds_error="extrapolate"
+        )
         note_ons = onset_to_note_on_map(ref_notearray[onset_u])
-        note_offs = note_ons + ref_notearray[duration_u] * tempo_curve(ref_notearray[onset_u]).astype(np.float32)
+        note_offs = note_ons + ref_notearray[duration_u] * tempo_curve(
+            ref_notearray[onset_u]
+        ).astype(np.float32)
 
     midi_messages = []
     message_times = []
 
     onsets = {}
     for i, (non, noff, pitch) in enumerate(
-            zip(note_ons, note_offs, ref_notearray['pitch'])):
+        zip(note_ons, note_offs, ref_notearray["pitch"])
+    ):
 
         if is_performance:
-            velocity = ref_notearray[i]['velocity']
+            velocity = ref_notearray[i]["velocity"]
         else:
             velocity = 64
-        note_on = mido.Message('note_on', note=pitch, velocity=velocity)
-        note_off = mido.Message('note_off', note=pitch, velocity=velocity)
+        note_on = mido.Message("note_on", note=pitch, velocity=velocity)
+        note_off = mido.Message("note_off", note=pitch, velocity=velocity)
 
         midi_messages += [note_on, note_off]
         message_times += [non, noff]
 
-        frame = int(non/polling_period)
+        frame = int(non / polling_period)
 
         if frame not in onsets:
             onsets[frame] = []
 
-        onsets[frame].append(pitch-21)
-
+        onsets[frame].append(pitch - 21)
 
     # TODO: Add controls messages for performed parts
     if isinstance(reference, partitura.performance.PerformedPart):
@@ -254,19 +252,25 @@ def partitura_to_framed_midi_custom(part_or_notearray_or_filename,
     midi_messages = midi_messages[sort_idx]
     message_times = message_times[sort_idx]
 
-    frames = midi_messages_to_framed_midi(midi_messages, message_times,
-                                          polling_period, pipeline)
+    frames = midi_messages_to_framed_midi(
+        midi_messages, message_times, polling_period, pipeline
+    )
     frames = decay_midi(np.asarray(frames).T, onsets).T
     # frame_times = np.arange(len(frames)) * polling_period
     ref_times = np.linspace(min_ref_time, max_ref_time, len(frames))
-    state_to_ref_time_map = interp1d(np.arange(len(frames)), ref_times,
-                                     bounds_error=False,
-                                     fill_value=(min_ref_time, max_ref_time))
+    state_to_ref_time_map = interp1d(
+        np.arange(len(frames)),
+        ref_times,
+        bounds_error=False,
+        fill_value=(min_ref_time, max_ref_time),
+    )
 
-
-    ref_time_to_state_map = interp1d(ref_times, np.arange(len(frames)),
-                                     bounds_error=False,
-                                     fill_value=(0, len(frames)))
+    ref_time_to_state_map = interp1d(
+        ref_times,
+        np.arange(len(frames)),
+        bounds_error=False,
+        fill_value=(0, len(frames)),
+    )
 
     if hasattr(pipeline, "reset"):
         # Reset pipeline (avoid carrying internal states for processing the
@@ -276,7 +280,7 @@ def partitura_to_framed_midi_custom(part_or_notearray_or_filename,
     output = (frames, note_ons, state_to_ref_time_map, ref_time_to_state_map)
 
     if return_reference:
-        output += (reference, )
+        output += (reference,)
 
     return output
 
@@ -290,7 +294,7 @@ def decay_midi(frames, onsets):
         if i in onsets:
 
             for o in onsets[i]:
-                decay[o] = 1.
+                decay[o] = 1.0
 
         frames[:, i] *= decay
     return frames
@@ -312,43 +316,37 @@ def match2tempo(match_path):
     """
 
     ppart, alignment, part = partitura.load_match(match_path, create_part=True)
-    all_targets = list(set(['beat_period']))
+    all_targets = list(set(["beat_period"]))
     perf_codec = get_performance_codec(all_targets)
     ppart.sustain_pedal_threshold = 128
-    targets, snote_ids, ux = perf_codec.encode(part, ppart, alignment, return_u_onset_idx=True)
+    targets, snote_ids, ux = perf_codec.encode(
+        part, ppart, alignment, return_u_onset_idx=True
+    )
 
     nid_dict = dict((n.id, i) for i, n in enumerate(part.notes_tied))
     matched_subset_idxs = np.array([nid_dict[nid] for nid in snote_ids])
 
-    score_onsets = part.note_array[matched_subset_idxs]['onset_beat']  # changed from onset_beat
-    unique_onset_idxs, uni = get_unique_onset_idxs(score_onsets, return_unique_onsets=True)
+    score_onsets = part.note_array[matched_subset_idxs][
+        "onset_beat"
+    ]  # changed from onset_beat
+    unique_onset_idxs, uni = get_unique_onset_idxs(
+        score_onsets, return_unique_onsets=True
+    )
 
-    tmp_crv = notewise_to_onsetwise(np.array([targets["beat_period"]]).T, unique_onset_idxs)[:, 0]
+    tmp_crv = notewise_to_onsetwise(
+        np.array([targets["beat_period"]]).T, unique_onset_idxs
+    )[:, 0]
 
-    tempo_curve = interp1d(uni, tmp_crv, bounds_error=False, kind='previous', fill_value=(tmp_crv[0], tmp_crv[-1]))
+    tempo_curve = interp1d(
+        uni,
+        tmp_crv,
+        bounds_error=False,
+        kind="previous",
+        fill_value=(tmp_crv[0], tmp_crv[-1]),
+    )
 
     return tempo_curve
 
-def quarter_to_beat(note_duration, beat_type):
-    factor = beat_type / 4.0
-    return note_duration * factor
-
-
-def beat_to_quarter(note_duration, beat_type):
-    factor = beat_type / 4.0
-    return note_duration / factor
-
-
-def get_beat_conversion(note_duration, beat_type):
-
-    from partitura.utils.music import DOT_MULTIPLIERS, LABEL_DURS
-    dots = note_duration.count(".")
-    unit = note_duration.strip().rstrip(".")
-    duration_quarters = float(DOT_MULTIPLIERS[dots] * LABEL_DURS[unit])
-
-    return quarter_to_beat(duration_quarters, beat_type)
-
-
 
 def quarter_to_beat(note_duration, beat_type):
     factor = beat_type / 4.0
@@ -363,6 +361,7 @@ def beat_to_quarter(note_duration, beat_type):
 def get_beat_conversion(note_duration, beat_type):
 
     from partitura.utils.music import DOT_MULTIPLIERS, LABEL_DURS
+
     dots = note_duration.count(".")
     unit = note_duration.strip().rstrip(".")
     duration_quarters = float(DOT_MULTIPLIERS[dots] * LABEL_DURS[unit])
@@ -370,12 +369,33 @@ def get_beat_conversion(note_duration, beat_type):
     return quarter_to_beat(duration_quarters, beat_type)
 
 
-if __name__ == '__main__':
+def quarter_to_beat(note_duration, beat_type):
+    factor = beat_type / 4.0
+    return note_duration * factor
 
-    fn = '../demo_data/twinkle_twinkle_little_star_score.musicxml'
+
+def beat_to_quarter(note_duration, beat_type):
+    factor = beat_type / 4.0
+    return note_duration / factor
+
+
+def get_beat_conversion(note_duration, beat_type):
+
+    from partitura.utils.music import DOT_MULTIPLIERS, LABEL_DURS
+
+    dots = note_duration.count(".")
+    unit = note_duration.strip().rstrip(".")
+    duration_quarters = float(DOT_MULTIPLIERS[dots] * LABEL_DURS[unit])
+
+    return quarter_to_beat(duration_quarters, beat_type)
+
+
+if __name__ == "__main__":
+
+    fn = "../demo_data/twinkle_twinkle_little_star_score.musicxml"
 
     spart = partitura.load_musicxml(fn)
 
     ppart = performance_from_part(spart)
 
-    partitura.save_performance_midi(ppart, '../demo_data/test_pfp.mid')
+    partitura.save_performance_midi(ppart, "../demo_data/test_pfp.mid")
