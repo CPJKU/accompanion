@@ -11,7 +11,6 @@ from partitura.score import Part
 from partitura.performance import PerformedPart
 
 from partitura.utils.music import performance_from_part
-# from accompanion.misc.partitura_utils import performance_from_part
 
 
 class Note(object):
@@ -19,8 +18,17 @@ class Note(object):
     Class for representing notes
     """
 
-    def __init__(self, pitch, onset, duration, p_onset=None,
-                 p_duration=None, velocity=64, id=None, channel=0):
+    def __init__(
+        self,
+        pitch,
+        onset,
+        duration,
+        p_onset=None,
+        p_duration=None,
+        velocity=64,
+        id=None,
+        channel=0,
+    ):
 
         self.pitch = pitch
         self.onset = onset
@@ -31,18 +39,20 @@ class Note(object):
         self.already_performed = False
         self.velocity = velocity
         self._note_on = Message(
-            type='note_on',
+            type="note_on",
             velocity=self.velocity,
             note=self.pitch,
             time=self.p_onset if self.p_onset is not None else 0,
-            channel=channel)
+            channel=channel,
+        )
 
         self._note_off = Message(
-            type='note_off',
+            type="note_off",
             velocity=0,  # self.velocity,
             note=self.pitch,
             time=self.p_offset,
-            channel=channel)
+            channel=channel,
+        )
 
     def __string__(self):
         out_string = f"Note({self.pitch}, {self.onset}, {self.p_onset})"
@@ -163,8 +173,12 @@ class Chord(object):
 
 
 class Score(object):
-
-    def __init__(self, notes, time_signature_map=None, access_mode='indexwise'):
+    def __init__(
+        self,
+        notes,
+        time_signature_map=None,
+        access_mode="indexwise",
+    ):
 
         # TODO: Seconday sort by pitch
         self.notes = np.array(sorted(notes, key=lambda x: x.pitch))
@@ -180,16 +194,15 @@ class Score(object):
         self.max_onset = self.unique_onsets[-1]
 
         # indices of the notes belonging to each
-        self.unique_onset_idxs = [np.where(onsets == u)
-                                  for u in self.unique_onsets]
+        self.unique_onset_idxs = [np.where(onsets == u) for u in self.unique_onsets]
 
         self.chords = np.array(
-            [Chord(self.notes[ui])
-             for ui in self.unique_onset_idxs],
-            dtype=object)
+            [Chord(self.notes[ui]) for ui in self.unique_onset_idxs], dtype=object
+        )
 
         self.chord_dict = dict(
-            [(u, c) for u, c in zip(self.unique_onsets, self.chords)])
+            [(u, c) for u, c in zip(self.unique_onsets, self.chords)]
+        )
 
     @property
     def access_mode(self):
@@ -197,9 +210,11 @@ class Score(object):
 
     @access_mode.setter
     def access_mode(self, access_mode):
-        if access_mode not in ('indexwise', 'timewise'):
-            raise ValueError('`access_mode` should be "indexwise" or "timewise". '
-                             'Given {0}'.format(access_mode))
+        if access_mode not in ("indexwise", "timewise"):
+            raise ValueError(
+                '`access_mode` should be "indexwise" or "timewise". '
+                "Given {0}".format(access_mode)
+            )
         self._access_mode = access_mode
 
         if self._access_mode == "indexwise":
@@ -227,42 +242,45 @@ class Score(object):
         note_array = np.zeros(
             len(self.notes),
             dtype=[
-                ('pitch', 'i4'),
-                ('onset_sec', 'f4'),
-                ('duration_sec', 'f4'),
-                ('velocity', 'i4')
-            ]
+                ("pitch", "i4"),
+                ("onset_sec", "f4"),
+                ("duration_sec", "f4"),
+                ("velocity", "i4"),
+            ],
         )
 
         for i, note in enumerate(self.notes):
 
-            note_array['pitch'][i] = note.pitch
-            note_array['onset_sec'][i] = note.p_onset
-            note_array['duration_sec'][i] = note.p_duration
-            note_array['velocity'][i] = note.velocity
+            note_array["pitch"][i] = note.pitch
+            note_array["onset_sec"][i] = note.p_onset
+            note_array["duration_sec"][i] = note.p_duration
+            note_array["velocity"][i] = note.velocity
 
         ppart = partitura.performance.PerformedPart.from_note_array(note_array)
 
-        partitura.save_performance_midi(ppart,
-                                        out_fn)
+        partitura.save_performance_midi(ppart, out_fn)
 
 
 class AccompanimentScore(Score):
-
-    def __init__(self, notes, solo_score,
-                 mode='iter_solo',
-                 velocity_trend=None,
-                 velocity_dev=None,
-                 log_bpr=None,
-                 timing=None,
-                 log_articulation=None):
+    def __init__(
+        self,
+        notes,
+        solo_score,
+        mode="iter_solo",
+        velocity_trend=None,
+        velocity_dev=None,
+        log_bpr=None,
+        timing=None,
+        log_articulation=None,
+    ):
 
         assert isinstance(solo_score, Score)
-        
+
         super().__init__(
             notes=notes,
             time_signature_map=solo_score.time_signature_map,
-            access_mode='indexwise')
+            access_mode="indexwise",
+        )
 
         self.ssc = solo_score
 
@@ -313,18 +331,16 @@ class AccompanimentScore(Score):
                 # This information seems to be redundant...
                 # self.next_onsets[on] = (self.chords[acc_idx:], next_iois)
 
-                self.solo_score_dict[on] = (self.chords[acc_idx:],
-                                            next_iois,
-                                            next_acc_onsets,
-                                            acc_idx,
-                                            i)
+                self.solo_score_dict[on] = (
+                    self.chords[acc_idx:],
+                    next_iois,
+                    next_acc_onsets,
+                    acc_idx,
+                    i,
+                )
             else:
                 # self.next_onsets[on] = (None, None)
-                self.solo_score_dict[on] = (None,
-                                            None,
-                                            None,
-                                            None,
-                                            i)
+                self.solo_score_dict[on] = (None, None, None, None, i)
 
 
 def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
@@ -363,17 +379,18 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
 
     notes = []
     for sn, pn in zip(s_note_array, p_note_array):
-        note = Note(pitch=sn['pitch'],
-                    onset=sn['onset_beat'],
-                    duration=sn['duration_beat'],
-                    p_onset=pn['onset_sec'],
-                    p_duration=pn['duration_sec'],
-                    velocity=pn['velocity'],
-                    id=sn['id'])
+        note = Note(
+            pitch=sn["pitch"],
+            onset=sn["onset_beat"],
+            duration=sn["duration_beat"],
+            p_onset=pn["onset_sec"],
+            p_duration=pn["duration_sec"],
+            velocity=pn["velocity"],
+            id=sn["id"],
+        )
         notes.append(note)
 
-    score = Score(notes,
-                  time_signature_map=time_signature_map)
+    score = Score(notes, time_signature_map=time_signature_map)
 
     return score
 
@@ -404,24 +421,24 @@ def alignment_to_score(fn_or_spart, ppart, alignment):
     elif isinstance(fn_or_spart, Part):
         part = fn_or_spart
     else:
-        raise ValueError("`fn_or_spart` must be a `Part` or a filename, "
-                         f"but is {type(part)}.")
+        raise ValueError(
+            "`fn_or_spart` must be a `Part` or a filename, " f"but is {type(part)}."
+        )
 
     if not isinstance(ppart, PerformedPart):
-        raise ValueError("`ppart` must be a `PerformedPart`, but is ",
-                         f"{type(ppart)}.")
-    # s_note_array = part.note_array
-    # pnote_array = ppart.note_array
+        raise ValueError(
+            "`ppart` must be a `PerformedPart`, but is ", f"{type(ppart)}."
+        )
 
     part_by_id = dict((n.id, n) for n in part.notes_tied)
 
-    ppart_by_id = dict((n['id'], n) for n in ppart.notes)
+    ppart_by_id = dict((n["id"], n) for n in ppart.notes)
 
-    note_pairs = [(part_by_id[a['score_id']],
-                   ppart_by_id[a['performance_id']])
-                  for a in alignment if (a['label'] == 'match' and
-                                         a['score_id'] in part_by_id)]
-    bm = part.beat_map
+    note_pairs = [
+        (part_by_id[a["score_id"]], ppart_by_id[a["performance_id"]])
+        for a in alignment
+        if (a["label"] == "match" and a["score_id"] in part_by_id)
+    ]
 
     notes = []
     pitch_onset = [(sn.midi_pitch, sn.start.t) for sn, _ in note_pairs]
@@ -432,14 +449,15 @@ def alignment_to_score(fn_or_spart, ppart, alignment):
         sn_on, sn_off = beat_map([sn.start.t, sn.start.t + sn.duration_tied])
         sn_dur = sn_off - sn_on
         # hack for notes with negative durations
-        n_dur = max(n['sound_off'] - n['note_on'], 60 / 200 * 0.25)
+        n_dur = max(n["sound_off"] - n["note_on"], 60 / 200 * 0.25)
         note = Note(
             pitch=sn.midi_pitch,
             onset=sn_on,
             duration=sn_dur,
             p_onset=n["note_on"],
             p_duration=n_dur,
-            id=sn.id)
+            id=sn.id,
+        )
         notes.append(note)
 
     score = Score(notes, time_signature_map=part.time_signature_map)
@@ -447,10 +465,11 @@ def alignment_to_score(fn_or_spart, ppart, alignment):
     return score
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import partitura
-    fn = '../demo_data/twinkle_twinkle_little_star_score.musicxml'
+
+    fn = "../demo_data/twinkle_twinkle_little_star_score.musicxml"
 
     spart = partitura.load_musicxml(fn)
 

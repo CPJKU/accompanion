@@ -1,0 +1,228 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import multiprocessing
+import platform
+import os
+
+import accompanion.accompanist.tempo_models as tempo_models
+from accompanion.accompanist import ACCompanion
+
+PLATFORM = platform.system()
+
+if PLATFORM == "Linux":
+    MIDI_DRIVER = "alsa"
+elif PLATFORM == "Darwin":
+    MIDI_DRIVER = "coreaudio"
+elif PLATFORM == "Windows":
+    print("Experimental Windows support")
+    MIDI_DRIVER = None
+
+if PLATFORM != "Windows":
+    from accompanion.accompanist.fluid import FluidsynthPlayer
+else:
+    from accompanion.accompanist.fluid import (
+        FluidsynthPlayerWindows as FluidsynthPlayer,
+    )
+
+
+if __name__ == "__main__":
+
+    import argparse
+    import glob
+
+    if PLATFORM == "Darwin" or PLATFORM == "Linux":
+        multiprocessing.set_start_method("spawn")
+
+    file_dir = os.path.dirname(os.path.abspath(__file__))
+    rel_path_from_CWD = os.path.relpath(file_dir, os.curdir)
+
+    piece = "brahms"
+
+    if piece == "brahms":
+        brahms_dir = os.path.join(
+            rel_path_from_CWD, "..", "sample_pieces", "brahms_data"
+        )
+        acc_fn = os.path.join(
+            brahms_dir, "musicxml", "Brahms_Hungarian-Dance-5_Secondo.musicxml"
+        )
+        solo_fn = glob.glob(os.path.join(brahms_dir, "match", "cc_solo", "*.match"))[
+            -5:
+        ]
+        midi_fn = os.path.join(
+            brahms_dir,
+            "midi",
+            "cc_solo",
+            "Brahms_Hungarian-Dance-5_Primo_2021-07-29_w_tapping.mid",
+        )
+        accompaniment_match = os.path.join(
+            brahms_dir, "basismixer", "bm_brahms_2021-08-30.match"
+        )
+
+        tempo_tapping = (4, "quarter")
+        init_bpm = 120
+
+        tempo_model = tempo_models.LTESM
+
+    parser = argparse.ArgumentParser("ACCompanion")
+
+    # TODO: Using all 15 performances makes the following
+    # too slow (we have to call the follower 15 times).
+    # Unless we find a way to paralellize multiple followers
+    # We need to check what is the "ideal" number, and which
+    # performances would work better.
+    parser.add_argument(
+        "--solo-fn",
+        help=("Score containing the solo or list of matchfiles"),
+        nargs="+",
+        default=solo_fn,
+    )
+
+    parser.add_argument("--acc-fn", help=("Accompaniment score"), default=acc_fn,)
+
+    parser.add_argument("--init-bpm", type=float, default=init_bpm,)
+
+    parser.add_argument("--polling-period", type=float, default=0.01,)
+
+    parser.add_argument("--midi-fn", default=midi_fn,)
+
+    parser.add_argument("--follower", default="OnlineTimeWarping",)
+
+    parser.add_argument("--live", default=False, action="store_true",)
+
+    parser.add_argument("--accompaniment-match", default=accompaniment_match,)
+
+    parser.add_argument(
+        "--bypass_audio",
+        default=False,
+        help="bypass fluidsynth audio",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--use_mediator", default=False, help="use ceus mediator", action="store_true",
+    )
+
+    args = parser.parse_args()
+
+    """
+    pass a port name or substring of a port name to the MIDI router to set up the ports
+    use  mido.get_output_names() to get an idea of the names
+    if a midi player is used the fourth port needs to loop back to the first
+
+    pass a FluidSynthplayer  instance instead of a midi port name to the sound outputs to use fludisynth
+    """
+
+    # if audio is bypassed the mediator should be turned on as all
+    # MIDI messages are sent to the same port maybe we can fix this by using
+    # different ports for solo and accompaniment
+    assert not args.bypass_audio or args.bypass_audio and args.use_mediator
+
+    if PLATFORM in ("Darwin", "Linux") and not args.live:
+        # Default for Carlos' Macbook ;)
+
+        router_kwargs = dict(
+            solo_input_to_accompaniment_port_name=0,
+            acc_output_to_sound_port_name="IAC Driver Web Midi"
+            if args.bypass_audio
+            else FluidsynthPlayer,
+            MIDIPlayer_to_sound_port_name="IAC Driver Web Midi"
+            if args.bypass_audio
+            else FluidsynthPlayer,
+            MIDIPlayer_to_accompaniment_port_name=0,
+            simple_button_input_port_name=None,
+        )
+
+    else:
+        import mido
+
+        args.midi_fn = None
+
+        # TODO: check if the ports are the same in Linux and Windows
+        live_instrument_ports = (
+            "USB-MIDI",  # Essex in Oslo
+            "Clavinova",  # Clavinova at WU
+            "Silent Piano",  # Yamaha GB1 in Vienna
+            "M-Audio MIDISPORT Uno",  # MIDI Interface
+            "Scarlett 18i8 USB",  # Focusrite 18i8
+            "Babyface (23665044) Port 1",
+            "Babyface (23664861) Port 1",
+            "Disklavier",
+        )
+
+        available_input_ports = mido.get_input_names()
+        print(available_input_ports)
+        port_intersection = set(available_input_ports).intersection(
+            live_instrument_ports
+        )
+        if len(port_intersection) > 0:
+            # Assume that there is only one live instrument
+            instrument_port = list(port_intersection)[0]
+
+        router_kwargs = dict(
+            solo_input_to_accompaniment_port_name=instrument_port,
+            acc_output_to_sound_port_name=instrument_port,
+            MIDIPlayer_to_sound_port_name=None,
+            MIDIPlayer_to_accompaniment_port_name=None,
+            simple_button_input_port_name=None,
+        )
+    """
+    example router for connection drom MIDI file player on port 0 and fluidsynth audio out
+
+    fluidsynth = FluidsynthPlayer()
+
+    midi_router = MidiRouter(
+        solo_input_to_accompaniment_port_name = 0,
+        acc_output_to_sound_port_name = fluidsynth,
+        MIDIPlayer_to_sound_port_name = fluidsynth,
+        MIDIPlayer_to_accompaniment_port_name = 0,
+        simple_button_input_port_name = "your_controller_name",
+    )
+
+    example router windows
+
+    midi_router = MidiRouter(
+        solo_input_to_accompaniment_port_name = "acc_loopback",
+        acc_output_to_sound_port_name = "cuit",
+        MIDIPlayer_to_sound_port_name = "cuit",
+        MIDIPlayer_to_accompaniment_port_name = "acc_loopback",
+        simple_button_input_port_name = "MPK",
+    )
+
+
+    example router IAC with two ports "Bus" and "muse"
+    midi_router = MidiRouter(
+        solo_input_to_accompaniment_port_name = "Bus",
+        acc_output_to_sound_port_name = "muse",
+        MIDIPlayer_to_sound_port_name = "muse",
+        MIDIPlayer_to_accompaniment_port_name = "Bus",
+        simple_button_input_port_name = "your_controller_name",
+    )
+    """
+
+    accompanion = ACCompanion(
+        solo_fn=args.solo_fn,
+        acc_fn=args.acc_fn,
+        router_kwargs=router_kwargs,
+        tempo_model=tempo_model,
+        midi_fn=args.midi_fn,
+        init_bpm=args.init_bpm,
+        polling_period=args.polling_period,
+        follower=args.follower,
+        follower_kwargs={"window_size": 100, "step_size": 10},
+        ground_truth_match=None,
+        accompaniment_match=args.accompaniment_match,
+        use_ceus_mediator=args.use_mediator,
+        tempo_tapping=tempo_tapping,
+        adjust_following_rate=0.2,
+        tap_tempo=False,
+        bypass_audio=args.bypass_audio,
+    )
+
+    try:
+        accompanion.start()
+    except KeyboardInterrupt:
+        print("stop_playing")
+        accompanion.stop_playing()
+        accompanion.seq.panic_button()
+    finally:
+        accompanion.join()
