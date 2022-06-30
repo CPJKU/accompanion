@@ -2,8 +2,6 @@
 
 The ACCompanion is an expressive accompaniment system.
 
-**For now it just has some of the relevant files from the previous version on OFAI's GitLab, and won't work**
-
 # Setup
 
 TBD
