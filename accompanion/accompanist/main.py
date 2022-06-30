@@ -19,7 +19,7 @@ from accompanion.accompanist.MIDI_sequencing_threads import ScoreSequencer
 from accompanion.accompanist.MIDI_routing import MidiRouter
 
 from accompanion.mtchmkr.features_midi import PianoRollProcessor
-from accompanion.mtchmkr.alignment_online_oltw_custom import (
+from accompanion.mtchmkr.alignment_online_oltw import (
     OnlineTimeWarping,
 )
 
@@ -64,8 +64,6 @@ PLATFORM = platform.system()
 if PLATFORM not in ("Darwin", "Linux", "Windows"):
     warnings.warn(f"{PLATFORM} is not supported!")
 
-# Use input process for Carlos' Macbook ;)
-# USE_THREADS = False if PLATFORM == "Darwin" else True
 USE_THREADS = True
 
 if PLATFORM == "Linux":
