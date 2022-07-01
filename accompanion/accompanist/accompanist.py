@@ -2,10 +2,8 @@
 ACCompanion!
 """
 import multiprocessing
-import platform
 import threading
 import time
-import warnings
 
 
 import numpy as np
@@ -51,31 +49,12 @@ from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.score_follower.note_tracker import NoteTracker
 from accompanion.score_follower.onset_tracker import OnsetTracker
 from accompanion.score_follower.trackers import DummyMultiDTWTracker
+from accompanion.midi_handler.fluid import FluidsynthPlayer
 
 
 ACC_PROCESS = True
 ACC_PARENT = multiprocessing.Process if ACC_PROCESS else threading.Thread
 USE_THREADS = True
-
-# PLATFORM = platform.system()
-
-# if PLATFORM not in ("Darwin", "Linux", "Windows"):
-#     warnings.warn(f"{PLATFORM} is not supported!")
-
-# if PLATFORM == "Linux":
-#     MIDI_DRIVER = "alsa"
-# elif PLATFORM == "Darwin":
-#     MIDI_DRIVER = "coreaudio"
-# elif PLATFORM == "Windows":
-#     print("Experimental Windows support")
-#     MIDI_DRIVER = None
-
-# if PLATFORM != "Windows":
-#     from accompanion.midi_handler.fluid import FluidsynthPlayer
-# else:
-#     from accompanion.midi_handler.fluid import (
-#         FluidsynthPlayerWindows as FluidsynthPlayer,
-#     )
 
 
 class ACCompanion(ACC_PARENT):

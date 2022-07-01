@@ -10,23 +10,6 @@ from accompanion.midi_handler.fluid import FluidsynthPlayer
 
 from accompanion import PLATFORM
 
-# PLATFORM = platform.system()
-
-# if PLATFORM == "Linux":
-#     MIDI_DRIVER = "alsa"
-# elif PLATFORM == "Darwin":
-#     MIDI_DRIVER = "coreaudio"
-# elif PLATFORM == "Windows":
-#     print("Experimental Windows support")
-#     MIDI_DRIVER = None
-
-# if PLATFORM != "Windows":
-#     from accompanion.accompanist.fluid import FluidsynthPlayer
-# else:
-#     from accompanion.accompanist.fluid import (
-#         FluidsynthPlayerWindows as FluidsynthPlayer,
-#     )
-
 
 if __name__ == "__main__":
 
