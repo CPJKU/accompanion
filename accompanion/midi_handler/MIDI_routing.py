@@ -7,39 +7,8 @@ be updated without requiring to re-install matchmaker
 
 import mido
 
-# platform checking
-import platform
-import warnings
+from accompanion.midi_handler.fluid import FluidsynthPlayer
 
-PLATFORM = platform.system()
-
-if PLATFORM not in ("Darwin", "Linux", "Windows"):
-    warnings.warn(f"{PLATFORM} is not supported!")
-
-if PLATFORM == "Linux":
-    MIDI_DRIVER = "alsa"
-elif PLATFORM == "Darwin":
-    MIDI_DRIVER = "coreaudio"
-elif PLATFORM == "Windows":
-    print("Experimental Windows support")
-    MIDI_DRIVER = None
-    # raise ValueError("Windows is not supported yet...")
-
-
-if PLATFORM != "Windows":
-    from accompanion.accompanist.fluid import FluidsynthPlayer
-else:
-    from accompanion.accompanist.fluid import FluidsynthPlayerWindows as FluidsynthPlayer
-    # unfortunately, this import breaks if fluidsynth is not installed
-    # class FluidsynthPlayer(object):
-    #     def __init__(self):
-    #         self.name = "FluidsynthPlayer dummy"
-
-    #     def send(self, message):
-    #         warnings.warn(
-    #             f"Fluidsynth Player is currently not supported under "
-    #             "windows, use a MIDI output port!"
-    #         )   
 
 class MidiRouter(object):
     def __init__(
@@ -146,28 +115,18 @@ class MidiRouter(object):
         elif isinstance(try_name, int):
             if input:
                 try:
-                    possible_name = (
-                        try_name,
-                        self.available_input_ports[try_name]
-                    )
+                    possible_name = (try_name, self.available_input_ports[try_name])
                     self.input_port_names[possible_name[1]] = None
                     return possible_name
                 except ValueError:
-                    raise ValueError(
-                        f"no input port found for index: {try_name}"
-                        )
+                    raise ValueError(f"no input port found for index: {try_name}")
             else:
                 try:
-                    possible_name = (
-                        try_name,
-                        self.available_output_ports[try_name]
-                    )
+                    possible_name = (try_name, self.available_output_ports[try_name])
                     self.output_port_names[possible_name[1]] = None
                     return possible_name
                 except ValueError:
-                    raise ValueError(
-                        f"no output port found for index: {try_name}"
-                    )
+                    raise ValueError(f"no output port found for index: {try_name}")
 
         elif isinstance(try_name, FluidsynthPlayer):
             return try_name
@@ -219,8 +178,7 @@ class MidiRouter(object):
         ):
             # if isinstance(self.MIDIPlayer_to_sound_port, FluidsynthPlayer):
             return DummyMultiPort(
-                self.MIDIPlayer_to_accompaniment_port,
-                self.MIDIPlayer_to_sound_port
+                self.MIDIPlayer_to_accompaniment_port, self.MIDIPlayer_to_sound_port
             )
             # else:
             #     return mido.MultiPort([self.MIDIPlayer_to_sound_port, self.MIDIPlayer_to_accompaniment_port])
@@ -240,6 +198,7 @@ class DummyMultiPort(object):
     def send(self, msg):
         self.midi_port.send(msg)
         self.fluid_port.send(msg)
+
 
 class DummyPort(object):
     def __init__(self, *args, **kwargs):

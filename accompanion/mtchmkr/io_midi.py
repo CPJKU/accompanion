@@ -5,9 +5,11 @@ real time. This is a copy from matchmaker/io/midi.py, so that it can
 be updated without requiring to re-install matchmaker
 """
 import multiprocessing
-import platform
+
+# import platform
 # import sys
 import time
+
 # import threading
 import warnings
 
@@ -15,14 +17,15 @@ from multiprocessing import Pipe
 
 import mido
 import rtmidi
+
 # import madmom
 
 from mido import Message
 from rtmidi.midiutil import open_midiinput, open_midioutput
 from rtmidi.midiutil import get_api_from_environment
 
-# For checking OS
-PLATFORM = platform.system()
+from accompanion import PLATFORM
+
 
 BACKEND = "mido"
 if PLATFORM == "Windows":
@@ -43,7 +46,7 @@ def ensure_port_info(port_id):
         port_idx = port_id
 
         if port_idx not in list(range(len(port_names))):
-            raise ValueError(f'Port index {port_idx} not available')
+            raise ValueError(f"Port index {port_idx} not available")
 
         port_name = port_names[port_idx]
 
@@ -72,13 +75,12 @@ def get_port_names(backend=BACKEND):
     """
 
     if backend not in ("rtmidi", "mido"):
-        raise ValueError("`backend` must be in {'rtmidi', 'mido'} "
-                         f"but given {backend}")
+        raise ValueError(
+            "`backend` must be in {'rtmidi', 'mido'} " f"but given {backend}"
+        )
 
     if backend == "rtmidi":
-        midi_in = rtmidi.MidiIn(
-            get_api_from_environment(rtmidi.API_UNSPECIFIED)
-        )
+        midi_in = rtmidi.MidiIn(get_api_from_environment(rtmidi.API_UNSPECIFIED))
         port_names = midi_in.get_ports()
         del midi_in
     elif backend == "mido":
@@ -116,8 +118,9 @@ def get_port_id():
 
     if port_idx < 0 or port_idx >= len(port_names):
 
-        raise ValueError("The port index must be in the range of 0 "
-                         f"to {len(port_names)-1}")
+        raise ValueError(
+            "The port index must be in the range of 0 " f"to {len(port_names)-1}"
+        )
 
     return port_idx, port_names[port_idx]
 
@@ -255,17 +258,21 @@ def dummy_pipeline(inputs):
 
 
 class MidiInputProcess(multiprocessing.Process):
-
-    def __init__(self, port_id, pipe,
-                 backend=BACKEND,
-                 init_time=None,
-                 pipeline=None,
-                 return_midi_messages=False):
+    def __init__(
+        self,
+        port_id,
+        pipe,
+        backend=BACKEND,
+        init_time=None,
+        pipeline=None,
+        return_midi_messages=False,
+    ):
         multiprocessing.Process.__init__(self)
 
         if backend not in ("rtmidi", "mido"):
-            raise ValueError("`backend` must be in {'rtmidi', 'mido'} "
-                             f"but given {backend}")
+            raise ValueError(
+                "`backend` must be in {'rtmidi', 'mido'} " f"but given {backend}"
+            )
 
         self.backend = backend
         self.port_idx, self.port_name = ensure_port_info(port_id)
@@ -278,9 +285,9 @@ class MidiInputProcess(multiprocessing.Process):
             self.pipeline = dummy_pipeline
         self.return_midi_messages = return_midi_messages
 
-        if self.backend == 'mido':
+        if self.backend == "mido":
             self.poll = self.poll_mido
-        elif self.backend == 'rtmidi':
+        elif self.backend == "rtmidi":
             self.poll = self.poll_rtmidi
 
         self.lock = multiprocessing.RLock()
@@ -345,27 +352,25 @@ class MidiInputProcess(multiprocessing.Process):
 
             if self.midi_in is not None:
                 self.init_time = None
-                if self.backend == 'mido':
+                if self.backend == "mido":
                     self.midi_in.close()
-                elif self.backend == 'rtmidi':
+                elif self.backend == "rtmidi":
                     self.midi_in.close_port()
                 self.midi_in = None
-                print('Closing port')
+                print("Closing port")
         # close port
         # Join thread
         self.join()
 
 
-
 class PlayMidiProcess(multiprocessing.Process):
-
-    def __init__(self, port_id, filename,
-                 backend=BACKEND):
+    def __init__(self, port_id, filename, backend=BACKEND):
         multiprocessing.Process.__init__(self)
 
         if backend not in ("rtmidi", "mido"):
-            raise ValueError("`backend` must be in {'rtmidi', 'mido'} "
-                             f"but given {backend}")
+            raise ValueError(
+                "`backend` must be in {'rtmidi', 'mido'} " f"but given {backend}"
+            )
 
         self.backend = backend
         self.port_idx, self.port_name = ensure_port_info(port_id)
@@ -374,10 +379,10 @@ class PlayMidiProcess(multiprocessing.Process):
         self.first_msg = False
         self.midi_out = open_output_port(self.port_idx, self.backend)
 
-        if self.backend == 'mido':
+        if self.backend == "mido":
             self.mid = mido.MidiFile(filename)
             self.play = self.play_mido
-        elif self.backend == 'rtmidi':
+        elif self.backend == "rtmidi":
             # TODO open midi file
             self.send = self.play_rtmidi
 
@@ -404,13 +409,13 @@ class PlayMidiProcess(multiprocessing.Process):
         self.continue_playing = False
 
         # close port
-        if self.backend == 'mido':
+        if self.backend == "mido":
             self.midi_out.close()
-        elif self.backend == 'rtmidi':
+        elif self.backend == "rtmidi":
             self.midi_out.close_port()
         # Join thread
         self.join()
-        print('Closing output port')
+        print("Closing output port")
 
 
 class Buffer(object):
@@ -448,19 +453,24 @@ class Buffer(object):
 
 
 class FramedMidiInputProcess(MidiInputProcess):
-
-    def __init__(self, port_id, pipe,
-                 polling_period=POLLING_PERIOD,
-                 backend=BACKEND,
-                 init_time=None,
-                 pipeline=None,
-                 return_midi_messages=False):
-        super().__init__(port_id=port_id,
-                         pipe=pipe,
-                         backend=backend,
-                         init_time=init_time,
-                         pipeline=pipeline,
-                         return_midi_messages=return_midi_messages)
+    def __init__(
+        self,
+        port_id,
+        pipe,
+        polling_period=POLLING_PERIOD,
+        backend=BACKEND,
+        init_time=None,
+        pipeline=None,
+        return_midi_messages=False,
+    ):
+        super().__init__(
+            port_id=port_id,
+            pipe=pipe,
+            backend=backend,
+            init_time=init_time,
+            pipeline=pipeline,
+            return_midi_messages=return_midi_messages,
+        )
         self.polling_period = polling_period
 
     def run(self):
@@ -495,17 +505,19 @@ class FramedMidiInputProcess(MidiInputProcess):
                 frame.reset(c_time)
 
 
-def create_poll_process_midi(port_id, polling_period, pipeline,
-                             return_midi_messages=False,
-                             backend=BACKEND):
+def create_poll_process_midi(
+    port_id, polling_period, pipeline, return_midi_messages=False, backend=BACKEND
+):
     """
     Helper to create a FramedMidiInputProcess and its respective pipe.
     """
     p_output, p_input = Pipe()
-    mt = FramedMidiInputProcess(port_id=port_id,
-                                pipe=p_output,
-                                polling_period=polling_period,
-                                backend=backend,
-                                pipeline=pipeline,
-                                return_midi_messages=return_midi_messages)
+    mt = FramedMidiInputProcess(
+        port_id=port_id,
+        pipe=p_output,
+        polling_period=polling_period,
+        backend=backend,
+        pipeline=pipeline,
+        return_midi_messages=return_midi_messages,
+    )
     return p_output, p_input, mt

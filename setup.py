@@ -26,20 +26,22 @@ extensions = [
         "accompanion.mtchmkr.distances",
         ["accompanion/mtchmkr/distances.pyx"],
         include_dirs=include_dirs,
-    )
+    ),
 ]
 
 REQUIRED = [
-    'python-rtmidi',
-    'mido',
-    'cython',
-    'numpy',
-    'scipy',
-    'madmom',
-    'partitura',
-    'pyfluidsynth',
-    'tqdm',
+    "python-rtmidi",
+    "mido",
+    "cython",
+    "numpy",
+    "scipy",
+    "madmom",
+    "partitura",
+    # 'pyfluidsynth',
+    "tqdm",
 ]
+
+EXTRAS = {"fluid": ["pyfluidsynth"]}
 
 
 setup(
@@ -53,6 +55,12 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     install_requires=REQUIRED,
+    extras_require=EXTRAS,
+    ext_modules=cythonize(
+        extensions,
+        annotate=True,
+        language_level=3,
+    ),  # enables generation of the html annotation file
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
@@ -62,9 +70,4 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: MusicInformationRetrieval",
     ],
-    ext_modules=cythonize(
-        extensions,
-        annotate=True,
-        language_level=3,
-    ),  # enables generation of the html annotation file
 )

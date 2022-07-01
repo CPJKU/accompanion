@@ -2,20 +2,23 @@
 ACCompanion!
 """
 import multiprocessing
+import platform
 import threading
 import time
+import warnings
+
 
 import numpy as np
 import partitura
+
 from basismixer.performance_codec import get_performance_codec
 from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
-
 from scipy.interpolate import interp1d
 
-from accompanion.accompanist.MIDI_input import create_midi_poll, POLLING_PERIOD
-from accompanion.accompanist.MIDI_file_player import get_midi_file_player
-from accompanion.accompanist.MIDI_sequencing_threads import ScoreSequencer
-from accompanion.accompanist.MIDI_routing import MidiRouter
+from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
+from accompanion.midi_handler.midi_file_player import get_midi_file_player
+from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
+from accompanion.midi_handler.midi_routing import MidiRouter
 
 from accompanion.mtchmkr.features_midi import PianoRollProcessor
 from accompanion.mtchmkr.alignment_online_oltw import (
@@ -37,46 +40,42 @@ from accompanion.accompanist.accompaniment_decoder import (
 )
 import accompanion.accompanist.tempo_models as tempo_models
 
-from accompanion.misc.partitura_utils import (
+from accompanion.utils.partitura_utils import (
     get_time_maps_from_alignment,
     partitura_to_framed_midi_custom as partitura_to_framed_midi,
     get_beat_conversion,
     DECAY_VALUE,
 )
 
-from accompanion.accompanist.ceus_mediator import CeusMediator
-from accompanion.accompanist.note_tracker import NoteTracker
-from accompanion.accompanist.onset_tracker import OnsetTracker
-from accompanion.accompanist.trackers import DummyMultiDTWTracker
+from accompanion.midi_handler.ceus_mediator import CeusMediator
+from accompanion.score_follower.note_tracker import NoteTracker
+from accompanion.score_follower.onset_tracker import OnsetTracker
+from accompanion.score_follower.trackers import DummyMultiDTWTracker
 
-# platform checking
-import platform
-import warnings
 
 ACC_PROCESS = True
 ACC_PARENT = multiprocessing.Process if ACC_PROCESS else threading.Thread
-
-PLATFORM = platform.system()
-
-if PLATFORM not in ("Darwin", "Linux", "Windows"):
-    warnings.warn(f"{PLATFORM} is not supported!")
-
 USE_THREADS = True
 
-if PLATFORM == "Linux":
-    MIDI_DRIVER = "alsa"
-elif PLATFORM == "Darwin":
-    MIDI_DRIVER = "coreaudio"
-elif PLATFORM == "Windows":
-    print("Experimental Windows support")
-    MIDI_DRIVER = None
+# PLATFORM = platform.system()
 
-if PLATFORM != "Windows":
-    from accompanion.accompanist.fluid import FluidsynthPlayer
-else:
-    from accompanion.accompanist.fluid import (
-        FluidsynthPlayerWindows as FluidsynthPlayer,
-    )
+# if PLATFORM not in ("Darwin", "Linux", "Windows"):
+#     warnings.warn(f"{PLATFORM} is not supported!")
+
+# if PLATFORM == "Linux":
+#     MIDI_DRIVER = "alsa"
+# elif PLATFORM == "Darwin":
+#     MIDI_DRIVER = "coreaudio"
+# elif PLATFORM == "Windows":
+#     print("Experimental Windows support")
+#     MIDI_DRIVER = None
+
+# if PLATFORM != "Windows":
+#     from accompanion.midi_handler.fluid import FluidsynthPlayer
+# else:
+#     from accompanion.midi_handler.fluid import (
+#         FluidsynthPlayerWindows as FluidsynthPlayer,
+#     )
 
 
 class ACCompanion(ACC_PARENT):

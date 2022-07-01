@@ -1,11 +1,8 @@
-'''
-
-THIS IS THE OLD IMPLEMENTATION AND IS LIKELY NOT TO WORK WITH THE
-CURRENT SYSTEM!
-
+# -*- coding: utf-8 -*-
+"""
 Module with definition for the tools used for communication between the
 different modules and subsystems of ACCompanion.
-'''
+"""
 # The thread mediator was used in the following context (which was part
 # the equivalent of our current MIDI input process/thread)
 # # !FUNCTION! callback for MIDI input:

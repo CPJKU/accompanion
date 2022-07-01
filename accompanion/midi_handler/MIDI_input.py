@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import mido
 import multiprocessing
 import time
@@ -27,13 +28,16 @@ class RECVQueue(Queue):
 
 
 class MidiInputProcess(multiprocessing.Process):
-
-    def __init__(self, port_name, pipe,
-                 init_time=None,
-                 pipeline=None,
-                 return_midi_messages=False,
-                 output_fn=None,
-                 mediator=None):
+    def __init__(
+        self,
+        port_name,
+        pipe,
+        init_time=None,
+        pipeline=None,
+        return_midi_messages=False,
+        output_fn=None,
+        mediator=None,
+    ):
         multiprocessing.Process.__init__(self)
 
         self.init_time = init_time
@@ -53,11 +57,8 @@ class MidiInputProcess(multiprocessing.Process):
         self.mediator = mediator  # TODO mediator currently not usable for processes
 
         if output_fn is None:
-            self.output_fn = os.path.join(
-                tempfile.gettempdir(),
-                "input_midi.mid"
-            )
-            print(f'Output will be saved in {self.output_fn}')
+            self.output_fn = os.path.join(tempfile.gettempdir(), "input_midi.mid")
+            print(f"Output will be saved in {self.output_fn}")
         else:
             self.output_fn = output_fn
 
@@ -121,15 +122,18 @@ class MidiInputProcess(multiprocessing.Process):
         self.midi_messages.sort(key=lambda x: x[1])
         # save the MIDI file here
         # mido.MidiFile(filename=self.output_fn)
-        
+
 
 class MidiInputThread(threading.Thread):
-
-    def __init__(self, port_name, queue,
-                 init_time=None,
-                 pipeline=None,
-                 return_midi_messages=False,
-                 mediator=None):
+    def __init__(
+        self,
+        port_name,
+        queue,
+        init_time=None,
+        pipeline=None,
+        return_midi_messages=False,
+        mediator=None,
+    ):
         threading.Thread.__init__(self)
 
         self.port_name = port_name
@@ -151,8 +155,11 @@ class MidiInputThread(threading.Thread):
         while self.listen:
             msg = self.midi_in.poll()
             if msg is not None:
-                if self.mediator is not None and msg.type == "note_on"\
-                        and self.mediator.filter_check(msg.note):
+                if (
+                    self.mediator is not None
+                    and msg.type == "note_on"
+                    and self.mediator.filter_check(msg.note)
+                ):
                     continue
 
                 c_time = self.current_time
@@ -197,7 +204,6 @@ class MidiInputThread(threading.Thread):
 
 
 class Buffer(object):
-
     def __init__(self, polling_period):
         self.polling_period = polling_period
         self.frame = []
@@ -232,19 +238,24 @@ class Buffer(object):
 
 
 class FramedMidiInputProcess(MidiInputProcess):
-
-    def __init__(self, port_name, pipe,
-                 polling_period=POLLING_PERIOD,
-                 init_time=None,
-                 pipeline=None,
-                 return_midi_messages=False,
-                 mediator=None):
-        super().__init__(port_name=port_name,
-                         pipe=pipe,
-                         init_time=init_time,
-                         pipeline=pipeline,
-                         return_midi_messages=return_midi_messages,
-                         mediator=mediator)
+    def __init__(
+        self,
+        port_name,
+        pipe,
+        polling_period=POLLING_PERIOD,
+        init_time=None,
+        pipeline=None,
+        return_midi_messages=False,
+        mediator=None,
+    ):
+        super().__init__(
+            port_name=port_name,
+            pipe=pipe,
+            init_time=init_time,
+            pipeline=pipeline,
+            return_midi_messages=return_midi_messages,
+            mediator=mediator,
+        )
         self.polling_period = polling_period
 
     def run(self):
@@ -283,20 +294,25 @@ class FramedMidiInputProcess(MidiInputProcess):
 
 
 class FramedMidiInputThread(MidiInputThread):
-
-    def __init__(self, port_name, queue,
-                 polling_period=POLLING_PERIOD,
-                 # backend=BACKEND,
-                 init_time=None,
-                 pipeline=None,
-                 return_midi_messages=False,
-                 mediator=None):
-        super().__init__(port_name=port_name,
-                         queue=queue,
-                         init_time=init_time,
-                         pipeline=pipeline,
-                         return_midi_messages=return_midi_messages,
-                         mediator=mediator)
+    def __init__(
+        self,
+        port_name,
+        queue,
+        polling_period=POLLING_PERIOD,
+        # backend=BACKEND,
+        init_time=None,
+        pipeline=None,
+        return_midi_messages=False,
+        mediator=None,
+    ):
+        super().__init__(
+            port_name=port_name,
+            queue=queue,
+            init_time=init_time,
+            pipeline=pipeline,
+            return_midi_messages=return_midi_messages,
+            mediator=mediator,
+        )
         self.polling_period = polling_period
 
     def run(self):
@@ -312,7 +328,7 @@ class FramedMidiInputThread(MidiInputThread):
         frame.start = self.current_time
         # TODO: Adapt from midi_online to allow for variable polling
         # periods?
-        st = self.polling_period * .5
+        st = self.polling_period * 0.5
         while self.listen:
             time.sleep(st)
             if self.listen:
@@ -322,8 +338,11 @@ class FramedMidiInputThread(MidiInputThread):
                 msg = self.midi_in.poll()
                 if msg is not None:
 
-                    if self.mediator is not None and (msg.type == "note_on" and msg.velocity > 0) \
-                            and self.mediator.filter_check(msg.note):
+                    if (
+                        self.mediator is not None
+                        and (msg.type == "note_on" and msg.velocity > 0)
+                        and self.mediator.filter_check(msg.note)
+                    ):
                         # print('filtered', msg)
                         continue
 
@@ -340,7 +359,14 @@ class FramedMidiInputThread(MidiInputThread):
                     frame.reset(c_time)
 
 
-def create_midi_poll(port_name, polling_period, pipeline, return_midi_messages=False, thread=False, mediator=None):
+def create_midi_poll(
+    port_name,
+    polling_period,
+    pipeline,
+    return_midi_messages=False,
+    thread=False,
+    mediator=None,
+):
     """
     Helper to create a FramedMidiInputProcess and its respective pipe.
     """
@@ -348,20 +374,24 @@ def create_midi_poll(port_name, polling_period, pipeline, return_midi_messages=F
     if thread:
         p_output = None
         p_input = RECVQueue()
-        mt = FramedMidiInputThread(port_name=port_name,
-                                   queue=p_input,
-                                   polling_period=polling_period,
-                                   pipeline=pipeline,
-                                   return_midi_messages=return_midi_messages,
-                                   mediator=mediator)
+        mt = FramedMidiInputThread(
+            port_name=port_name,
+            queue=p_input,
+            polling_period=polling_period,
+            pipeline=pipeline,
+            return_midi_messages=return_midi_messages,
+            mediator=mediator,
+        )
     else:
 
         p_output, p_input = Pipe()
-        mt = FramedMidiInputProcess(port_name=port_name,
-                                    pipe=p_output,
-                                    polling_period=polling_period,
-                                    pipeline=pipeline,
-                                    return_midi_messages=return_midi_messages,
-                                    mediator=mediator)
+        mt = FramedMidiInputProcess(
+            port_name=port_name,
+            pipe=p_output,
+            polling_period=polling_period,
+            pipeline=pipeline,
+            return_midi_messages=return_midi_messages,
+            mediator=mediator,
+        )
 
     return p_output, p_input, mt

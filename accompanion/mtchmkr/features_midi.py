@@ -7,36 +7,36 @@ TODO
 * Set a more usable format for `mido.Message` objects from input
 """
 import numpy as np
+
 # import mido
 # import partitura
+
 
 class Pitch_IOI_Processor(object):
     def __init__(self):
         self.ref_time = 0
 
-    def __call__(self,frame, kwargs={}):
+    def __call__(self, frame, kwargs={}):
         data, f_time = frame
 
-        if len(data)==0:
-            return (np.array([]),np.array([])),{}
+        if len(data) == 0:
+            return (np.array([]), np.array([])), {}
 
-        
-
-        pitch_obs, ioi_obs = [],[]
+        pitch_obs, ioi_obs = [], []
 
         prev_t = self.ref_time
 
-        self.ref_time=f_time
+        self.ref_time = f_time
 
         for msg, t in data:
-            if msg.type=='note_on' and msg.velocity>0:
-                
-                ioi_obs.append(t-prev_t)
+            if msg.type == "note_on" and msg.velocity > 0:
+
+                ioi_obs.append(t - prev_t)
 
                 prev_t = t
                 pitch_obs.append(msg.note)
 
-        return (np.array(pitch_obs),np.array(ioi_obs)),{}
+        return (np.array(pitch_obs), np.array(ioi_obs)), {}
 
 
 class PianoRollProcessor(object):
@@ -54,8 +54,8 @@ class PianoRollProcessor(object):
         for msg, m_time in data:
             # TODO: update with new format, if Mido Messages
             # messages are substituted for something else
-            if msg.type in ('note_on', 'note_off'):
-                if msg.type == 'note_on' and msg.velocity > 0:
+            if msg.type in ("note_on", "note_off"):
+                if msg.type == "note_on" and msg.velocity > 0:
                     self.active_notes[msg.note] = (msg.velocity, m_time)
                 else:
                     try:
@@ -95,8 +95,8 @@ class CumSumPianoRollProcessor(object):
         for msg, m_time in data:
             # TODO: update with new format, if Mido Messages
             # messages are substituted for something else
-            if msg.type in ('note_on', 'note_off'):
-                if msg.type == 'note_on' and msg.velocity > 0:
+            if msg.type in ("note_on", "note_off"):
+                if msg.type == "note_on" and msg.velocity > 0:
                     self.active_notes[msg.note] = (msg.velocity, m_time)
                 else:
                     try:

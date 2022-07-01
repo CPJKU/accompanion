@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import copy
 import mido
 import partitura
@@ -8,8 +9,6 @@ import numpy as np
 
 from accompanion.visualization.midi_helper import MIDI_KEYS
 from scipy.interpolate import interp1d
-
-
 
 
 def perf_score_map_from_match(match_path):
@@ -37,17 +36,18 @@ def perf_score_map_from_match(match_path):
             perf_times.append(ppart_by_id[line["performance_id"]])
             score_times.append(part_by_id[line["score_id"]])
 
-
-    times = np.array(sorted( zip(perf_times, score_times), key=lambda x: x[0]))
+    times = np.array(sorted(zip(perf_times, score_times), key=lambda x: x[0]))
     # import pdb; pdb.set_trace()
     # for x,y in zip(perf_times, score_times):
     #     print(x,y)
-    perf_score_map = interp1d(times[:,0], times[:,1], fill_value="extrapolate", kind="previous")
+    perf_score_map = interp1d(
+        times[:, 0], times[:, 1], fill_value="extrapolate", kind="previous"
+    )
 
     return perf_score_map
 
-class MODIFIEDMidiFilePlayer(threading.Thread):
 
+class MODIFIEDMidiFilePlayer(threading.Thread):
     def __init__(self, out_port, filename, match_filename, virtual=False):
         threading.Thread.__init__(self)
 
@@ -56,21 +56,21 @@ class MODIFIEDMidiFilePlayer(threading.Thread):
         self.perf_score_map = perf_score_map_from_match(match_filename)
         self.current_s_time = 0
         self.current_vel = 64
+
     def run(self):
         start_time = time.time()
         # set the pedal to zero
-        self.out_port.send(mido.Message(type = "control_change", control=64, value=0))
+        self.out_port.send(mido.Message(type="control_change", control=64, value=0))
         for msg in self.mid.play():
-            self.out_port.send(mido.Message(type = "control_change", control=64, value=0))
+            self.out_port.send(mido.Message(type="control_change", control=64, value=0))
             self.out_port.send(msg)
             if msg.type == "note_on" and msg.velocity > 0:
-                self.current_s_time = self.perf_score_map(time.time()-start_time)
+                self.current_s_time = self.perf_score_map(time.time() - start_time)
                 self.current_vel = msg.velocity
                 # print("MIDI Player timing score / perf: ", self.current_s_time,time.time()-start_time)
 
 
 class MidiInputPlayer(threading.Thread):
-
     def __init__(self, in_port, out_port, chords, virtual=False):
         threading.Thread.__init__(self)
 
@@ -92,7 +92,7 @@ class MidiInputPlayer(threading.Thread):
                     for note in local_chords[0].notes:
                         self.out_port.send(note._note_off)
 
-                    local_chords = np.delete(local_chords,0)
+                    local_chords = np.delete(local_chords, 0)
 
             time.sleep(0.005)
 
@@ -121,8 +121,9 @@ class ScoreSequencer(threading.Thread):
 
     def _next_notes(self, t):
         # eps = 1e-4
-        return sorted([n for n in self.notes if n.p_onset >= t],
-                      key=lambda x: x.p_onset)
+        return sorted(
+            [n for n in self.notes if n.p_onset >= t], key=lambda x: x.p_onset
+        )
 
     def panic_button(self):
         """
@@ -157,13 +158,14 @@ class ScoreSequencer(threading.Thread):
             c_time = time.time() - self.init_time
 
             # Get next note offs
-            note_offs = sorted([sounding_notes[p] for p in sounding_notes],
-                               key=lambda x: x.p_offset)
+            note_offs = sorted(
+                [sounding_notes[p] for p in sounding_notes], key=lambda x: x.p_offset
+            )
 
             # Send note offs
             for n_off in note_offs:
                 # print('note offs')
-                if (c_time >= n_off.p_offset):
+                if c_time >= n_off.p_offset:
                     # send note off message
                     # print('note off', note_offs[0].note_off)
                     self.outport.send(n_off.note_off)
@@ -210,7 +212,7 @@ class ScoreSequencer(threading.Thread):
 
             # Stop playing if there are no more notes to send
             if len(next_notes) == 0 and len(sounding_notes) == 0:
-                print('End of the piece')
+                print("End of the piece")
                 self.end_of_piece = True
                 self.play = False
                 self.panic_button()
@@ -225,7 +227,6 @@ class ScoreSequencer(threading.Thread):
 
 
 class MODIFIEDScoreSequencer(threading.Thread):
-
     def __init__(self, score_or_notes, outport=None, mediator=None):
 
         threading.Thread.__init__(self)
@@ -249,7 +250,6 @@ class MODIFIEDScoreSequencer(threading.Thread):
         self.last_s_onset_update = 0
         self.alpha = 0.9
 
-
     def update_times(self, current_score_time, vel):
         if current_score_time != self.last_s_onset:
             c_time = time.time() - self.init_time
@@ -261,18 +261,18 @@ class MODIFIEDScoreSequencer(threading.Thread):
 
                 if score_reference_dist >= 0:
                     note.p_onset = c_time + perf_reference_dist
-                    note.p_duration = 0.5*note.duration * self.tempo
-                    note.velocity = vel/127*80+25
+                    note.p_duration = 0.5 * note.duration * self.tempo
+                    note.velocity = vel / 127 * 80 + 25
                 if score_reference_dist >= 10:
                     break
 
             s_time_since_update = current_score_time - self.last_s_onset
             p_time_since_update = c_time - self.last_s_onset_update
 
-
             if self.last_s_onset != -10:
-                self.tempo = self.alpha*self.tempo + (1-self.alpha)*(p_time_since_update/s_time_since_update)
-
+                self.tempo = self.alpha * self.tempo + (1 - self.alpha) * (
+                    p_time_since_update / s_time_since_update
+                )
 
             self.last_s_onset_update = c_time
             self.last_s_onset = current_score_time
@@ -287,8 +287,9 @@ class MODIFIEDScoreSequencer(threading.Thread):
 
     def _next_notes(self, t):
         # eps = 1e-4
-        return sorted([n for n in self.notes if n.p_onset >= t],
-                      key=lambda x: x.p_onset)
+        return sorted(
+            [n for n in self.notes if n.p_onset >= t], key=lambda x: x.p_onset
+        )
 
     def panic_button(self):
         """
@@ -299,10 +300,6 @@ class MODIFIEDScoreSequencer(threading.Thread):
         # better use Mido's built-in panic button...
         self.outport.panic()
         self.outport.reset()
-
-
-
-
 
     def run(self):
 
@@ -324,13 +321,14 @@ class MODIFIEDScoreSequencer(threading.Thread):
             c_time = time.time() - self.init_time
 
             # Get next note offs
-            note_offs = sorted([sounding_notes[p] for p in sounding_notes],
-                               key=lambda x: x.p_offset)
+            note_offs = sorted(
+                [sounding_notes[p] for p in sounding_notes], key=lambda x: x.p_offset
+            )
 
             # Send note offs
             for n_off in note_offs:
                 # print('note offs')
-                if (c_time >= n_off.p_offset):
+                if c_time >= n_off.p_offset:
                     # send note off message
                     # print('note off', note_offs[0].note_off)
                     self.outport.send(n_off.note_off)
@@ -344,7 +342,13 @@ class MODIFIEDScoreSequencer(threading.Thread):
                 # Send note on messages is the note has not been
                 # performed already
                 if c_time >= n_on.p_onset and not n_on.already_performed:
-                    print("seinding notes",c_time,  n_on.p_onset, n_on.p_duration, n_on.velocity)
+                    print(
+                        "seinding notes",
+                        c_time,
+                        n_on.p_onset,
+                        n_on.p_duration,
+                        n_on.velocity,
+                    )
                     if n_on.pitch in sounding_notes:
                         # send note off if the pitch is the same as an already sounding note
                         # print('silence sounding note', sounding_notes[n_on.pitch].note_off)
@@ -377,7 +381,7 @@ class MODIFIEDScoreSequencer(threading.Thread):
 
             # Stop playing if there are no more notes to send
             if len(next_notes) == 0 and len(sounding_notes) == 0:
-                print('End of the piece')
+                print("End of the piece")
                 self.play = False
 
     def get_midi_frame(self):

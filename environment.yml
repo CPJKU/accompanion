@@ -22,7 +22,6 @@ dependencies:
     - mido
     - python-rtmidi
     - madmom
-    - pyfluidsynth
     - PyQt5
     - pyqtgraph
     - git+https://github.com/OFAI/basismixer.git

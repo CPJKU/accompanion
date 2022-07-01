@@ -1,4 +1,9 @@
+# -*- coding: utf-8 -*-
+"""
+CC: Is this class used anywhere? Otherwise delete!
+"""
 import threading
+
 
 class VirtualMidiThroughPort(threading.Thread):
     def __init__(self):

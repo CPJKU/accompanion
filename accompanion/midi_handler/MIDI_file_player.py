@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import mido
 import multiprocessing
 import threading

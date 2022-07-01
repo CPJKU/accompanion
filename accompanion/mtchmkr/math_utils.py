@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 Module for all utility math for the transition parts of the HMM.
-'''
+"""
 # Native Python Library:
 import logging
 
@@ -12,9 +12,14 @@ from scipy.stats import gumbel_l
 # Set the LOGGER of this module:
 LOGGER = logging.getLogger(__name__)
 
-def gumbel_transition_model(n_states, mp_trans_state=1, scale=0.5,
-                            inserted_states=True):
-    '''
+
+def gumbel_transition_model(
+    n_states,
+    mp_trans_state=1,
+    scale=0.5,
+    inserted_states=True,
+):
+    """
     Compute a transiton matrix, where each row follows a normalized Gumbel
     distribution.
 
@@ -43,25 +48,25 @@ def gumbel_transition_model(n_states, mp_trans_state=1, scale=0.5,
     -------
     transition_matrix : numpy array
         The computed transition matrix for the HMM.
-    '''
+    """
     # Initialize transition matrix:
-    transition_matrix = np.zeros((n_states, n_states), dtype='f8')
+    transition_matrix = np.zeros((n_states, n_states), dtype="f8")
 
     # Compute transition matrix:
     for i in range(n_states):
         if inserted_states:
             if np.mod(i, 2) == 0:
                 transition_matrix[i] = gumbel_l.pdf(
-                    np.arange(n_states), loc=i + mp_trans_state * 2,
-                    scale=scale)
+                    np.arange(n_states), loc=i + mp_trans_state * 2, scale=scale
+                )
             else:
                 transition_matrix[i] = gumbel_l.pdf(
-                    np.arange(n_states), loc=i + mp_trans_state * 2 - 1,
-                    scale=scale)
+                    np.arange(n_states), loc=i + mp_trans_state * 2 - 1, scale=scale
+                )
         else:
             transition_matrix[i] = gumbel_l.pdf(
-                np.arange(n_states), loc=i + mp_trans_state * 2 - 1,
-                scale=scale)
+                np.arange(n_states), loc=i + mp_trans_state * 2 - 1, scale=scale
+            )
 
     # Normalize transition matrix (so that it is a proper stochastic matrix):
     transition_matrix /= transition_matrix.sum(1, keepdims=True)
@@ -69,8 +74,9 @@ def gumbel_transition_model(n_states, mp_trans_state=1, scale=0.5,
     # Return the computed transition matrix:
     return transition_matrix
 
+
 def gumbel_init_dist(config, n_states):
-    '''
+    """
     Compute the initial probabilites for all states in the Hidden Markov Model
     (HMM), which follow a Gumbel distribution.
 
@@ -84,19 +90,22 @@ def gumbel_init_dist(config, n_states):
     -------
     init_dist : numpy array
         The computed initial probabilities in the form of a vector.
-    '''
+    """
     # Construct the initial probability. First, extract the parameters:
     try:
         # initial dist pars: [loc, scale]
-        init_dist_pars = config['initial_distribution']
+        init_dist_pars = config["initial_distribution"]
         # Create and normalize the distribution:
-        init_dist = gumbel_l.pdf(np.arange(n_states), loc=init_dist_pars[0],
-                                 scale=init_dist_pars[1])
+        init_dist = gumbel_l.pdf(
+            np.arange(n_states), loc=init_dist_pars[0], scale=init_dist_pars[1]
+        )
         init_dist /= init_dist.sum()
 
     except KeyError():
-        LOGGER.warning("Initial distribution parameters not found in config \
-        dictionary. Setting to default: uniform")
+        LOGGER.warning(
+            "Initial distribution parameters not found in config \
+        dictionary. Setting to default: uniform"
+        )
         # Create the uniform distribution:
         init_dist = np.ones(n_states) / n_states
         init_dist /= init_dist.sum()
@@ -104,10 +113,16 @@ def gumbel_init_dist(config, n_states):
     # Return the distribution:
     return init_dist
 
-def compute_pitch_profiles(chord_pitches, profile=np.array([0.02, 0.02, 1, 0.02, 0.02]),
-                           eps=0.01, piano_range=False, normalize=True,
-                           inserted_states=True):
-    '''
+
+def compute_pitch_profiles(
+    chord_pitches,
+    profile=np.array([0.02, 0.02, 1, 0.02, 0.02]),
+    eps=0.01,
+    piano_range=False,
+    normalize=True,
+    inserted_states=True,
+):
+    """
     Pre-compute the pitch profiles used in calculating the pitch
     observation probabilities.
 
@@ -137,7 +152,7 @@ def compute_pitch_profiles(chord_pitches, profile=np.array([0.02, 0.02, 1, 0.02,
     -------
     pitch_profiles : numpy array
         The pre-computed pitch profiles.
-    '''
+    """
     # Compute the high and low contexts:
     low_context = profile.argmax()
     high_context = len(profile) - profile.argmax()
@@ -159,8 +174,7 @@ def compute_pitch_profiles(chord_pitches, profile=np.array([0.02, 0.02, 1, 0.02,
                 lowest_pitch = pitch - low_context
                 highest_pitch = pitch + high_context
                 # Compute the indices which are to be updated:
-                idx = slice(np.maximum(lowest_pitch, 0),
-                            np.minimum(highest_pitch, 128))
+                idx = slice(np.maximum(lowest_pitch, 0), np.minimum(highest_pitch, 128))
                 # Add the values:
                 pitch_profiles[i, idx] += profile
 

@@ -4,10 +4,6 @@ On-line Dynamic Time Warping
 """
 import numpy as np
 
-# from scipy.interpolate import interp1d
-
-# from matchmaker.utils import distances
-# from matchmaker.utils.distances import vdist, Metric
 from accompanion.mtchmkr import distances
 from accompanion.mtchmkr.distances import vdist, Metric
 from accompanion.mtchmkr.dtw_loop import (
