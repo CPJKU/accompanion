@@ -27,7 +27,8 @@ cd Path/to/accompanion
 
 # TODO
 
-* Use score follower from Matchmaker
-* Update loading scores from new version of partitura (update fields in note arrays)
-* Restructure the code
-* Add setup
+* Make `ACCompanion` class more modular
+* Use `ScoreHMM`
+* Add data simple pieces
+
+
