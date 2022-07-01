@@ -198,9 +198,9 @@ if __name__ == "__main__":
         ground_truth_match=None,
         accompaniment_match=args.accompaniment_match,
         use_ceus_mediator=args.use_mediator,
-        tempo_tapping=tempo_tapping,
+        # tempo_tapping=tempo_tapping,
         adjust_following_rate=0.2,
-        tap_tempo=False,
+        # tap_tempo=False,
         bypass_audio=args.bypass_audio,
     )
 

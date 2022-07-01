@@ -1,10 +1,10 @@
+# -*- coding: utf-8 -*-
 """
 ACCompanion!
 """
 import multiprocessing
 import threading
 import time
-
 
 import numpy as np
 import partitura
@@ -41,7 +41,7 @@ import accompanion.accompanist.tempo_models as tempo_models
 from accompanion.utils.partitura_utils import (
     get_time_maps_from_alignment,
     partitura_to_framed_midi_custom as partitura_to_framed_midi,
-    get_beat_conversion,
+    # get_beat_conversion,
     DECAY_VALUE,
 )
 
@@ -73,7 +73,7 @@ class ACCompanion(ACC_PARENT):
         tempo_model=tempo_models.LSM,
         tempo_model_kwargs={},
         accompaniment_match=None,
-        tap_tempo=False,
+        # tap_tempo=False,
         pipe=None,
         use_ceus_mediator=False,
         performance_codec_kwargs={
@@ -88,7 +88,7 @@ class ACCompanion(ACC_PARENT):
             "mechanical_delay": 0.0,
         },
         adjust_following_rate=0.1,
-        tempo_tapping=None,
+        # tempo_tapping=None,
         bypass_audio=False,  # bypass fluidsynth audio
     ):
         super(ACCompanion, self).__init__()
@@ -149,8 +149,8 @@ class ACCompanion(ACC_PARENT):
 
         self.prev_score_onset = None
 
-        self.tap_tempo = tap_tempo
-        self.tempo_tapping = tempo_tapping
+        # self.tap_tempo = tap_tempo
+        # self.tempo_tapping = tempo_tapping
         self.tempo_counter = 0
         self.prev_metro_time = None
         self.tempo_sum = 0
@@ -470,15 +470,11 @@ class ACCompanion(ACC_PARENT):
             start_time = self.seq.init_time
 
         # intialize beat period
-        perf_start = False
+        # perf_start = False
 
         onset_tracker = OnsetTracker(self.solo_score.unique_onsets)
         # expression_model = BasisMixer()
         self.midi_input_process.start()
-        # self.pipe_out.close()
-        # CC: I don't know what happened, but now it takes a bit for the
-        # input process to start...
-        # time.sleep(1)
         print("Start listening")
 
         self.perf_frame = None
@@ -500,18 +496,16 @@ class ACCompanion(ACC_PARENT):
             start_time = time.time()
             if not sequencer_start:
                 self.seq.init_time = start_time
-        tempo_counter = 0
-        tempo_sum = 0
         expected_position = self.first_score_onset
         loops_without_update = 0
         empty_loops = 0
         prev_solo_p_onset = None
         adjusted_sf = False
-        if self.tap_tempo:
-            # TODO: Check for potential edge cases
-            _, ts_beat_type = self.acc_score.time_signature_map(self.first_score_onset)
-            tapping_ibi = get_beat_conversion(self.tempo_tapping[1], ts_beat_type)
-            print(f"Tempo Tapping IBI: {tapping_ibi}")
+        # if self.tap_tempo:
+        #     # TODO: Check for potential edge cases
+        #     _, ts_beat_type = self.acc_score.time_signature_map(self.first_score_onset)
+        #     tapping_ibi = get_beat_conversion(self.tempo_tapping[1], ts_beat_type)
+        #     print(f"Tempo Tapping IBI: {tapping_ibi}")
         decay = np.ones(88)
 
         pioi = self.polling_period
@@ -529,92 +523,22 @@ class ACCompanion(ACC_PARENT):
                     input_midi_messages, output = output
 
                     # listen to metronome notes for tempo
-
-                    if self.tap_tempo:
-                        # print('Get init tempo here')
-                        if tempo_counter == 0:
-                            tempo_counter += 1
-                            prev_metro_time = np.min(
-                                [msg_time for _, msg_time in input_midi_messages]
-                            )
-                            continue
-                        elif tempo_counter < self.tempo_tapping[0]:
-                            tempo_counter_backup = tempo_counter
-
-                            for msg, msg_time in input_midi_messages[
-                                : self.tempo_tapping[0] - tempo_counter_backup
-                            ]:
-                                if msg.type == "note_on" and msg.velocity > 0:
-                                    tempo_sum += msg_time - prev_metro_time
-
-                                    prev_metro_time = msg_time
-                                    tempo_counter += 1
-
-                            if tempo_counter == self.tempo_tapping[0]:
-                                self.init_bp = tempo_sum / (
-                                    (self.tempo_tapping[0] - 1) * tapping_ibi
-                                )
-                                print("Init tempo", self.init_bp)
-                                # start accompaniment if it starts at the
-                                # same time as the solo
-                                # Fix this for a general case
-                                if solo_starts:
-                                    if not sequencer_start:
-                                        self.beat_period = self.init_bp
-                                        if self.tempo_model is not None:
-                                            # Update beat_period
-                                            self.tempo_model.beat_period = self.init_bp
-                                            if hasattr(
-                                                self.tempo_model,
-                                                "init_beat_period",
-                                            ):
-                                                self.tempo_model.init_beat_period = (
-                                                    self.init_bp
-                                                )
-
-                                        if self.acc_score.min_onset < 0:
-                                            print(
-                                                "first onsetacc",
-                                                self.acc_score.min_onset,
-                                            )
-                                            # TODO: Solve for the general case
-                                            acc_start_time = (
-                                                solo_p_onset + 0.5 * self.init_bp
-                                            )
-                                        else:
-                                            acc_start_time = solo_p_onset + self.init_bp
-                                        self.accompanist.accompaniment_step(
-                                            solo_s_onset=self.first_score_onset,
-                                            solo_p_onset=acc_start_time,
-                                        )
-
-                                        # self.stop_playing()
-                                        print("Start accompaniment")
-                                        # start the sequencer in a beat
-                                        self.seq.init_time = start_time
-                                        sequencer_start = True
-                                        self.seq.start()
-
-                            else:
-
-                                continue
-
                     # copy output to perf_frame
                     # (with velocities for visualization)
                     self.perf_frame = output.copy()
                     # overwrite velocities to 1 for tracking
                     # TODO think about nicer solution
                     output[output > 0] = 1.0
-
-                    # start playing the performance
-                    if not perf_start and (output > 0).any():
-                        # Ignore messages after the tapping
-                        if np.all(
-                            np.where(output > 0)[0] + 21
-                            == self.solo_score.getitem_indexwise(0).pitch
-                        ):
-                            perf_start = True
-                            print("start following!")
+                    
+                    # # start playing the performance
+                    # if not perf_start and (output > 0).any():
+                    #     # Ignore messages after the tapping
+                    #     if np.all(
+                    #         np.where(output > 0)[0] + 21
+                    #         == self.solo_score.getitem_indexwise(0).pitch
+                    #     ):
+                    #         perf_start = True
+                    #         print("start following!")
 
                     # Use these onset times?
                     onset_times = [
@@ -642,82 +566,81 @@ class ACCompanion(ACC_PARENT):
                     else:
                         empty_loops == 0
 
-                    if perf_start:
-                        self.score_idx, score_position = self.score_follower(output)
-                        solo_s_onset, onset_index, acc_update = onset_tracker(
-                            score_position,
-                            expected_position
-                            # self.seq.performed_score_onsets[-1]
+                    # if perf_start:
+                    self.score_idx, score_position = self.score_follower(output)
+                    solo_s_onset, onset_index, acc_update = onset_tracker(
+                        score_position,
+                        expected_position
+                        # self.seq.performed_score_onsets[-1]
+                    )
+
+                    pioi = (
+                        solo_p_onset - prev_solo_p_onset
+                        if prev_solo_p_onset is not None
+                        else self.polling_period
+                    )
+                    prev_solo_p_onset = solo_p_onset
+                    expected_position = expected_position + pioi / self.beat_period
+
+                    if solo_s_onset is not None:
+
+                        print(
+                            f"performed onset {solo_s_onset}",
+                            f"expected onset {expected_position}",
+                            f"beat_period {self.beat_period}",
+                            f"adjusted {acc_update or adjusted_sf}",
                         )
 
-                        pioi = (
-                            solo_p_onset - prev_solo_p_onset
-                            if prev_solo_p_onset is not None
-                            else self.polling_period
-                        )
-                        prev_solo_p_onset = solo_p_onset
-                        expected_position = expected_position + pioi / self.beat_period
-
-                        if solo_s_onset is not None:
-
-                            print(
-                                f"performed onset {solo_s_onset}",
-                                f"expected onset {expected_position}",
-                                f"beat_period {self.beat_period}",
-                                f"adjusted {acc_update or adjusted_sf}",
-                            )
-
-                            if not acc_update:
-                                asynch = expected_position - solo_s_onset
-                                # print('asynchrony', asynch)
-                                expected_position = expected_position - 0.6 * asynch
-                                loops_without_update = 0
-                                adjusted_sf = False
-                            else:
-                                loops_without_update += 1
-
-                            if new_midi_messages:
-                                self.note_tracker.update_alignment(solo_s_onset)
-                            # start accompaniment if it starts at the
-                            # same time as the solo
-                            if solo_starts and onset_index == 0:
-                                if not sequencer_start:
-                                    print("Start accompaniment")
-                                    sequencer_start = True
-                                    self.accompanist.accompaniment_step(
-                                        solo_s_onset=solo_s_onset,
-                                        solo_p_onset=solo_p_onset,
-                                    )
-                                    self.seq.start()
-
-                            if (
-                                solo_s_onset > self.first_score_onset
-                                and not acc_update
-                                and not adjusted_sf
-                            ):
-                                self.accompanist.accompaniment_step(
-                                    solo_s_onset=solo_s_onset, solo_p_onset=solo_p_onset
-                                )
-                                self.beat_period = self.accompanist.pc.bp_ave
+                        if not acc_update:
+                            asynch = expected_position - solo_s_onset
+                            # print('asynchrony', asynch)
+                            expected_position = expected_position - 0.6 * asynch
+                            loops_without_update = 0
+                            adjusted_sf = False
                         else:
                             loops_without_update += 1
 
-                        if loops_without_update % self.afr == 0:
-
-                            # omly allow forward updates
-                            if self.score_follower.current_position < expected_position:
-                                self.score_follower.update_position(expected_position)
-                                adjusted_sf = True
-
-                        if self.pipe is not None:
-                            self.pipe.send(
-                                (
-                                    self.perf_frame,
-                                    self.get_accompaniment_frame(),
-                                    self.score_idx,
-                                    self.get_tempo(),
+                        if new_midi_messages:
+                            self.note_tracker.update_alignment(solo_s_onset)
+                        # start accompaniment if it starts at the
+                        # same time as the solo
+                        if solo_starts and onset_index == 0:
+                            if not sequencer_start:
+                                print("Start accompaniment")
+                                sequencer_start = True
+                                self.accompanist.accompaniment_step(
+                                    solo_s_onset=solo_s_onset,
+                                    solo_p_onset=solo_p_onset,
                                 )
+                                self.seq.start()
+
+                        if (
+                            solo_s_onset > self.first_score_onset
+                            and not acc_update
+                            and not adjusted_sf
+                        ):
+                            self.accompanist.accompaniment_step(
+                                solo_s_onset=solo_s_onset, solo_p_onset=solo_p_onset
                             )
+                            self.beat_period = self.accompanist.pc.bp_ave
+                    else:
+                        loops_without_update += 1
+
+                    if loops_without_update % self.afr == 0:
+                        # only allow forward updates
+                        if self.score_follower.current_position < expected_position:
+                            self.score_follower.update_position(expected_position)
+                            adjusted_sf = True
+
+                    if self.pipe is not None:
+                        self.pipe.send(
+                            (
+                                self.perf_frame,
+                                self.get_accompaniment_frame(),
+                                self.score_idx,
+                                self.get_tempo(),
+                            )
+                        )
 
         except Exception:
             pass

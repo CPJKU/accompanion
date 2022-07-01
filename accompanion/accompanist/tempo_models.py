@@ -1,8 +1,13 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 from scipy.interpolate import interp1d
 
 
 class SyncModel(object):
+    """
+    Base class for synchronization models
+    """
+
     def __init__(self, init_beat_period=0.5, init_score_onset=0):
         self.beat_period = init_beat_period
         self.prev_score_onset = init_score_onset
@@ -19,15 +24,15 @@ class SyncModel(object):
         self.counter += 1
         return self.beat_period, self.est_onset
 
-    def update_beat_period(self, performed_onset, score_onset,
-                           *args, **kwargs):
+    def update_beat_period(self, performed_onset, score_onset, *args, **kwargs):
         raise NotImplementedError
 
 
 class ReactiveSyncModel(SyncModel):
     def __init__(self, init_beat_period=0.5, init_score_onset=0):
-        super().__init__(init_beat_period=init_beat_period,
-                         init_score_onset=init_score_onset)
+        super().__init__(
+            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+        )
 
     def update_beat_period(self, performed_onset, score_onset):
 
@@ -46,10 +51,16 @@ RSM = ReactiveSyncModel
 
 
 class MovingAverageSyncModel(SyncModel):
-    def __init__(self, init_beat_period=0.5, init_score_onset=0,
-                 alpha=0.5, predict_onset=False):
-        super().__init__(init_beat_period=init_beat_period,
-                         init_score_onset=init_score_onset)
+    def __init__(
+        self,
+        init_beat_period=0.5,
+        init_score_onset=0,
+        alpha=0.5,
+        predict_onset=False,
+    ):
+        super().__init__(
+            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+        )
         self.alpha = alpha
         self.predict_onset = predict_onset
 
@@ -64,8 +75,9 @@ class MovingAverageSyncModel(SyncModel):
                 self.est_onset = self.est_onset + self.beat_period * s_ioi
             else:
                 self.est_onset = performed_onset
-            self.beat_period = (self.alpha * self.beat_period +
-                                (1 - self.alpha) * beat_period)
+            self.beat_period = (
+                self.alpha * self.beat_period + (1 - self.alpha) * beat_period
+            )
             print(self.beat_period)
         else:
             self.est_onset = performed_onset
@@ -79,10 +91,16 @@ MASM = MovingAverageSyncModel
 
 
 class LinearSyncModel(SyncModel):
-    def __init__(self, init_beat_period=0.5, init_score_onset=0,
-                 eta_t=0.3, eta_p=0.7):
-        super().__init__(init_beat_period=init_beat_period,
-                         init_score_onset=init_score_onset)
+    def __init__(
+        self,
+        init_beat_period=0.5,
+        init_score_onset=0,
+        eta_t=0.3,
+        eta_p=0.7,
+    ):
+        super().__init__(
+            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+        )
         self.eta_t = eta_t
         self.eta_p = eta_p
 
@@ -92,9 +110,7 @@ class LinearSyncModel(SyncModel):
 
             s_ioi = abs(score_onset - self.prev_score_onset)
             self.est_onset = (
-                self.est_onset +
-                self.beat_period * s_ioi -
-                self.eta_p * self.asynchrony
+                self.est_onset + self.beat_period * s_ioi - self.eta_p * self.asynchrony
             )
             self.asynchrony = self.est_onset - performed_onset
 
@@ -102,11 +118,11 @@ class LinearSyncModel(SyncModel):
             s_ioi = 0
             self.est_onset = performed_onset
 
-        tempo_correction_term = (self.asynchrony
-                                 if self.asynchrony != 0 and s_ioi != 0 else 0)
+        tempo_correction_term = (
+            self.asynchrony if self.asynchrony != 0 and s_ioi != 0 else 0
+        )
         self.prev_perf_onset = performed_onset
         self.prev_score_onset = score_onset
-
 
         if tempo_correction_term < 0:
             beat_period = self.beat_period - self.eta_t * tempo_correction_term
@@ -115,7 +131,6 @@ class LinearSyncModel(SyncModel):
 
         if beat_period > 0.25 and beat_period <= 3:
             self.beat_period = beat_period
-            
 
 
 # Alias
@@ -123,16 +138,20 @@ LSM = LinearSyncModel
 
 
 class JointAdaptationAnticipationSyncModel(SyncModel):
-
-    def __init__(self, init_beat_period=0.5, init_score_onset=0.0,
-                 alpha=0.5,
-                 beta=0.2,
-                 delta=0.8,
-                 gamma=0.1,
-                 rng_motor=np.random.RandomState(1984),
-                 rng_timekeeper=np.random.RandomState(1984)):
-        super().__init__(init_beat_period=init_beat_period,
-                         init_score_onset=init_score_onset)
+    def __init__(
+        self,
+        init_beat_period=0.5,
+        init_score_onset=0.0,
+        alpha=0.5,
+        beta=0.2,
+        delta=0.8,
+        gamma=0.1,
+        rng_motor=np.random.RandomState(1984),
+        rng_timekeeper=np.random.RandomState(1984),
+    ):
+        super().__init__(
+            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+        )
         self.alpha = alpha
         self.beta = beta
         self.delta = delta
@@ -167,33 +186,32 @@ class JointAdaptationAnticipationSyncModel(SyncModel):
                 # ADAPTATION MODULE
                 # TODO: add timekeeper noise
                 self.ad_est_onset = (
-                    self.est_onset +
-                    self.beat_period * self.score_iois[-1] -
-                    self.alpha * self.asynchrony +
-                    self.tkns[-1]
+                    self.est_onset
+                    + self.beat_period * self.score_iois[-1]
+                    - self.alpha * self.asynchrony
+                    + self.tkns[-1]
                 )
                 # update beat period
-                self.beat_period = (
-                    self.beat_period -
-                    self.beta * (
-                        self.asynchrony # / self.score_iois[-2]
-                    )
+                self.beat_period = self.beat_period - self.beta * (
+                    self.asynchrony  # / self.score_iois[-2]
                 )
 
                 # ANTICIPATION MODULE
 
                 # add timekeeper noise
                 self.an_onset = (
-                    self.prev_perf_onset +
-                    (self.delta * self.extrapolated_interval +
-                     self.omdelta * self.preserverated_interval) *
-                    self.score_iois[-1]
+                    self.prev_perf_onset
+                    + (
+                        self.delta * self.extrapolated_interval
+                        + self.omdelta * self.preserverated_interval
+                    )
+                    * self.score_iois[-1]
                     + self.tkns[-1]
                 )
 
                 self.extrapolated_interval = (
-                    2 * self.instant_beat_periods[-1] -
-                    self.instant_beat_periods[-2])
+                    2 * self.instant_beat_periods[-1] - self.instant_beat_periods[-2]
+                )
 
                 self.preserverated_interval = self.instant_beat_periods[-1]
 
@@ -201,18 +219,16 @@ class JointAdaptationAnticipationSyncModel(SyncModel):
 
                 self.joint_asynchrony = self.ad_est_onset - self.an_onset
                 self.est_onset = (
-                    self.ad_est_onset -
-                    self.gamma * self.joint_asynchrony
-                    + self.mns[-1] - self.mns[-2]
+                    self.ad_est_onset
+                    - self.gamma * self.joint_asynchrony
+                    + self.mns[-1]
+                    - self.mns[-2]
                 )
 
             else:
                 # For the first IOI wi do not really have
                 # an asynchrony yet
-                self.est_onset = (
-                    self.est_onset +
-                    self.beat_period * self.score_iois[-1]
-                   )
+                self.est_onset = self.est_onset + self.beat_period * self.score_iois[-1]
 
                 # perhaps use instant beat period instead?
                 # self.beat_period = ibp
@@ -238,12 +254,18 @@ JADAMSM = JointAdaptationAnticipationSyncModel
 
 
 class LinearTempoExpectationsSyncModel(SyncModel):
+    def __init__(
+        self,
+        init_beat_period=0.5,
+        init_score_onset=0,
+        eta_t=0.2,
+        eta_p=0.6,
+        tempo_expectations_func=None,
+    ):
 
-    def __init__(self, init_beat_period=0.5, init_score_onset=0,
-                 eta_t=0.2, eta_p=0.6, tempo_expectations_func=None):
-
-        super().__init__(init_beat_period=init_beat_period,
-                         init_score_onset=init_score_onset)
+        super().__init__(
+            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+        )
         self.eta_t = eta_t
         self.eta_p = eta_p
 
@@ -257,12 +279,13 @@ class LinearTempoExpectationsSyncModel(SyncModel):
             self.tempo_expectations_func = interp1d(
                 x=tempo_expectations_func[:, 0],
                 y=tempo_expectations_func[:, 1],
-                kind='linear',
-                fill_value='extrapolate'
+                kind="linear",
+                fill_value="extrapolate",
             )
         else:
-            raise ValueError('`tempo_expectations_func` should be a '
-                             'callable or None')
+            raise ValueError(
+                "`tempo_expectations_func` should be a " "callable or None"
+            )
         self.has_tempo_expectations = True
 
         self.scale_factor = None
@@ -280,11 +303,9 @@ class LinearTempoExpectationsSyncModel(SyncModel):
     @init_beat_period.setter
     def init_beat_period(self, value):
         self._init_beat_period = value
-        self.scale_factor = (
-                value / self.tempo_expectations_func(self.first_score_onset)
-            )
-        print('scale_factor', self.scale_factor)
-        print('te_init', self.tempo_expectations_func(self.first_score_onset))
+        self.scale_factor = value / self.tempo_expectations_func(self.first_score_onset)
+        print("scale_factor", self.scale_factor)
+        print("te_init", self.tempo_expectations_func(self.first_score_onset))
 
     @property
     def first_score_onset(self):
@@ -299,21 +320,15 @@ class LinearTempoExpectationsSyncModel(SyncModel):
 
     def tempo_expectations(self, score_onset):
         # relative to the first ioi
-        return float(
-            self.tempo_expectations_func(score_onset) *
-            self.scale_factor
-        )
+        return float(self.tempo_expectations_func(score_onset) * self.scale_factor)
 
-    def update_beat_period(self, performed_onset, score_onset,
-                           *args, **kwargs):
+    def update_beat_period(self, performed_onset, score_onset, *args, **kwargs):
 
         if self.prev_perf_onset:
 
             s_ioi = abs(score_onset - self.prev_score_onset)
             self.est_onset = (
-                self.est_onset +
-                self.beat_period * s_ioi -
-                self.eta_p * self.asynchrony
+                self.est_onset + self.beat_period * s_ioi - self.eta_p * self.asynchrony
             )
             self.asynchrony = self.est_onset - performed_onset
 
@@ -326,10 +341,9 @@ class LinearTempoExpectationsSyncModel(SyncModel):
         )
         self.prev_perf_onset = performed_onset
         self.prev_score_onset = score_onset
-        
+
         expected_beat_period = self.tempo_expectations(score_onset)
-        beat_period = expected_beat_period  \
-            - self.eta_t * tempo_correction_term
+        beat_period = expected_beat_period - self.eta_t * tempo_correction_term
 
         # bp_rel_diff = abs(beat_period - expected_beat_period)/expected_beat_period
 
