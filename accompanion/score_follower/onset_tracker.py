@@ -1,18 +1,36 @@
+from typing import Tuple, List, Optional
+
 import numpy as np
 
-class OnsetTracker(object):
-    def __init__(self, unique_onsets):
-        self.unique_onsets = unique_onsets
-        self.max_idx = len(self.unique_onsets) - 1
-        self.unique_onsets.sort()
-        self.current_idx = 0
-        self.performed_onsets = []
-        self.min_acc_delta = 2
 
-    def __call__(self, score_time, acc_score_time=-np.inf):
-        solo_s_onset = None
-        onset_index = None
-        acc_update = False
+class OnsetTracker(object):
+    """
+    A class to keep track of the performed onsets and knows at all times
+    what is the current score onset and what is the next onset.
+
+    Parameters
+    ----------
+    unique_onsets : np.ndarray
+        The unique score onsets in beats.
+    min_acc_delta : float
+    """
+
+    def __init__(self, unique_onsets: np.ndarray, min_acc_delta: float = 2) -> None:
+        self.unique_onsets: np.ndarray = unique_onsets
+        self.max_idx: int = len(self.unique_onsets) - 1
+        self.unique_onsets.sort()
+        self.current_idx: int = 0
+        self.performed_onsets: List[float] = []
+        self.min_acc_delta: float = min_acc_delta
+
+    def __call__(
+        self,
+        score_time: float,
+        acc_score_time: float = -np.inf,
+    ) -> Tuple[Optional[float], Optional[int], bool]:
+        solo_s_onset: Optional[float] = None
+        onset_index: Optional[int] = None
+        acc_update: Optional[bool] = False
 
         if score_time >= self.current_onset:
             if self.current_onset not in self.performed_onsets:
@@ -31,28 +49,32 @@ class OnsetTracker(object):
 
         return solo_s_onset, onset_index, acc_update
 
-    def is_acc_update(self, acc_score_time):
-        next_onset_crit = acc_score_time >= self.next_onset
-        delta_onset_crit = acc_score_time - self.current_onset >= self.min_acc_delta
+    def is_acc_update(self, acc_score_time: float) -> bool:
+        next_onset_crit: bool = acc_score_time >= self.next_onset
+        delta_onset_crit: bool = (
+            acc_score_time - self.current_onset >= self.min_acc_delta
+        )
         return next_onset_crit and delta_onset_crit
 
     @property
-    def current_onset(self):
+    def current_onset(self) -> float:
         try:
             return self.unique_onsets[self.current_idx]
         except IndexError:
             return self.unique_onsets[-1]
 
-    def acc_onset(self, acc_score_time):
-        min_idx = np.argmax(acc_score_time >= self.unique_onsets[self.current_idx:])# np.where(acc_score_time >= self.unique_onsets)[0]
+    def acc_onset(self, acc_score_time) -> Tuple[float, int]:
+        min_idx: int = np.argmax(
+            acc_score_time >= self.unique_onsets[self.current_idx:]
+        )  # np.where(acc_score_time >= self.unique_onsets)[0]
         try:
-            c_idx = self.current_idx + min_idx
+            c_idx: int = self.current_idx + min_idx
             return self.unique_onsets[c_idx], c_idx
         except (ValueError, IndexError):
             return self.unique_onsets[-1], self.max_idx
 
     @property
-    def next_onset(self):
+    def next_onset(self) -> float:
         try:
             return self.unique_onsets[self.current_idx + 1]
         except IndexError:

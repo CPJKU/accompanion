@@ -473,6 +473,7 @@ class ACCompanion(ACC_PARENT):
         # perf_start = False
 
         onset_tracker = OnsetTracker(self.solo_score.unique_onsets)
+        # Initialize on-line Basis Mixer here
         # expression_model = BasisMixer()
         self.midi_input_process.start()
         print("Start listening")
@@ -501,15 +502,10 @@ class ACCompanion(ACC_PARENT):
         empty_loops = 0
         prev_solo_p_onset = None
         adjusted_sf = False
-        # if self.tap_tempo:
-        #     # TODO: Check for potential edge cases
-        #     _, ts_beat_type = self.acc_score.time_signature_map(self.first_score_onset)
-        #     tapping_ibi = get_beat_conversion(self.tempo_tapping[1], ts_beat_type)
-        #     print(f"Tempo Tapping IBI: {tapping_ibi}")
         decay = np.ones(88)
 
         pioi = self.polling_period
-        # time_since_last_match = None
+
         try:
             while self.play_accompanion and not self.seq.end_of_piece:
 
