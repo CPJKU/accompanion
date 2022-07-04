@@ -13,30 +13,27 @@ import numpy as np
 
 
 class Pitch_IOI_Processor(object):
-    def __init__(self):
-        self.ref_time = 0
+    def __init__(self, piano_range=False):
+        self.prev_time = 0
+        self.piano_range = piano_range
+
+        self.pitch_bias = 21 if piano_range else 0
 
     def __call__(self, frame, kwargs={}):
         data, f_time = frame
-
-        if len(data) == 0:
-            return (np.array([]), np.array([])), {}
-
-        pitch_obs, ioi_obs = [], []
-
-        prev_t = self.ref_time
-
+        pitch_obs = []
         self.ref_time = f_time
+        ioi_obs = f_time - self.ref_time
+        self.prev_time = f_time
 
         for msg, t in data:
-            if msg.type == "note_on" and msg.velocity > 0:
-
-                ioi_obs.append(t - prev_t)
-
-                prev_t = t
+            if (
+                getattr(msg, "type", "other") == "note_on"
+                and getattr(msg, "velocity", 0) > 0
+            ):
                 pitch_obs.append(msg.note)
 
-        return (np.array(pitch_obs), np.array(ioi_obs)), {}
+        return (np.array(pitch_obs) - self.pitch_bias, ioi_obs), {}
 
 
 class PianoRollProcessor(object):
