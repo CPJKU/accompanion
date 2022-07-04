@@ -407,7 +407,7 @@ if __name__ == "__main__":
             brahms_dir,
             "midi",
             "cc_solo",
-            "Brahms_Hungarian-Dance-5_Primo_2021-07-29_w_tapping.mid",
+            "Brahms_Hungarian-Dance-5_Primo_2021-07-27.mid"
         )
         accompaniment_match = os.path.join(
             brahms_dir, "basismixer", "bm_brahms_2021-08-30.match"
