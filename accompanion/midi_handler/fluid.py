@@ -9,9 +9,8 @@ TODO
 """
 import warnings
 
-from accompanion import PLATFORM
+from accompanion import PLATFORM, HAS_FLUIDSYNTH
 
-import importlib.util
 
 if PLATFORM == "Linux":
     MIDI_DRIVER = "alsa"
@@ -23,10 +22,7 @@ elif PLATFORM == "Windows":
     MIDI_DRIVER = None
 
 
-# check if pyfluidsynth is installed
-spec = importlib.util.find_spec("fluidsynth")
-
-if PLATFORM in ("Linux", "Darwin") and spec is not None:
+if PLATFORM in ("Linux", "Darwin") and HAS_FLUIDSYNTH:
     import fluidsynth
     from accompanion import SOUNDFONT
 

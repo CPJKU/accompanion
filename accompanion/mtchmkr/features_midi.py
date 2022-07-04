@@ -12,7 +12,7 @@ import numpy as np
 # import partitura
 
 
-class Pitch_IOI_Processor(object):
+class PitchIOIProcessor(object):
     def __init__(self, piano_range=False):
         self.prev_time = 0
         self.piano_range = piano_range
@@ -33,7 +33,11 @@ class Pitch_IOI_Processor(object):
             ):
                 pitch_obs.append(msg.note)
 
-        return (np.array(pitch_obs) - self.pitch_bias, ioi_obs), {}
+        if len(pitch_obs) > 0:
+            return (np.array(pitch_obs), ioi_obs), {}
+
+    def reset(self):
+        pass
 
 
 class PianoRollProcessor(object):

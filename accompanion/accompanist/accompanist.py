@@ -73,7 +73,6 @@ class ACCompanion(ACC_PARENT):
         tempo_model=tempo_models.LSM,
         tempo_model_kwargs={},
         accompaniment_match=None,
-        # tap_tempo=False,
         pipe=None,
         use_ceus_mediator=False,
         performance_codec_kwargs={
@@ -88,7 +87,6 @@ class ACCompanion(ACC_PARENT):
             "mechanical_delay": 0.0,
         },
         adjust_following_rate=0.1,
-        # tempo_tapping=None,
         bypass_audio=False,  # bypass fluidsynth audio
     ):
         super(ACCompanion, self).__init__()

@@ -14,7 +14,15 @@ from accompanion.utils.partitura_utils import (
 from scipy import interpolate
 
 
-class MultiDTWScoreFollower(object):
+class AccompanimentScoreFollower(object):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, frame):
+        raise NotImplementedError
+
+
+class MultiDTWScoreFollower(AccompanimentScoreFollower):
     def __init__(
         self,
         score_followers,
@@ -23,7 +31,7 @@ class MultiDTWScoreFollower(object):
         polling_period,
         update_sf_positions=False,
     ):
-
+        super().__init__()
         self.score_followers = score_followers
         self.state_to_ref_time_maps = state_to_ref_time_maps
         self.ref_to_state_time_maps = ref_to_state_time_maps

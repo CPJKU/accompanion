@@ -14,13 +14,12 @@ import importlib.util
 # OS: Linux, Mac or Windows
 PLATFORM = platform.system()
 
+SOUNDFONT = None
 
 # check if pyfluidsynth is installed
 spec = importlib.util.find_spec("fluidsynth")
-if spec is None:
-    # Do not use a soundfont
-    SOUNDFONT = None
-else:
+HAS_FLUIDSYNTH = spec is not None
+if HAS_FLUIDSYNTH:
     SOUNDFONT = pkg_resources.resource_filename(
         "accompanion",
         "sound_fonts/Acoustic_Piano.sf2",
