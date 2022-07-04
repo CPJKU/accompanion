@@ -26,3 +26,4 @@ dependencies:
     - pyqtgraph
     - git+https://github.com/OFAI/basismixer.git
     - git+https://github.com/CPJKU/partitura.git@develop
+    - git+https://github.com/neosatrapahereje/hiddenmarkov.git
