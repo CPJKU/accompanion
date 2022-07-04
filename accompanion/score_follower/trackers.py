@@ -1,3 +1,8 @@
+"""
+TODO
+----
+* Update the MultiDTWScoreFollower for HMM?
+"""
 import partitura
 
 import numpy as np
@@ -9,7 +14,7 @@ from accompanion.utils.partitura_utils import (
 from scipy import interpolate
 
 
-class DummyMultiDTWTracker(object):
+class MultiDTWScoreFollower(object):
     def __init__(
         self,
         score_followers,
@@ -57,6 +62,13 @@ class DummyMultiDTWTracker(object):
 
 
 class GroundTruthTracker(object):
+    """
+    Does this tracker still works?
+
+    TODO
+    ----
+    * check if this class works, and if not either adapt it or delete it
+    """
     def __init__(self, match_fn, frame_resolution, score_bpm, pipeline, **kwargs):
         ppart, gt_alignment, spart = partitura.load_match(
             match_fn, create_part=True, first_note_at_zero=True

@@ -48,7 +48,7 @@ from accompanion.utils.partitura_utils import (
 from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.score_follower.note_tracker import NoteTracker
 from accompanion.score_follower.onset_tracker import OnsetTracker
-from accompanion.score_follower.trackers import DummyMultiDTWTracker
+from accompanion.score_follower.trackers import MultiDTWScoreFollower
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 
 
@@ -377,7 +377,7 @@ class ACCompanion(ACC_PARENT):
 
             score_followers.append(score_follower)
 
-        self.score_follower = DummyMultiDTWTracker(
+        self.score_follower = MultiDTWScoreFollower(
             score_followers,
             state_to_ref_time_maps,
             ref_to_state_time_maps,

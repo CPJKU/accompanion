@@ -4,6 +4,7 @@ On-line Dynamic Time Warping
 """
 import numpy as np
 
+from accompanion.mtchmkr.base import OnlineAlignment
 from accompanion.mtchmkr import distances
 from accompanion.mtchmkr.distances import vdist, Metric
 from accompanion.mtchmkr.dtw_loop import (
@@ -17,7 +18,7 @@ STEP_SIZE = 5
 START_WINDOW_SIZE = 60
 
 
-class OnlineTimeWarping(object):
+class OnlineTimeWarping(OnlineAlignment):
     """
     Fast On-line Time Warping
 
@@ -56,7 +57,8 @@ class OnlineTimeWarping(object):
         local_cost_fun=DEFAULT_LOCAL_COST,
     ):
 
-        self.reference_features = reference_features
+        super.__init__(reference_features=reference_features)
+        # self.reference_features = reference_features
         self.input_features = []
 
         # Set local cost function
