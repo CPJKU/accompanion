@@ -9,6 +9,8 @@ from hiddenmarkov import ObservationModel, ConstantTransitionModel, HiddenMarkov
 
 from accompanion.mtchmkr.base import OnlineAlignment
 
+from accompanion.accompanist.tempo_models import SyncModel
+
 
 class PitchIOIObservationModel(ObservationModel):
     """
@@ -145,13 +147,10 @@ class PitchIOIObservationModel(ObservationModel):
 
     def __call__(self, observation):
         pitch_obs, ioi_obs, tempo_est = observation
-        observation_prob = (
-            self.compute_pitch_observation_probability(pitch_obs) *
-            self.compute_ioi_observation_probability(
-                ioi_obs=ioi_obs,
-                current_state=self.current_state,
-                tempo_est=tempo_est
-            )
+        observation_prob = self.compute_pitch_observation_probability(
+            pitch_obs
+        ) * self.compute_ioi_observation_probability(
+            ioi_obs=ioi_obs, current_state=self.current_state, tempo_est=tempo_est
         )
         return observation_prob
 
@@ -191,6 +190,7 @@ class PitchIOIHMM(HiddenMarkovModel, OnlineAlignment):
         pitch_profiles: np.ndarray,
         ioi_matrix: np.ndarray,
         score_onsets: np.ndarray,
+        tempo_model: SyncModel,
         ioi_precision: float = 1,
         initial_probabilities: Optional[np.ndarray] = None,
     ) -> None:
@@ -233,152 +233,29 @@ class PitchIOIHMM(HiddenMarkovModel, OnlineAlignment):
 
         super().__init__(
             observation_model=observation_model,
-            transition_model=ConstantTransitionModel(transition_matrix),
-            
+            transition_model=ConstantTransitionModel(
+                transition_probabilities=transition_matrix,
+                init_probabilities=initial_probabilities,
+            ),
+            state_space=score_onsets,
+            reference_features=reference_features,
+        )
 
-        
+        self.tempo_model = tempo_model
 
-        
-        # # super().__init__(
-        # #     reference_features=(transition_matrix, pitch_profiles, ioi_matrix)
-        # # )
-        # # Check if the transition probability matrix is a square matrix:
-        # if transition_matrix.shape[0] != transition_matrix.shape[1]:
-        #     # Raise invalid input exception:
-        #     raise ValueError("Invalid Transition Probability Matrix (not square).")
-        # # Initialize the transition model:
-        # self._transition_matrix = transition_matrix
-        # # Initialize the observation model:
-        # self._observation_model = ObservationModel(
-        #     pitch_profiles, ioi_matrix, ioi_precision
-        # )
+    def __call__(self, input):
 
-        # self._score_onsets = score_onsets
+        self.current_state = self.forward_algorithm_step(
+            observation=input + (self.tempo_model.beat_period,),
+            log_probabilities=False
+        )
 
-        # # Define the initial probability:
-        # if initial_distribution is not None:
-        #     # Check if the initial_distribution is valid:
-        #     if len(initial_distribution) != (transition_matrix.shape[0]):
-        #         # Raise an error:
-        #         raise ValueError(
-        #             "Invalid Initial Distribution size. \
-        #         Initial Distribution size: {ids}, \
-        #         Transition Matrix Dimension: {tmd}".format(
-        #                 ids=len(initial_distribution), tmd=transition_matrix.shape[0]
-        #             )
-        #         )
-        #     # If provided:
-        #     self.initial_distribution = initial_distribution
-        # else:
-        #     # Create a uniform distribution:
-        #     self.initial_distribution = (
-        #         np.ones(transition_matrix.shape[0]) / transition_matrix.shape[0]
-        #     )
+        return self.state_space[self.current_state]
 
-        # # Declare the first forward variable from the initial distribution:
-        # self.forward_variable = self.initial_distribution
+    @property
+    def current_state(self):
+        return self.observation_model.current_state
 
-        # # Initialize the variable to store the current state of the HMM:
-        # self.current_state = np.argmax(self.forward_variable)
-
-        # # Variable to show if this is the first run of the forward algorithm:
-        # self._first_time = True
-
-    # def forward_algorithm_step(self, pitch_obs: np.ndarray, ioi_obs: float, period_est: float,) -> None:
-    #     """
-    #     Performs the online version (a single step from a single observation) of
-    #     the forward algorithm for the Score HMM. Updates the forward variable
-    #     and the current state of the HMM for the latest observed event.
-
-    #     Parameters
-    #     ----------
-    #     pitch_obs : array-like
-    #         The performed pitches in the observed event.
-
-    #     ioi_obs : float
-    #         The value of the observed ioi between the last two performed notes
-    #         in seconds.
-
-    #     period_est : float
-    #         The value of the estimated period by the Linear model in the
-    #         IOIObservationManager object. Used in the estimation of IOIs in the
-    #         performance in seconds.
-    #     """
-    #     # Compute the pitch and IOI probabilities separately:
-    #     pitch_prob = self._observation_model.compute_pitch_observation_probability(
-    #         pitch_obs
-    #     )
-
-    #     ioi_prob = self._observation_model.compute_ioi_observation_probability(
-    #         ioi_obs, self.current_state, period_est
-    #     )
-
-    #     # Check if we are still in the 0th state:
-    #     if self._first_time:
-    #         # Just give the forward variable as transition prob:
-    #         transition_prob = self.forward_variable
-    #         # Run the computation methods of the transition and observation
-    #         # models:
-    #         self.forward_variable = (pitch_prob * ioi_prob) * transition_prob
-    #         # Reset the first time:
-    #         self._first_time = False
-
-    #     else:
-    #         # Compute the transition probabilities:
-    #         transition_prob = np.dot(self._transition_matrix.T, self.forward_variable)
-    #         # Run the computation methods of the transition and observation
-    #         # models:
-    #         self.forward_variable = (pitch_prob * ioi_prob) * transition_prob
-
-    #     # Normalize the newly computed forward variable:
-    #     self.forward_variable /= self.forward_variable.sum()
-
-    #     # Update the current state:
-    #     self.current_state = np.argmax(self.forward_variable)
-
-    # def __call__(self, input):
-    #     pitch_observations, ioi_observations, period_estimation = input
-
-    #     self.forward_algorithm_step(
-    #         pitch_observations=pitch_observations,
-    #         ioi_observations=ioi_observations,
-    #         period_estimation=period_estimation,
-    #     )
-
-    #     return self._score_onsets[self.current_state]
-
-    # @property
-    # def forward_variable(self):
-    #     """
-    #     Get the latest forward variable of the HMM.
-
-    #     Returns
-    #     -------
-    #     forward_variable : numpy array
-    #         The current (latest) value of the forward variable.
-    #     """
-    #     return self._forward_variable
-
-    # @property
-    # def initial_distribution(self):
-    #     """
-    #     Get the initial distribution of the HMM.
-
-    #     Returns
-    #     -------
-    #     initial_distribution : numpy array
-    #         The initial probability distribution of the states in the HMM.
-    #     """
-    #     return self._initial_distribution
-
-    # @property
-    # def current_state(self):
-    #     """
-    #     Get the current state of the HMM.
-
-    #     Returns
-    #     -------
-    #     current_state : int
-    #         The current state of the HMM.
-    #     """
-    #     return self._current_state
+    @current_state.setter
+    def current_state(self, state):
+        self.observation_model.current_state = state
