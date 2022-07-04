@@ -267,7 +267,7 @@ class FramedMidiInputProcess(MidiInputProcess):
         """
         self.open_port()
 
-        sttime = time.time()
+        # sttime = time.time()
         self.start_listening()
         frame = Buffer(self.polling_period)
         frame.start = self.current_time

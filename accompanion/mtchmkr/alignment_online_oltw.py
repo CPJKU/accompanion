@@ -57,7 +57,7 @@ class OnlineTimeWarping(OnlineAlignment):
         local_cost_fun=DEFAULT_LOCAL_COST,
     ):
 
-        super.__init__(reference_features=reference_features)
+        super().__init__(reference_features=reference_features)
         # self.reference_features = reference_features
         self.input_features = []
 
