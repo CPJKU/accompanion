@@ -21,6 +21,7 @@ class MidiRouter(object):
     ):
         self.available_input_ports = mido.get_input_names()
         self.available_output_ports = mido.get_output_names()
+        print("Available outputs MIDI for mido", self.available_output_ports)
         self.input_port_names = {}
         self.output_port_names = {}
         self.open_ports_list = []
@@ -87,6 +88,9 @@ class MidiRouter(object):
                     for i, name in enumerate(self.available_output_ports)
                     if try_name in name
                 ]
+                # possible_names = ["RD-88 1"]
+                print("Possibly output names", possible_names)
+                print("Try name", try_name)
 
             if len(possible_names) == 1:
                 print(
@@ -138,6 +142,7 @@ class MidiRouter(object):
         if try_name is not None:
             if input:
                 port = mido.open_input(try_name)
+                port.close()
             else:
                 port = mido.open_output(try_name)
 
