@@ -123,7 +123,7 @@ class PitchIOIObservationModel(ObservationModel):
         # Compute the expected argument:
         exp_arg = (
             -0.5
-            * ((tempo_est * self._ioi_matrix[ioi_idx] - ioi_obs[-1]) ** 2)
+            * ((tempo_est * self._ioi_matrix[ioi_idx] - ioi_obs) ** 2)
             * self._ioi_precision
         )
 
@@ -158,7 +158,7 @@ class PitchIOIObservationModel(ObservationModel):
         return observation_prob
 
 
-class PitchIOIHMM(HiddenMarkovModel, OnlineAlignment):
+class PitchIOIHMM(HiddenMarkovModel):
     """
     Implements the bahaviour of a HiddenMarkovModel, specifically designed for
     the task of score following.
@@ -226,7 +226,7 @@ class PitchIOIHMM(HiddenMarkovModel, OnlineAlignment):
             be uniform.
             Default = None.
         """
-        reference_features = (transition_matrix, pitch_profiles, ioi_matrix)
+        # reference_features = (transition_matrix, pitch_profiles, ioi_matrix)
 
         observation_model = PitchIOIObservationModel(
             pitch_profiles=pitch_profiles,
@@ -241,17 +241,15 @@ class PitchIOIHMM(HiddenMarkovModel, OnlineAlignment):
                 init_probabilities=initial_probabilities,
             ),
             state_space=score_onsets,
-            reference_features=reference_features,
+            # reference_features=reference_features,
         )
 
         self.tempo_model = tempo_model
 
     def __call__(self, input):
-
         self.current_state = self.forward_algorithm_step(
             observation=input + (self.tempo_model.beat_period,), log_probabilities=False
         )
-
         return self.state_space[self.current_state]
 
     @property

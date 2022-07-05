@@ -121,7 +121,7 @@ class ACCompanion(ACC_PARENT):
         self.play_accompanion: bool = False
 
         # self.first_score_onset: Optional[float] = None
-        self.adjust_following_rate: bool = adjust_following_rate
+        self.adjust_following_rate: float = adjust_following_rate
         # Rate in "loops_without_update"  for adjusting the score
         # follower with expected position at the
         # current tempo
@@ -296,7 +296,7 @@ class ACCompanion(ACC_PARENT):
         print("Start listening")
 
         self.perf_frame = None
-        self.score_idx = 0
+        # self.score_idx = 0
 
         if self.midi_fn is not None:
             print("Start playing MIDI file")
@@ -333,27 +333,8 @@ class ACCompanion(ACC_PARENT):
                     # perhaps it would be good to take the time from
                     # the MIDI messages?
                     solo_p_onset = time.time() - start_time
-
-                    input_midi_messages, output = output
-
-                    # listen to metronome notes for tempo
-                    # copy output to perf_frame
-                    # (with velocities for visualization)
-                    # self.perf_frame = output.copy()
-                    # overwrite velocities to 1 for tracking
-                    # TODO think about nicer solution
-                    # output[output > 0] = 1.0
-
-                    # # start playing the performance
-                    # if not perf_start and (output > 0).any():
-                    #     # Ignore messages after the tapping
-                    #     if np.all(
-                    #         np.where(output > 0)[0] + 21
-                    #         == self.solo_score.getitem_indexwise(0).pitch
-                    #     ):
-                    #         perf_start = True
-                    #         print("start following!")
-
+                    # print(output)
+                    input_midi_messages, (output, is_empty) = output
                     # Use these onset times?
                     onset_times = [
                         msg[1]
@@ -373,24 +354,29 @@ class ACCompanion(ACC_PARENT):
 
                             decay[msg.note - 21] = 1.0
 
-                    output *= decay
+                    # output *= decay
 
-                    if sum(output) == 0:
+                    if is_empty:
                         empty_loops += 1
                     else:
-                        empty_loops == 0
+                        empty_loops = 0
+                    # if output is not None:
+                    #     if sum(output) == 0:
+                    #         empty_loops += 1
+                    #     else:
+                    #         empty_loops == 0
+                    # else:
+                    #     empty_loops += 1
 
                     # if perf_start:
-                    try:
-                        self.score_idx, score_position = self.score_follower(output)
-                    except Exception as e:
-                        print(e)
+                    score_position = self.score_follower(output)
+                    
                     solo_s_onset, onset_index, acc_update = onset_tracker(
                         score_position,
                         expected_position
                         # self.seq.performed_score_onsets[-1]
                     )
-
+                    
                     pioi = (
                         solo_p_onset - prev_solo_p_onset
                         if prev_solo_p_onset is not None
@@ -449,7 +435,8 @@ class ACCompanion(ACC_PARENT):
                             self.score_follower.update_position(expected_position)
                             adjusted_sf = True
 
-        except Exception:
+        except Exception as e:
+            print(e)
             pass
         finally:
             self.stop_playing()

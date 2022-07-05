@@ -64,7 +64,6 @@ if __name__ == "__main__":
         brahms_dir, "basismixer", "bm_brahms_2021-08-30.match"
     )
 
-    tempo_tapping = (4, "quarter")
     init_bpm = 120
 
     tempo_model = tempo_models.LTESM

@@ -1,16 +1,13 @@
-from typing import Optional, Iterable
+from typing import Optional
+
 
 import numpy as np
 import partitura
 
 from basismixer.performance_codec import get_performance_codec
-from partitura.utils.music import get_time_maps_from_alignment
 from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 from scipy.interpolate import interp1d
 
-from accompanion.mtchmkr.alignment_online_oltw import (
-    OnlineTimeWarping,
-)
 from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
 from accompanion.base import ACCompanion
@@ -24,15 +21,13 @@ from accompanion.accompanist.score import (
 from accompanion.accompanist.accompaniment_decoder import (
     moving_average_offline,
 )
-from accompanion.mtchmkr.features_midi import PianoRollProcessor
-from accompanion.utils.partitura_utils import (
-    partitura_to_framed_midi_custom as partitura_to_framed_midi,
-)
-from accompanion.score_follower.trackers import MultiDTWScoreFollower
+from accompanion.mtchmkr.features_midi import PitchIOIProcessor
+from accompanion.score_follower.trackers import HMMScoreFollower
 from accompanion.accompanist import tempo_models
+from accompanion.mtchmkr import score_hmm
 
 
-class OLTWACCompanion(ACCompanion):
+class HMMACCompanion(ACCompanion):
     def __init__(
         self,
         solo_fn,
@@ -41,13 +36,13 @@ class OLTWACCompanion(ACCompanion):
         accompaniment_match: Optional[str] = None,
         midi_fn: Optional[str] = None,
         score_follower_kwargs: dict = {
-            "score_follower": "OnlineTimeWarping",
-            "window_size": 80,
-            "step_size": 10,
+            "score_follower": "PitchIOIHMM",
             "input_processor": {
-                "processor": "PianoRollProcessor",
-                "processor_kwargs": {"piano_range": True},
+                "processor": "PitchIOIProcessor",
+                "processor_kwargs": {},
             },
+            # For the Future!
+            # "reference_processor": {}
         },
         tempo_model_kwargs={"tempo_model": tempo_models.LSM},
         performance_codec_kwargs={
@@ -70,10 +65,11 @@ class OLTWACCompanion(ACCompanion):
     ) -> None:
 
         score_kwargs = dict(
-            solo_fn=solo_fn if isinstance(solo_fn, Iterable) else [solo_fn],
+            solo_fn=solo_fn,
             acc_fn=acc_fn,
             accompaniment_match=accompaniment_match,
         )
+
         super().__init__(
             score_kwargs=score_kwargs,
             score_follower_kwargs=score_follower_kwargs,
@@ -89,8 +85,6 @@ class OLTWACCompanion(ACCompanion):
             tempo_model_kwargs=tempo_model_kwargs,
         )
 
-        self.solo_parts = None
-
     def setup_scores(self):
 
         tempo_model_type = self.tempo_model_kwargs.pop("tempo_model")
@@ -100,35 +94,7 @@ class OLTWACCompanion(ACCompanion):
 
         self.tempo_model = tempo_model_type(**self.tempo_model_kwargs)
 
-        self.solo_parts = []
-        for i, fn in enumerate(self.score_kwargs["solo_fn"]):
-            if fn.endswith(".match"):
-                if i == 0:
-                    solo_ppart, alignment, solo_spart = partitura.load_match(
-                        fn=fn, create_part=True, first_note_at_zero=True
-                    )
-                else:
-                    solo_ppart, alignment = partitura.load_match(
-                        fn=fn, create_part=False, first_note_at_zero=True
-                    )
-
-                ptime_to_stime_map, stime_to_ptime_map = get_time_maps_from_alignment(
-                    ppart_or_note_array=solo_ppart,
-                    spart_or_note_array=solo_spart,
-                    alignment=alignment,
-                )
-                self.solo_parts.append(
-                    (solo_ppart, ptime_to_stime_map, stime_to_ptime_map)
-                )
-            else:
-                solo_spart = partitura.load_score(fn)
-
-                if i == 0:
-                    solo_spart = solo_spart
-
-                self.solo_parts.append((solo_spart, None, None))
-
-        self.solo_score = part_to_score(solo_spart, bpm=self.init_bpm)
+        solo_spart = partitura.load_score(self.score_kwargs["solo_fn"])
 
         if self.score_kwargs["accompaniment_match"] is None:
             acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])
@@ -204,6 +170,8 @@ class OLTWACCompanion(ACCompanion):
             log_articulation = bm_params["articulation_log"] * lart_scale
             log_bpr = None
 
+        self.solo_score = part_to_score(solo_spart, bpm=60 / self.init_bp, velocity=64)
+
         self.acc_score = AccompanimentScore(
             notes=acc_notes,
             solo_score=self.solo_score,
@@ -216,53 +184,34 @@ class OLTWACCompanion(ACCompanion):
 
     def setup_score_follower(self):
 
+        piano_range = False
+        inserted_states = True
+        ioi_precision = 2
         pipeline_kwargs = self.score_follower_kwargs.pop("input_processor")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
-        pipeline = SequentialOutputProcessor([PianoRollProcessor(piano_range=True)])
 
-        state_to_ref_time_maps = []
-        ref_to_state_time_maps = []
-        score_followers = []
-
-        # # reference score for visualization
-        # self.reference_features = None
-
-        for part, state_to_ref_time_map, ref_to_state_time_map in self.solo_parts:
-
-            if state_to_ref_time_map is not None:
-                ref_frames = partitura_to_framed_midi(
-                    part_or_notearray_or_filename=part,
-                    is_performance=True,
-                    pipeline=pipeline,
-                    polling_period=self.polling_period,
-                )[0]
-
-            else:
-                raise NotImplementedError
-
-            state_to_ref_time_maps.append(state_to_ref_time_map)
-            ref_to_state_time_maps.append(ref_to_state_time_map)
-            ref_features = np.array(ref_frames).astype(float)
-
-            # if self.reference_features is None:
-            #     self.reference_features = ref_features
-
-            # setup score follower
-            # print(self.score_follower_kwargs)
-            # print(self.score_follower_kwargs["score_follower"])
-            score_follower = OnlineTimeWarping(
-                reference_features=ref_features, **self.score_follower_kwargs
-            )
-
-            score_followers.append(score_follower)
-
-        self.score_follower = MultiDTWScoreFollower(
-            score_followers,
-            state_to_ref_time_maps,
-            ref_to_state_time_maps,
-            self.polling_period,
+        chord_pitches = [chord.pitch for chord in self.solo_score.chords]
+        pitch_profiles = score_hmm.compute_pitch_profiles(
+            chord_pitches, piano_range=piano_range, inserted_states=inserted_states
+        )
+        ioi_matrix = score_hmm.compute_ioi_matrix(
+            unique_onsets=self.solo_score.unique_onsets, inserted_states=inserted_states
+        )
+        state_space = ioi_matrix[0]
+        n_states = len(state_space)
+        transition_matrix = score_hmm.gumbel_transition_matrix(
+            n_states=n_states, inserted_states=inserted_states
+        )
+        initial_probabilities = score_hmm.gumbel_init_dist(n_states=n_states)
+        score_follower = score_hmm.PitchIOIHMM(
+            transition_matrix=transition_matrix,
+            pitch_profiles=pitch_profiles,
+            ioi_matrix=ioi_matrix,
+            score_onsets=state_space,
+            tempo_model=self.tempo_model,
+            ioi_precision=ioi_precision,
+            initial_probabilities=initial_probabilities,
         )
 
-        self.input_pipeline = SequentialOutputProcessor(
-            [PianoRollProcessor(piano_range=True)]
-        )
+        self.score_follower = HMMScoreFollower(score_follower)
+        self.input_pipeline = SequentialOutputProcessor([PitchIOIProcessor()])

@@ -22,6 +22,24 @@ class AccompanimentScoreFollower(object):
         raise NotImplementedError
 
 
+class HMMScoreFollower(AccompanimentScoreFollower):
+    def __init__(self, score_follower, update_sf_positions=False):
+        super().__init__()
+        self.score_follower = score_follower
+        self.current_position = 0
+
+    def __call__(self, frame):
+        
+        if frame is not None:
+            self.current_position = self.score_follower(frame)
+            return self.current_position
+        else:
+            return None
+        # return self.score_follower.current_state, self.score_position
+        
+    def update_position(self, ref_time):
+        pass
+
 class MultiDTWScoreFollower(AccompanimentScoreFollower):
     def __init__(
         self,
@@ -57,9 +75,10 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
             self.update_position(score_position)
 
         # todo @carlos which index needs to be chosen?
-        index = indices[0]
-
-        return index, score_position
+        # Sort visualization stuff later
+        # index = indices[0]
+        # return index, score_position
+        return score_position
 
     def update_position(self, ref_time):
         for sf, rtsm in zip(self.score_followers, self.ref_to_state_time_maps):
