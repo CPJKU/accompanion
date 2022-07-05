@@ -21,21 +21,16 @@ from accompanion.midi_handler.midi_routing import MidiRouter
 
 from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
-from accompanion.accompanist.score import (
-    AccompanimentScore,
-    Score
-)
+from accompanion.accompanist.score import AccompanimentScore, Score
 
 from accompanion.accompanist.accompaniment_decoder import (
     OnlinePerformanceCodec,
-    Accompanist
+    Accompanist,
 )
 
 from accompanion.accompanist.tempo_models import SyncModel
 
 from accompanion.utils.partitura_utils import (
-    # partitura_to_framed_midi_custom as partitura_to_framed_midi,
-    # get_beat_conversion,
     DECAY_VALUE,
 )
 
@@ -73,13 +68,14 @@ class ACCompanion(ACC_PARENT):
     bypass_audio: bool = False
         Bypass fluidsynth audio
     """
+
     def __init__(
         self,
         score_kwargs: dict,
         score_follower_kwargs: dict,
         tempo_model_kwargs: dict,
-        performance_codec_kwargs: dict, #this is just a workaround for now
-        midi_router_kwargs: dict, # this is just a workaround for now
+        performance_codec_kwargs: dict,  # this is just a workaround for now
+        midi_router_kwargs: dict,  # this is just a workaround for now
         midi_fn: Optional[str] = None,
         init_bpm: float = 60,
         init_velocity: int = 60,
@@ -115,7 +111,7 @@ class ACCompanion(ACC_PARENT):
         self.polling_period: float = polling_period
 
         # self.score_follower: AccompanimentScoreFollower = score_follower
-        self.score_follower = None
+        self.score_follower: Optional[AccompanimentScoreFollower] = None
 
         # self.tempo_model: SyncModel = tempo_model
         self.tempo_model = None
@@ -154,6 +150,23 @@ class ACCompanion(ACC_PARENT):
 
     def setup_process(self):
 
+        if self.router_kwargs.get("acc_output_to_sound_port_name", None) is not None:
+            try:
+                # For SynthPorts
+                self.router_kwargs[
+                    "acc_output_to_sound_port_name"
+                ] = self.router_kwargs["acc_output_to_sound_port_name"]()
+            except TypeError:
+                pass
+
+        if self.router_kwargs.get("MIDIPlayer_to_sound_port_name", None) is not None:
+            try:
+                self.router_kwargs[
+                    "MIDIPlayer_to_sound_port_name"
+                ] = self.router_kwargs["MIDIPlayer_to_sound_port_name"]()
+            except TypeError:
+                pass
+
         self.setup_scores()
         self.setup_score_follower()
         self.performance_codec = OnlinePerformanceCodec(
@@ -161,7 +174,8 @@ class ACCompanion(ACC_PARENT):
             velocity_ave=self.velocity,
             init_eq_onset=0.0,
             tempo_model=self.tempo_model,
-            **self.performance_codec_kwargs)
+            **self.performance_codec_kwargs,
+        )
 
         self.accompanist: Accompanist = Accompanist(
             accompaniment_score=self.acc_score,
@@ -310,13 +324,11 @@ class ACCompanion(ACC_PARENT):
         pioi = self.polling_period
 
         try:
-            
+
             while self.play_accompanion and not self.seq.end_of_piece:
 
                 if self.queue.poll():
-                    # print("here as well")
                     output = self.queue.recv()
-                    # print(output)
                     # CC: moved solo_p_onset here because of the delays...
                     # perhaps it would be good to take the time from
                     # the MIDI messages?
@@ -369,7 +381,10 @@ class ACCompanion(ACC_PARENT):
                         empty_loops == 0
 
                     # if perf_start:
-                    self.score_idx, score_position = self.score_follower(output)
+                    try:
+                        self.score_idx, score_position = self.score_follower(output)
+                    except Exception as e:
+                        print(e)
                     solo_s_onset, onset_index, acc_update = onset_tracker(
                         score_position,
                         expected_position
@@ -438,7 +453,3 @@ class ACCompanion(ACC_PARENT):
             pass
         finally:
             self.stop_playing()
-
-
-
-        
