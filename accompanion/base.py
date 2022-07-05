@@ -148,6 +148,9 @@ class ACCompanion(ACC_PARENT):
     def setup_score_follower(self) -> None:
         raise NotImplementedError
 
+    def check_empty_frames(self, frame) -> bool:
+        raise NotImplementedError
+
     def setup_process(self):
 
         if self.router_kwargs.get("acc_output_to_sound_port_name", None) is not None:
@@ -334,7 +337,7 @@ class ACCompanion(ACC_PARENT):
                     # the MIDI messages?
                     solo_p_onset = time.time() - start_time
                     # print(output)
-                    input_midi_messages, (output, is_empty) = output
+                    input_midi_messages, output = output
                     # Use these onset times?
                     onset_times = [
                         msg[1]
@@ -356,7 +359,7 @@ class ACCompanion(ACC_PARENT):
 
                     # output *= decay
 
-                    if is_empty:
+                    if self.check_empty_frames(output):
                         empty_loops += 1
                     else:
                         empty_loops = 0

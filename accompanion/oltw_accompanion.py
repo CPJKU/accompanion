@@ -266,3 +266,9 @@ class OLTWACCompanion(ACCompanion):
         self.input_pipeline = SequentialOutputProcessor(
             [PianoRollProcessor(piano_range=True)]
         )
+
+    def check_empty_frames(self, frame):
+        if sum(frame) > 0:
+            return False
+        else:
+            return True

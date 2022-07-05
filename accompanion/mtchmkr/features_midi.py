@@ -34,10 +34,10 @@ class PitchIOIProcessor(object):
         if len(pitch_obs) > 0:
             ioi_obs = f_time - self.prev_time
             self.prev_time = f_time
-            return ((np.array(pitch_obs), ioi_obs), False), {}
+            return (np.array(pitch_obs), ioi_obs), {}
 
         else:
-            return (None, True), {}
+            return None, {}
 
     def reset(self):
         pass
@@ -78,9 +78,7 @@ class PianoRollProcessor(object):
             piano_roll_slice = piano_roll_slice[21:109]
         self.piano_roll_slices.append(piano_roll_slice)
 
-        if sum(piano_roll_slice) == 0:
-            is_empty = True
-        return (piano_roll_slice, is_empty), {}
+        return piano_roll_slice, {}
 
     def reset(self):
         self.piano_roll_slices = []

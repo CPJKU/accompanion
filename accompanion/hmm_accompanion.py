@@ -215,3 +215,9 @@ class HMMACCompanion(ACCompanion):
 
         self.score_follower = HMMScoreFollower(score_follower)
         self.input_pipeline = SequentialOutputProcessor([PitchIOIProcessor()])
+
+    def check_empty_frames(self, frame):
+        if frame is None:
+            return True
+        else:
+            return False
