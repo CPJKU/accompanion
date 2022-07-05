@@ -75,13 +75,11 @@ class ACCompanion(ACC_PARENT):
     """
     def __init__(
         self,
-        solo_score: Score,
-        accompaniment_score: AccompanimentScore,
-        score_follower: AccompanimentScoreFollower,
-        tempo_model: SyncModel,
-        performance_codec: OnlinePerformanceCodec,
-        input_pipeline: SequentialOutputProcessor,
-        midi_router_kwargs: dict,
+        score_kwargs: dict,
+        score_follower_kwargs: dict,
+        tempo_model_kwargs: dict,
+        performance_codec_kwargs: dict, #this is just a workaround for now
+        midi_router_kwargs: dict, # this is just a workaround for now
         midi_fn: Optional[str] = None,
         init_bpm: float = 60,
         init_velocity: int = 60,
@@ -92,12 +90,13 @@ class ACCompanion(ACC_PARENT):
     ) -> None:
         super(ACCompanion, self).__init__()
 
-        self.solo_score: Score = solo_score
-        self.acc_score: AccompanimentScore = accompaniment_score
-        self.accompanist: Accompanist = Accompanist(
-            accompaniment_score=self.acc_score,
-            performance_codec=performance_codec,
-        )
+        self.performance_codec_kwargs = performance_codec_kwargs
+        self.score_kwargs = score_kwargs
+        self.score_follower_kwargs = score_follower_kwargs
+        self.tempo_model_kwargs = tempo_model_kwargs
+        self.solo_score: Optional[Score] = None
+        self.acc_score: Optional[AccompanimentScore] = None
+        self.accompanist = None
 
         self.midi_fn: Optional[str] = midi_fn
 
@@ -115,9 +114,11 @@ class ACCompanion(ACC_PARENT):
         # Parameters for following
         self.polling_period: float = polling_period
 
-        self.follower: AccompanimentScoreFollower = score_follower
+        # self.score_follower: AccompanimentScoreFollower = score_follower
+        self.score_follower = None
 
-        self.tempo_model: SyncModel = tempo_model
+        # self.tempo_model: SyncModel = tempo_model
+        self.tempo_model = None
 
         self.bypass_audio: bool = bypass_audio
 
@@ -130,7 +131,8 @@ class ACCompanion(ACC_PARENT):
         # current tempo
         self.afr: float = np.round(1 / self.polling_period * self.adjust_following_rate)
 
-        self.input_pipeline = input_pipeline
+        # self.input_pipeline = input_pipeline
+        self.input_pipeline = None
 
         self.seq = None
         self.note_tracker = None
@@ -139,7 +141,32 @@ class ACCompanion(ACC_PARENT):
         self.midi_input_process = None
         self.router = None
 
+        self.dummy_solo = None
+
+    def setup_scores(self) -> None:
+        raise NotImplementedError
+
+    def setup_accompanist(self) -> None:
+        raise NotImplementedError
+
+    def setup_score_follower(self) -> None:
+        raise NotImplementedError
+
     def setup_process(self):
+
+        self.setup_scores()
+        self.setup_score_follower()
+        self.performance_codec = OnlinePerformanceCodec(
+            beat_period_ave=self.init_bp,
+            velocity_ave=self.velocity,
+            init_eq_onset=0.0,
+            tempo_model=self.tempo_model,
+            **self.performance_codec_kwargs)
+
+        self.accompanist: Accompanist = Accompanist(
+            accompaniment_score=self.acc_score,
+            performance_codec=self.performance_codec,
+        )
 
         if self.use_mediator:
             self.mediator = CeusMediator()
@@ -162,7 +189,6 @@ class ACCompanion(ACC_PARENT):
         # initialize note tracker
         self.note_tracker: NoteTracker = NoteTracker(self.solo_score.note_array)
         self.accompanist.pc.note_tracker = self.note_tracker
-        
 
         self.pipe_out, self.queue, self.midi_input_process = create_midi_poll(
             port_name=self.router.solo_input_to_accompaniment_port_name[1],
@@ -176,8 +202,6 @@ class ACCompanion(ACC_PARENT):
             thread=USE_THREADS,
             mediator=self.mediator,
         )
-
-        
 
     @property
     def beat_period(self) -> float:
@@ -233,7 +257,6 @@ class ACCompanion(ACC_PARENT):
         """
         Main run method
         """
-        print("here")
         self.setup_process()
         self.play_accompanion = True
         solo_starts = True
@@ -287,10 +310,13 @@ class ACCompanion(ACC_PARENT):
         pioi = self.polling_period
 
         try:
+            
             while self.play_accompanion and not self.seq.end_of_piece:
 
                 if self.queue.poll():
+                    # print("here as well")
                     output = self.queue.recv()
+                    # print(output)
                     # CC: moved solo_p_onset here because of the delays...
                     # perhaps it would be good to take the time from
                     # the MIDI messages?
@@ -301,7 +327,7 @@ class ACCompanion(ACC_PARENT):
                     # listen to metronome notes for tempo
                     # copy output to perf_frame
                     # (with velocities for visualization)
-                    self.perf_frame = output.copy()
+                    # self.perf_frame = output.copy()
                     # overwrite velocities to 1 for tracking
                     # TODO think about nicer solution
                     # output[output > 0] = 1.0
@@ -408,17 +434,11 @@ class ACCompanion(ACC_PARENT):
                             self.score_follower.update_position(expected_position)
                             adjusted_sf = True
 
-                    if self.pipe is not None:
-                        self.pipe.send(
-                            (
-                                self.perf_frame,
-                                self.get_accompaniment_frame(),
-                                self.score_idx,
-                                self.get_tempo(),
-                            )
-                        )
-
         except Exception:
             pass
         finally:
             self.stop_playing()
+
+
+
+        
