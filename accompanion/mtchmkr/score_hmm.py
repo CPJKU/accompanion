@@ -196,6 +196,7 @@ class PitchIOIHMM(HiddenMarkovModel):
         tempo_model: SyncModel,
         ioi_precision: float = 1,
         initial_probabilities: Optional[np.ndarray] = None,
+        has_insertions=True,
     ) -> None:
         """
         Initialize the object.
@@ -245,6 +246,7 @@ class PitchIOIHMM(HiddenMarkovModel):
         )
 
         self.tempo_model = tempo_model
+        self.has_insertions = has_insertions
 
     def __call__(self, input):
         self.current_state = self.forward_algorithm_step(

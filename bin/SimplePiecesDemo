@@ -14,19 +14,22 @@ from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
 import os
 import argparse
 from accompanion import PLATFORM
+import mido
 
 if __name__ == "__main__":
-   
+
     if PLATFORM == "Darwin" or PLATFORM == "Linux":
         multiprocessing.set_start_method("spawn")
 
     parser = argparse.ArgumentParser("Simple Pieces Demo")
 
-    parser.add_argument(
-        "--live",
-        default=False,
-        action="store_true",
-    )
+    # parser.add_argument(
+    #     "--live",
+    #     default=False,
+    #     action="store_true",
+    # )
+
+    parser.add_argument("--piece", default="twinkle_twinkle_little_star")
 
     parser.add_argument(
         "--use_mediator",
@@ -35,97 +38,51 @@ if __name__ == "__main__":
         action="store_true",
     )
 
-    parser.add_argument(
-        "--bypass-audio",
-        default=False,
-        action="store_true",
-        help="bypass fluidsynth audio",
-    )
-
     args = parser.parse_args()
 
     file_dir = os.path.dirname(os.path.abspath(__file__))
     rel_path_from_CWD = os.path.relpath(file_dir, os.curdir)
 
-    brahms_dir = os.path.join(rel_path_from_CWD, "..", "sample_pieces", "brahms_data")
-    acc_fn = os.path.join(
-        brahms_dir, "musicxml", "Brahms_Hungarian-Dance-5_Secondo.musicxml"
-    )
+    piece_dir = os.path.join(rel_path_from_CWD, "..", "sample_pieces", args.piece)
+    acc_fn = os.path.join(piece_dir, "secondo.musicxml")
 
-    solo_fn = os.path.join(
-        brahms_dir, "musicxml", "Brahms_Hungarian-Dance-5_Primo.musicxml"
-    )
+    solo_fn = os.path.join(piece_dir, "primo.musicxml")
 
-    midi_fn = os.path.join(
-        brahms_dir,
-        "midi",
-        "cc_solo",
-        "Brahms_Hungarian-Dance-5_Primo_2021-07-27.mid",
-    )
-
-    accompaniment_match = os.path.join(
-        brahms_dir, "basismixer", "bm_brahms_2021-08-30.match"
-    )
+    # TODO: add test performance
+    midi_fn = None
 
     init_bpm = 120
 
     tempo_model = tempo_models.LSM
 
-    polling_period = 0.035
+    polling_period = 0.01
 
-    # if audio is bypassed the mediator should be turned on as all
-    # MIDI messages are sent to the same port maybe we can fix this by using
-    # different ports for solo and accompaniment
-    assert not args.bypass_audio or args.bypass_audio and args.use_mediator
+    # TODO: check if the ports are the same in Linux and Windows
+    live_instrument_ports = (
+        "USB-MIDI",  # Essex in Oslo
+        "Clavinova",  # Clavinova at WU
+        "Silent Piano",  # Yamaha GB1 in Vienna
+        "M-Audio MIDISPORT Uno",  # MIDI Interface
+        "Scarlett 18i8 USB",  # Focusrite 18i8
+        "Babyface (23665044) Port 1",
+        "Babyface (23664861) Port 1",
+        "Disklavier",
+    )
 
-    if PLATFORM in ("Darwin", "Linux") and not args.live:
-        # Default for Carlos' Macbook ;)
+    available_input_ports = mido.get_input_names()
+    print(available_input_ports)
+    port_intersection = set(available_input_ports).intersection(live_instrument_ports)
+    if len(port_intersection) > 0:
+        # Assume that there is only one live instrument
+        instrument_port = list(port_intersection)[0]
 
-        router_kwargs = dict(
-            solo_input_to_accompaniment_port_name=0,
-            acc_output_to_sound_port_name="IAC Driver Web Midi"
-            if args.bypass_audio
-            else FluidsynthPlayer,
-            MIDIPlayer_to_sound_port_name="IAC Driver Web Midi"
-            if args.bypass_audio
-            else FluidsynthPlayer,
-            MIDIPlayer_to_accompaniment_port_name=0,
-            simple_button_input_port_name=None,
-        )
-
-    else:
-        import mido
-
-        midi_fn = None
-
-        # TODO: check if the ports are the same in Linux and Windows
-        live_instrument_ports = (
-            "USB-MIDI",  # Essex in Oslo
-            "Clavinova",  # Clavinova at WU
-            "Silent Piano",  # Yamaha GB1 in Vienna
-            "M-Audio MIDISPORT Uno",  # MIDI Interface
-            "Scarlett 18i8 USB",  # Focusrite 18i8
-            "Babyface (23665044) Port 1",
-            "Babyface (23664861) Port 1",
-            "Disklavier",
-        )
-
-        available_input_ports = mido.get_input_names()
-        print(available_input_ports)
-        port_intersection = set(available_input_ports).intersection(
-            live_instrument_ports
-        )
-        if len(port_intersection) > 0:
-            # Assume that there is only one live instrument
-            instrument_port = list(port_intersection)[0]
-
-        router_kwargs = dict(
-            solo_input_to_accompaniment_port_name=instrument_port,
-            acc_output_to_sound_port_name=instrument_port,
-            MIDIPlayer_to_sound_port_name=None,
-            MIDIPlayer_to_accompaniment_port_name=None,
-            simple_button_input_port_name=None,
-        )
+    router_kwargs = dict(
+        solo_input_to_accompaniment_port_name=instrument_port,
+        acc_output_to_sound_port_name=instrument_port,
+        MIDIPlayer_to_sound_port_name=None,
+        MIDIPlayer_to_accompaniment_port_name=None,
+        simple_button_input_port_name=None,
+    )
 
     performance_codec_kwargs = {
         "velocity_trend_ma_alpha": 0.6,
@@ -142,22 +99,17 @@ if __name__ == "__main__":
         solo_fn=solo_fn,
         acc_fn=acc_fn,
         score_follower_kwargs={
-            "score_follower": "OnlineTimeWarping",
-            "window_size": 100,
-            "step_size": 10,
+            "score_follower": "PitchIOIHMM",
             "input_processor": {
-                "processor": "PianoRollProcessor",
+                "processor": "PitchIOIProcessor",
                 "processor_kwargs": {"piano_range": True},
             },
         },
-        # accompaniment_match=accompaniment_match,
         performance_codec_kwargs=performance_codec_kwargs,
         polling_period=polling_period,
-       
-        adjust_following_rate=0.01,
+        adjust_following_rate=0.1,
         bypass_audio=False,
         midi_router_kwargs=router_kwargs,
-        midi_fn=midi_fn,
         init_bpm=init_bpm,
         tempo_model_kwargs={"tempo_model": tempo_model},
         use_ceus_mediator=args.use_mediator,

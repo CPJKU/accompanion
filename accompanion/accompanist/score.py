@@ -2,6 +2,7 @@
 """
 Objects for representing score information
 """
+from typing import Iterable
 import numpy as np
 
 # from matchmaker.io.symbolic import load_score
@@ -98,6 +99,8 @@ class Chord(object):
 
     def __init__(self, notes):
 
+        if not isinstance(notes, Iterable):
+            notes = [notes]
         assert all([n.onset == notes[0].onset for n in notes])
 
         self.notes = notes
@@ -197,9 +200,15 @@ class Score(object):
         # indices of the notes belonging to each
         self.unique_onset_idxs = [np.where(onsets == u) for u in self.unique_onsets]
 
-        self.chords = np.array(
-            [Chord(self.notes[ui]) for ui in self.unique_onset_idxs], dtype=object
-        )
+        self.chords = np.empty(len(self.unique_onset_idxs), dtype=object)
+        # Very weird numpy behavior...
+        # See https://stackoverflow.com/a/72036793
+        self.chords[:] = [Chord(self.notes[ui]) for ui in self.unique_onset_idxs]
+        # self.chords = np.array(
+        #     [Chord(self.notes[ui]) for ui in self.unique_onset_idxs], dtype=object
+        # )
+
+        # assert(all([isinstance(c, Chord) for c in self.chords]))
 
         self.chord_dict = dict(
             [(u, c) for u, c in zip(self.unique_onsets, self.chords)]
@@ -244,15 +253,18 @@ class Score(object):
         self._access_mode = access_mode
 
         if self._access_mode == "indexwise":
-            self.__getitem__ = self.getitem_indexwise
+            self._getitem_ = self.getitem_indexwise
         elif self.access_mode == "timewise":
-            self.__getitem__ = self.getitem_timewise
+            self._getitem_ = self.getitem_timewise
 
     def getitem_indexwise(self, index):
         return self.chords[index]
 
     def getitem_timewise(self, index):
         return self.chord_dict[index]
+
+    def __getitem__(self, index):
+        return self._getitem_(index)
 
     # def __getitem__(self, index):
     #     if self.access_mode == 'indexwise':

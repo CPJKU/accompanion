@@ -190,17 +190,22 @@ class HMMACCompanion(ACCompanion):
         pipeline_kwargs = self.score_follower_kwargs.pop("input_processor")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
 
-        chord_pitches = [chord.pitch for chord in self.solo_score.chords]
+        try:
+            chord_pitches = [chord.pitch for chord in self.solo_score.chords]
+        except:
+            print(self.solo_score.chords)
         pitch_profiles = score_hmm.compute_pitch_profiles(
-            chord_pitches, piano_range=piano_range, inserted_states=inserted_states
+            chord_pitches, piano_range=piano_range, inserted_states=inserted_states,
         )
         ioi_matrix = score_hmm.compute_ioi_matrix(
-            unique_onsets=self.solo_score.unique_onsets, inserted_states=inserted_states
+            unique_onsets=self.solo_score.unique_onsets, inserted_states=inserted_states,
         )
         state_space = ioi_matrix[0]
         n_states = len(state_space)
         transition_matrix = score_hmm.gumbel_transition_matrix(
-            n_states=n_states, inserted_states=inserted_states
+            n_states=n_states,
+            inserted_states=inserted_states,
+            scale=0.5,
         )
         initial_probabilities = score_hmm.gumbel_init_dist(n_states=n_states)
         score_follower = score_hmm.PitchIOIHMM(

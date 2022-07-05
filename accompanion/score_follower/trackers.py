@@ -29,16 +29,22 @@ class HMMScoreFollower(AccompanimentScoreFollower):
         self.current_position = 0
 
     def __call__(self, frame):
-        
+
         if frame is not None:
-            self.current_position = self.score_follower(frame)
-            return self.current_position
-        else:
-            return None
+            current_position = self.score_follower(frame)
+
+            if (
+                self.score_follower.has_insertions
+                and self.score_follower.current_state % 2 == 0
+            ):
+                self.current_position = current_position
+                return self.current_position
+        return None
         # return self.score_follower.current_state, self.score_position
-        
+
     def update_position(self, ref_time):
         pass
+
 
 class MultiDTWScoreFollower(AccompanimentScoreFollower):
     def __init__(
@@ -96,6 +102,7 @@ class GroundTruthTracker(object):
     ----
     * check if this class works, and if not either adapt it or delete it
     """
+
     def __init__(self, match_fn, frame_resolution, score_bpm, pipeline, **kwargs):
         ppart, gt_alignment, spart = partitura.load_match(
             match_fn, create_part=True, first_note_at_zero=True
