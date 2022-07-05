@@ -178,6 +178,7 @@ class Score(object):
         notes,
         time_signature_map=None,
         access_mode="indexwise",
+        note_array=None,
     ):
 
         # TODO: Seconday sort by pitch
@@ -203,6 +204,31 @@ class Score(object):
         self.chord_dict = dict(
             [(u, c) for u, c in zip(self.unique_onsets, self.chords)]
         )
+
+        if note_array is None:
+            self.note_array_from_notes()
+        else:
+            self.note_array = note_array
+
+    def note_array_from_notes(self) -> None:
+        note_array = np.zeros(
+            len(self.notes),
+            dtype=[
+                ("pitch", "i4"),
+                ("onset_beat", "f4"),
+                ("duration_beat", "f4"),
+                ("id", "U256"),
+            ],
+        )
+
+        for i, note in enumerate(self.notes):
+            note_array["pitch"][i] = note.pitch
+            note_array["onset_beat"][i] = note.onset
+            note_array["duration_beat"][i] = note.duration
+            note_array["id"][i] = note.id
+
+        self.note_array = note_array
+
 
     @property
     def access_mode(self):
@@ -272,6 +298,7 @@ class AccompanimentScore(Score):
         log_bpr=None,
         timing=None,
         log_articulation=None,
+        note_array=None,
     ):
 
         assert isinstance(solo_score, Score)
@@ -280,6 +307,7 @@ class AccompanimentScore(Score):
             notes=notes,
             time_signature_map=solo_score.time_signature_map,
             access_mode="indexwise",
+            note_array=note_array,
         )
 
         self.ssc = solo_score
@@ -390,7 +418,11 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
         )
         notes.append(note)
 
-    score = Score(notes, time_signature_map=time_signature_map)
+    score = Score(
+        notes,
+        time_signature_map=time_signature_map,
+        note_array=s_note_array,
+    )
 
     return score
 

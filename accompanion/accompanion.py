@@ -11,12 +11,8 @@ import threading
 import time
 
 import numpy as np
-import partitura
 
 from typing import Optional
-from basismixer.performance_codec import get_performance_codec
-from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
-from scipy.interpolate import interp1d
 
 from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
 from accompanion.midi_handler.midi_file_player import get_midi_file_player
@@ -26,22 +22,18 @@ from accompanion.midi_handler.midi_routing import MidiRouter
 from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
 from accompanion.accompanist.score import (
-    part_to_score,
-    alignment_to_score,
     AccompanimentScore,
     Score
 )
 
 from accompanion.accompanist.accompaniment_decoder import (
     OnlinePerformanceCodec,
-    Accompanist,
-    moving_average_offline,
+    Accompanist
 )
-import accompanion.accompanist.tempo_models as tempo_models
+
 from accompanion.accompanist.tempo_models import SyncModel
 
 from accompanion.utils.partitura_utils import (
-    get_time_maps_from_alignment,
     # partitura_to_framed_midi_custom as partitura_to_framed_midi,
     # get_beat_conversion,
     DECAY_VALUE,
@@ -89,7 +81,7 @@ class ACCompanion(ACC_PARENT):
         tempo_model: SyncModel,
         performance_codec: OnlinePerformanceCodec,
         input_pipeline: SequentialOutputProcessor,
-        midi_router: MidiRouter,
+        midi_router_kwargs: dict,
         midi_fn: Optional[str] = None,
         init_bpm: float = 60,
         init_velocity: int = 60,
@@ -102,9 +94,17 @@ class ACCompanion(ACC_PARENT):
 
         self.solo_score: Score = solo_score
         self.acc_score: AccompanimentScore = accompaniment_score
+        self.accompanist: Accompanist = Accompanist(
+            accompaniment_score=self.acc_score,
+            performance_codec=performance_codec,
+        )
+
         self.midi_fn: Optional[str] = midi_fn
 
-        self.router: MidiRouter = midi_router
+        self.router_kwargs = midi_router_kwargs
+
+        self.use_mediator: bool = use_ceus_mediator
+        self.mediator: Optional[CeusMediator] = None
 
         self.init_bpm: float = init_bpm
         self.init_bp: float = 60 / self.init_bpm
@@ -129,14 +129,22 @@ class ACCompanion(ACC_PARENT):
         # follower with expected position at the
         # current tempo
         self.afr: float = np.round(1 / self.polling_period * self.adjust_following_rate)
-        self.accompanist: Accompanist = Accompanist(
-            accompaniment_score=self.acc_score,
-            performance_codec=performance_codec,
-        )
 
-        self.use_mediator: bool = use_ceus_mediator
+        self.input_pipeline = input_pipeline
+
+        self.seq = None
+        self.note_tracker = None
+        self.pipe_out = None
+        self.queue = None
+        self.midi_input_process = None
+        self.router = None
+
+    def setup_process(self):
+
         if self.use_mediator:
-            self.mediator: CeusMediator = CeusMediator()
+            self.mediator = CeusMediator()
+
+        self.router = MidiRouter(**self.router_kwargs)
 
         self.seq: ScoreSequencer = ScoreSequencer(
             score_or_notes=self.acc_score,
@@ -144,7 +152,7 @@ class ACCompanion(ACC_PARENT):
             mediator=self.mediator,
         )
 
-        # self.seq.panic_button()
+        self.seq.panic_button()
 
         # Update tempo model
         self.tempo_model.beat_period = self.init_bp
@@ -152,14 +160,15 @@ class ACCompanion(ACC_PARENT):
         self.first_score_onset: float = self.solo_score.unique_onsets.min()
 
         # initialize note tracker
-        self.note_tracker: NoteTracker = NoteTracker(self.solo_spart.note_array())
+        self.note_tracker: NoteTracker = NoteTracker(self.solo_score.note_array)
         self.accompanist.pc.note_tracker = self.note_tracker
+        
 
         self.pipe_out, self.queue, self.midi_input_process = create_midi_poll(
             port_name=self.router.solo_input_to_accompaniment_port_name[1],
             polling_period=self.polling_period,
             # velocities only for visualization purposes
-            pipeline=input_pipeline,
+            pipeline=self.input_pipeline,
             # pipeline=SequentialOutputProcessor(
             #     [PianoRollProcessor(piano_range=True, use_velocity=True)]
             # ),
@@ -167,6 +176,8 @@ class ACCompanion(ACC_PARENT):
             thread=USE_THREADS,
             mediator=self.mediator,
         )
+
+        
 
     @property
     def beat_period(self) -> float:
@@ -222,6 +233,8 @@ class ACCompanion(ACC_PARENT):
         """
         Main run method
         """
+        print("here")
+        self.setup_process()
         self.play_accompanion = True
         solo_starts = True
         sequencer_start = False
