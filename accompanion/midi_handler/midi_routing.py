@@ -4,6 +4,7 @@ This module provides basic functionality to process MIDI inputs in
 real time. This is a copy from matchmaker/io/midi.py, so that it can
 be updated without requiring to re-install matchmaker
 """
+import time
 
 import mido
 
@@ -145,6 +146,9 @@ class MidiRouter(object):
                 port.close()
             else:
                 port = mido.open_output(try_name)
+                # Adding eventual key release.
+                port.reset()
+                time.sleep(1)
 
             self.open_ports_list.append(port)
             return port
