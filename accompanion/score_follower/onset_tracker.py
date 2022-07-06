@@ -25,19 +25,20 @@ class OnsetTracker(object):
 
     def __call__(
         self,
-        score_time: float,
+        score_time: Optional[float],
         acc_score_time: float = -np.inf,
     ) -> Tuple[Optional[float], Optional[int], bool]:
         solo_s_onset: Optional[float] = None
         onset_index: Optional[int] = None
         acc_update: Optional[bool] = False
 
-        if score_time >= self.current_onset:
-            if self.current_onset not in self.performed_onsets:
-                solo_s_onset = self.current_onset
-                onset_index = self.current_idx
-                self.performed_onsets.append(self.current_onset)
-                self.current_idx += 1
+        if score_time is not None:
+            if score_time >= self.current_onset:
+                if self.current_onset not in self.performed_onsets:
+                    solo_s_onset = self.current_onset
+                    onset_index = self.current_idx
+                    self.performed_onsets.append(self.current_onset)
+                    self.current_idx += 1
 
         if self.is_acc_update(acc_score_time):
             acc_onset, cidx = self.acc_onset(acc_score_time)
