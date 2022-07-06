@@ -7,7 +7,7 @@ The ACCompanion is an expressive accompaniment system.
 Clone and install the accompanion environment
 ```shell
 git clone https://github.com/CPJKU/accompanion.git
-cd ./accompanion
+cd .\accompanion
 conda env create -f environment.yml
 ```
 
@@ -21,8 +21,8 @@ pip install -e .
 
 How to run the default:
 ```shell
-cd Path/to/accompanion
-./bin/ACCompanion
+cd Path\to\accompanion
+.\bin\ACCompanion
 ```
 
 # TODO
