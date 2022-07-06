@@ -2,6 +2,7 @@
 """
 Objects for representing score information
 """
+from typing import Iterable
 import numpy as np
 
 # from matchmaker.io.symbolic import load_score
@@ -98,6 +99,8 @@ class Chord(object):
 
     def __init__(self, notes):
 
+        if not isinstance(notes, Iterable):
+            notes = [notes]
         assert all([n.onset == notes[0].onset for n in notes])
 
         self.notes = notes
@@ -178,6 +181,7 @@ class Score(object):
         notes,
         time_signature_map=None,
         access_mode="indexwise",
+        note_array=None,
     ):
 
         # TODO: Seconday sort by pitch
@@ -196,13 +200,44 @@ class Score(object):
         # indices of the notes belonging to each
         self.unique_onset_idxs = [np.where(onsets == u) for u in self.unique_onsets]
 
-        self.chords = np.array(
-            [Chord(self.notes[ui]) for ui in self.unique_onset_idxs], dtype=object
-        )
+        self.chords = np.empty(len(self.unique_onset_idxs), dtype=object)
+        # Very weird numpy behavior...
+        # See https://stackoverflow.com/a/72036793
+        self.chords[:] = [Chord(self.notes[ui]) for ui in self.unique_onset_idxs]
+        # self.chords = np.array(
+        #     [Chord(self.notes[ui]) for ui in self.unique_onset_idxs], dtype=object
+        # )
+
+        # assert(all([isinstance(c, Chord) for c in self.chords]))
 
         self.chord_dict = dict(
             [(u, c) for u, c in zip(self.unique_onsets, self.chords)]
         )
+
+        if note_array is None:
+            self.note_array_from_notes()
+        else:
+            self.note_array = note_array
+
+    def note_array_from_notes(self) -> None:
+        note_array = np.zeros(
+            len(self.notes),
+            dtype=[
+                ("pitch", "i4"),
+                ("onset_beat", "f4"),
+                ("duration_beat", "f4"),
+                ("id", "U256"),
+            ],
+        )
+
+        for i, note in enumerate(self.notes):
+            note_array["pitch"][i] = note.pitch
+            note_array["onset_beat"][i] = note.onset
+            note_array["duration_beat"][i] = note.duration
+            note_array["id"][i] = note.id
+
+        self.note_array = note_array
+
 
     @property
     def access_mode(self):
@@ -218,15 +253,18 @@ class Score(object):
         self._access_mode = access_mode
 
         if self._access_mode == "indexwise":
-            self.__getitem__ = self.getitem_indexwise
+            self._getitem_ = self.getitem_indexwise
         elif self.access_mode == "timewise":
-            self.__getitem__ = self.getitem_timewise
+            self._getitem_ = self.getitem_timewise
 
     def getitem_indexwise(self, index):
         return self.chords[index]
 
     def getitem_timewise(self, index):
         return self.chord_dict[index]
+
+    def __getitem__(self, index):
+        return self._getitem_(index)
 
     # def __getitem__(self, index):
     #     if self.access_mode == 'indexwise':
@@ -272,6 +310,7 @@ class AccompanimentScore(Score):
         log_bpr=None,
         timing=None,
         log_articulation=None,
+        note_array=None,
     ):
 
         assert isinstance(solo_score, Score)
@@ -280,6 +319,7 @@ class AccompanimentScore(Score):
             notes=notes,
             time_signature_map=solo_score.time_signature_map,
             access_mode="indexwise",
+            note_array=note_array,
         )
 
         self.ssc = solo_score
@@ -390,7 +430,11 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
         )
         notes.append(note)
 
-    score = Score(notes, time_signature_map=time_signature_map)
+    score = Score(
+        notes,
+        time_signature_map=time_signature_map,
+        note_array=s_note_array,
+    )
 
     return score
 

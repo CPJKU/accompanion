@@ -8,9 +8,6 @@ TODO
 """
 import numpy as np
 
-# import mido
-# import partitura
-
 
 class PitchIOIProcessor(object):
     def __init__(self, piano_range=False):
@@ -22,9 +19,10 @@ class PitchIOIProcessor(object):
     def __call__(self, frame, kwargs={}):
         data, f_time = frame
         pitch_obs = []
-        self.ref_time = f_time
-        ioi_obs = f_time - self.ref_time
-        self.prev_time = f_time
+        
+        # if len(data) > 0:
+        #     ioi_obs = f_time - self.prev_time
+        #     self.prev_time = f_time
 
         for msg, t in data:
             if (
@@ -34,7 +32,12 @@ class PitchIOIProcessor(object):
                 pitch_obs.append(msg.note)
 
         if len(pitch_obs) > 0:
+            ioi_obs = f_time - self.prev_time
+            self.prev_time = f_time
             return (np.array(pitch_obs), ioi_obs), {}
+
+        else:
+            return None, {}
 
     def reset(self):
         pass
@@ -52,6 +55,7 @@ class PianoRollProcessor(object):
         # initialize piano roll
         piano_roll_slice = np.zeros(128, dtype=self.dtype)
         data, f_time = frame
+        is_empty = False
         for msg, m_time in data:
             # TODO: update with new format, if Mido Messages
             # messages are substituted for something else

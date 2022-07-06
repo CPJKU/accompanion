@@ -22,6 +22,30 @@ class AccompanimentScoreFollower(object):
         raise NotImplementedError
 
 
+class HMMScoreFollower(AccompanimentScoreFollower):
+    def __init__(self, score_follower, update_sf_positions=False):
+        super().__init__()
+        self.score_follower = score_follower
+        self.current_position = 0
+
+    def __call__(self, frame):
+
+        if frame is not None:
+            current_position = self.score_follower(frame)
+
+            if (
+                self.score_follower.has_insertions
+                and self.score_follower.current_state % 2 == 0
+            ):
+                self.current_position = current_position
+                return self.current_position
+        return None
+        # return self.score_follower.current_state, self.score_position
+
+    def update_position(self, ref_time):
+        pass
+
+
 class MultiDTWScoreFollower(AccompanimentScoreFollower):
     def __init__(
         self,
@@ -57,9 +81,10 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
             self.update_position(score_position)
 
         # todo @carlos which index needs to be chosen?
-        index = indices[0]
-
-        return index, score_position
+        # Sort visualization stuff later
+        # index = indices[0]
+        # return index, score_position
+        return score_position
 
     def update_position(self, ref_time):
         for sf, rtsm in zip(self.score_followers, self.ref_to_state_time_maps):
@@ -77,6 +102,7 @@ class GroundTruthTracker(object):
     ----
     * check if this class works, and if not either adapt it or delete it
     """
+
     def __init__(self, match_fn, frame_resolution, score_bpm, pipeline, **kwargs):
         ppart, gt_alignment, spart = partitura.load_match(
             match_fn, create_part=True, first_note_at_zero=True
