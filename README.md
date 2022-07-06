@@ -22,7 +22,7 @@ pip install -e .
 How to run the default:
 ```shell
 cd Path\to\accompanion
-python .\bin\ACCompanion
+.\bin\ACCompanion
 ```
 
 # TODO
