@@ -72,7 +72,11 @@ class MidiFilePlayerProcess(multiprocessing.Process):
         self.midi_out = mido.open_output(self.port_name)
 
 
-def get_midi_file_player(port_name, file_name, player_class, thread=False, bypass_audio=False):
+def get_midi_file_player(port_name, 
+                         file_name, 
+                         player_class, 
+                         thread=False, 
+                         bypass_audio=False):
     # import pdb
     # pdb.set_trace()
     # print(f'dodo {filename}')

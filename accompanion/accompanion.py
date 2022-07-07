@@ -320,7 +320,7 @@ class ACCompanion(ACC_PARENT):
                             f"adjusted {acc_update or adjusted_sf}",
                         )
 
-                        if not acc_update:
+                        if not acc_update:2 
                             asynch = expected_position - solo_s_onset
                             # print('asynchrony', asynch)
                             expected_position = expected_position - 0.6 * asynch

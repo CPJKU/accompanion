@@ -30,7 +30,7 @@ class RECVQueue(Queue):
 class MidiInputProcess(multiprocessing.Process):
     def __init__(
         self,
-        port_name,
+        port,
         pipe,
         init_time=None,
         pipeline=None,
@@ -50,8 +50,7 @@ class MidiInputProcess(multiprocessing.Process):
         self.return_midi_messages = return_midi_messages
 
         self.lock = multiprocessing.RLock()
-        self.port_name = port_name
-        self.midi_in = None
+        self.midi_in = port
         # List to store MIDI messages
         self.midi_messages = []
         self.mediator = mediator  # TODO mediator currently not usable for processes
@@ -63,8 +62,6 @@ class MidiInputProcess(multiprocessing.Process):
             self.output_fn = output_fn
 
     def run(self):
-
-        self.open_port()
         self.start_listening()
 
         while self.listen:
@@ -82,8 +79,6 @@ class MidiInputProcess(multiprocessing.Process):
                 else:
                     self.pipe.send(output)
 
-    def open_port(self):
-        self.midi_in = mido.open_input(self.port_name)
 
     @property
     def current_time(self):
@@ -127,7 +122,7 @@ class MidiInputProcess(multiprocessing.Process):
 class MidiInputThread(threading.Thread):
     def __init__(
         self,
-        port_name,
+        port,
         queue,
         init_time=None,
         pipeline=None,
@@ -136,8 +131,7 @@ class MidiInputThread(threading.Thread):
     ):
         threading.Thread.__init__(self)
 
-        self.port_name = port_name
-        self.midi_in = None
+        self.midi_in = port
         self.init_time = init_time
         self.listen = False
         self.queue = queue
@@ -149,7 +143,6 @@ class MidiInputThread(threading.Thread):
         self.mediator = mediator
 
     def run(self):
-        self.open_port()
         self.start_listening()
 
         while self.listen:
@@ -169,9 +162,6 @@ class MidiInputThread(threading.Thread):
                     self.queue.put(((msg, c_time), output))
                 else:
                     self.queue.put(output)
-
-    def open_port(self):
-        self.midi_in = mido.open_input(self.port_name)
 
     @property
     def current_time(self):
@@ -236,11 +226,10 @@ class Buffer(object):
     def __str__(self):
         return str(self.frame)
 
-
 class FramedMidiInputProcess(MidiInputProcess):
     def __init__(
         self,
-        port_name,
+        port,
         pipe,
         polling_period=POLLING_PERIOD,
         init_time=None,
@@ -249,7 +238,7 @@ class FramedMidiInputProcess(MidiInputProcess):
         mediator=None,
     ):
         super().__init__(
-            port_name=port_name,
+            port=port,
             pipe=pipe,
             init_time=init_time,
             pipeline=pipeline,
@@ -265,7 +254,6 @@ class FramedMidiInputProcess(MidiInputProcess):
         * Fix Error with c_time when stopping the thread
         * Adapt sleep time from midi_online
         """
-        self.open_port()
 
         # sttime = time.time()
         self.start_listening()
@@ -292,11 +280,10 @@ class FramedMidiInputProcess(MidiInputProcess):
                     self.pipe.send(output)
                 frame.reset(c_time)
 
-
 class FramedMidiInputThread(MidiInputThread):
     def __init__(
         self,
-        port_name,
+        port,
         queue,
         polling_period=POLLING_PERIOD,
         # backend=BACKEND,
@@ -306,7 +293,7 @@ class FramedMidiInputThread(MidiInputThread):
         mediator=None,
     ):
         super().__init__(
-            port_name=port_name,
+            port=port,
             queue=queue,
             init_time=init_time,
             pipeline=pipeline,
@@ -322,7 +309,6 @@ class FramedMidiInputThread(MidiInputThread):
         * Fix Error with c_time when stopping the thread
         * Adapt sleep time from midi_online
         """
-        self.open_port()
         self.start_listening()
         frame = Buffer(self.polling_period)
         frame.start = self.current_time
@@ -358,9 +344,8 @@ class FramedMidiInputThread(MidiInputThread):
                     # self.queue.put(output)
                     frame.reset(c_time)
 
-
 def create_midi_poll(
-    port_name,
+    port,
     polling_period,
     pipeline,
     return_midi_messages=False,
@@ -375,7 +360,7 @@ def create_midi_poll(
         p_output = None
         p_input = RECVQueue()
         mt = FramedMidiInputThread(
-            port_name=port_name,
+            port=port,
             queue=p_input,
             polling_period=polling_period,
             pipeline=pipeline,
@@ -386,7 +371,7 @@ def create_midi_poll(
 
         p_output, p_input = Pipe()
         mt = FramedMidiInputProcess(
-            port_name=port_name,
+            port=port,
             pipe=p_output,
             polling_period=polling_period,
             pipeline=pipeline,

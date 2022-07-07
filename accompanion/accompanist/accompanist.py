@@ -383,7 +383,7 @@ class ACCompanion(ACC_PARENT):
         )
 
         self.pipe_out, self.queue, self.midi_input_process = create_midi_poll(
-            port_name=self.router.solo_input_to_accompaniment_port_name[1],
+            port=self.router.solo_input_to_accompaniment_port,
             polling_period=self.polling_period,
             # velocities only for visualization purposes
             pipeline=SequentialOutputProcessor(
