@@ -19,9 +19,10 @@ pip install -e .
 
 # Usage
 
-The ACCompanion features two playing modes, one for beginner and one for advanced players. In the beginner mode, for a two-handed piano piece, the ACCompanion plays the left hand accompaniment while the user plays the right hand (usually containing the melody). In the advanced mode, the ACCompanion plays the secondo part of a four-hand piano piece, leaving the primo part to the user.
+The ACCompanion features two playing modes, one for beginner and one for advanced players. In the beginner mode, for a two-handed piano piece, the ACCompanion plays the left hand as accompaniment while the user plays the right hand (usually containing the melody). In the advanced mode, the ACCompanion plays the secondo part of a four-hand piano piece, leaving the primo part to the user.
 
 **Beginner Mode**
+
 The default for the beginner mode runs 'Twinkle Twinkle Little Star':
 ```shell
 cd Path/to/accompanion/bin
@@ -33,6 +34,7 @@ python SimplePiecesDemo --piece bach_menuett
 ```
 
 **Advanced Mode**
+
 The default for the advanced mode runs the Hungarian Dance No. 5 by Johannes Brahms (piano arrangement for four hands):
 ```shell
 cd Path/to/accompanion/bin
@@ -42,6 +44,7 @@ python BrahmsDemo --live
 # Adding new pieces
 
 **Data Requirements**
+
 For both the beginner and advanced mode, you will need the score of the piece you want to play in MusicXML format*.
 For the advanced mode, you will additionally need recording(s)** of the piece in MIDI format (for both the primo and secondo part).
 
@@ -49,6 +52,7 @@ For the advanced mode, you will additionally need recording(s)** of the piece in
 **note: the more recordings you have, the better the accompaniment.
 
 **Beginner Mode**
+
 Split the MusicXML-scores of the piece you want to add into a _primo_ (right hand) and _secondo_ (left hand) score, e.g., using a music notation software such as [MuseScore](https://musescore.org/en). Add IDs to the notes in both scores.***
 Create a new folder in the `sample_pieces` folder and name it after the piece, e.g. `new_piece`. Save the _primo_ and _secondo_ scores of your piece there as `primo.musicxml` and `secondo.musicxml`, respectively.
 Finally, to play your piece, run:
@@ -62,6 +66,7 @@ python SimplePiecesDemo --piece new_piece
 
 
 **Advanced Mode**
+
 TBA!
 
 
