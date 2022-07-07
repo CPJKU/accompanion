@@ -1,0 +1,32 @@
+name : Accompanion System Compatibility test
+
+on:
+  push:
+    branches:
+      - windows
+      - main
+  pull_request:
+    branches:
+      - windows
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-20.04
+      steps:
+        - uses: actions/checkout@v2
+          with:
+            submodules: true
+            fetch-depth: 0
+
+        - name: Setup
+          run: |
+            bash
+            conda update conda
+            conda env create -f environment.yml
+            conda activate accompanion
+            pip install -e .
+
+        - name: Run Accompanion
+          run:
+            ./bin/ACCompanion
