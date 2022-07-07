@@ -81,8 +81,8 @@ if __name__ == "__main__":
 
     # out_instrument_port = instrument_port if not instrument_port.endswith(" 0") else instrument_port[:-1] + "1"
 
-    instrument_port = 'M-Audio MIDISPORT Uno 0'
-    out_instrument_port = 'M-Audio MIDISPORT Uno 1'
+    instrument_port = 'MPKmini2'
+    out_instrument_port = 'Clavinova'
 
     router_kwargs = dict(
         solo_input_to_accompaniment_port_name=instrument_port,
