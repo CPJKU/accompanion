@@ -337,7 +337,7 @@ class FramedMidiInputThread(MidiInputThread):
                 c_time = self.current_time
                 msg = self.midi_in.poll()
                 if msg is not None:
-
+                    # print("Received msg:", msg)
                     if (
                         self.mediator is not None
                         and (msg.type == "note_on" and msg.velocity > 0)
@@ -345,10 +345,10 @@ class FramedMidiInputThread(MidiInputThread):
                     ):
                         # print('filtered', msg)
                         continue
-
-                    frame.append(msg, self.current_time)
-                    if not self.first_msg:
-                        self.first_msg = True
+                    if msg.type in ["note_on", "note_off"]:
+                        frame.append(msg, self.current_time)
+                        if not self.first_msg:
+                            self.first_msg = True
                 if c_time >= frame.end and self.first_msg:
                     output = self.pipeline((frame.frame[:], frame.time))
                     if self.return_midi_messages:

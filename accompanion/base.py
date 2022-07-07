@@ -9,6 +9,7 @@ TODO
 import multiprocessing
 import threading
 import time
+import keyboard
 
 import numpy as np
 
@@ -329,6 +330,9 @@ class ACCompanion(ACC_PARENT):
         try:
 
             while self.play_accompanion and not self.seq.end_of_piece:
+                if keyboard.is_pressed("q"):
+                    print("q was pressed. Exiting playback.")
+                    raise KeyboardInterrupt
 
                 if self.queue.poll():
                     output = self.queue.recv()
