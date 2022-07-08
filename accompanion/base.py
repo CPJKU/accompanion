@@ -330,9 +330,9 @@ class ACCompanion(ACC_PARENT):
         try:
 
             while self.play_accompanion and not self.seq.end_of_piece:
-                if keyboard.is_pressed("q"):
-                    print("q was pressed. Exiting playback.")
-                    raise KeyboardInterrupt
+                # if keyboard.is_pressed("q"):
+                #     print("q was pressed. Exiting playback.")
+                #     raise KeyboardInterrupt
 
                 if self.queue.poll():
                     output = self.queue.recv()
@@ -443,6 +443,7 @@ class ACCompanion(ACC_PARENT):
                             adjusted_sf = True
 
         except Exception as e:
+            print('HEEEERRREEE')
             print(e)
             pass
         finally:
