@@ -6,17 +6,15 @@ import threading
 
 class MidiFilePlayerThread(threading.Thread):
 
-    def __init__(self, port_name, filename, player_class, bypass_audio=False):
+    def __init__(self, port, filename, player_class, bypass_audio=False):
         threading.Thread.__init__(self)
         self.mid = mido.MidiFile(filename)
-        self.port_name = port_name
-        self.midi_out = None
+        self.midi_out = port
         self.continue_playing = True
         self.player_class = player_class
         self.bypass_audio = bypass_audio
 
     def run(self):
-        self.open_port()
         fluidsynth_player = self.player_class()
         for msg in self.mid.play():
 
@@ -34,23 +32,20 @@ class MidiFilePlayerThread(threading.Thread):
         self.continue_playing = False
         self.join()
 
-    def open_port(self):
-        self.midi_out = mido.open_output(self.port_name)
 
 
 class MidiFilePlayerProcess(multiprocessing.Process):
 
-    def __init__(self, port_name, filename, player_class, bypass_audio=False):
+    def __init__(self, port, filename, player_class, bypass_audio=False):
         multiprocessing.Process.__init__(self)
         self.mid = mido.MidiFile(filename)
-        self.port_name = port_name
-        self.midi_out = None
+        self.midi_out = port
         self.continue_playing = True
         self.player_class = player_class
         self.bypass_audio = bypass_audio
 
     def run(self):
-        self.open_port()
+
         fluidsynth_player = self.player_class()
         for msg in self.mid.play():
             
@@ -68,11 +63,9 @@ class MidiFilePlayerProcess(multiprocessing.Process):
         self.terminate()
         self.join()
 
-    def open_port(self):
-        self.midi_out = mido.open_output(self.port_name)
 
 
-def get_midi_file_player(port_name, 
+def get_midi_file_player(port, 
                          file_name, 
                          player_class, 
                          thread=False, 
@@ -92,5 +85,5 @@ def get_midi_file_player(port_name,
         # inst = manager.FluidsynthPlayer()
         file_player_type = MidiFilePlayerProcess
 
-    return file_player_type(port_name, file_name, player_class, bypass_audio)
+    return file_player_type(port, file_name, player_class, bypass_audio)
 

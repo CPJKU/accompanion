@@ -85,10 +85,10 @@ if __name__ == "__main__":
     out_instrument_port = 'Clavinova'
 
     router_kwargs = dict(
-        solo_input_to_accompaniment_port_name=instrument_port,
-        acc_output_to_sound_port_name=out_instrument_port,
-        MIDIPlayer_to_sound_port_name=None,
-        MIDIPlayer_to_accompaniment_port_name=None,
+        solo_input_to_accompaniment_port_name="asd",
+        acc_output_to_sound_port_name='Clavinova',
+        MIDIPlayer_to_sound_port_name='Clavinova',
+        MIDIPlayer_to_accompaniment_port_name="asd",
         simple_button_input_port_name=None,
     )
 
