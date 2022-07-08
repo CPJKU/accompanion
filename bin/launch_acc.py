@@ -56,7 +56,7 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 
 	if args.config_file:
-		configurations = getattr(__import__(args.config_file),'config')
+		configurations = __import__('config_files.'+args.config_file,fromlist=['config']).config
 
 	#import ACCompanion version
 	if args.follower:

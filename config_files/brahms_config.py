@@ -25,7 +25,6 @@ config = dict(
 	acc_fn = acc_fn,
 	solo_fn = solo_fn,
 	midi_fn = None,
-	# midi_fn = midi_fn,
 	accompaniment_match = accompaniment_match,
 	follower = "oltw",
 	score_follower_kwargs={
