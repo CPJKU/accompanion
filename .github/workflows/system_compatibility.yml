@@ -26,10 +26,11 @@ jobs:
           sudo apt-get install libjack-dev
           sudo apt-get install libasound2-dev
           sudo apt install g++
+          conda init bash
 
       - name: Setup
         run: |
-          bash
+          bash --login
           conda update conda
           conda env create -f environment.yml
           conda activate accompanion
