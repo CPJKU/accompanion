@@ -11,13 +11,21 @@ on:
       - main
 
 jobs:
-  deploy:
+  ubuntu_testing:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: true
           fetch-depth: 0
+
+      - name: Install System Requirements
+        run: |
+          sudo apt install git
+          sudo apt-get install gcc
+          sudo apt-get install libjack-dev
+          sudo apt-get install libasound2-dev
+          sudo apt install g++
 
       - name: Setup
         run: |
