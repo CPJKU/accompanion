@@ -26,16 +26,11 @@ jobs:
           sudo apt-get install libjack-dev
           sudo apt-get install libasound2-dev
           sudo apt install g++
-          conda init bash
 
-      - name: Setup
+      - name: Instal Conda dependencies
         run: |
-          bash --login
-          conda update conda
-          conda env create -f environment.yml
-          eval "$(${CONDA}/bin/conda shell.bash hook)"
-          conda activate accompanion
-          conda env update -f environment.yml
+          # $CONDA is an environment variable pointing to the root of the miniconda directory
+          $CONDA/bin/conda env update --file environment.yml --name base
           pip install -e .
 
       - name: Run Accompanion
