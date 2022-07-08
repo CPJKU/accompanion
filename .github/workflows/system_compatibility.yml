@@ -59,15 +59,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
-          fetch-depth: 0
 
       - name: Install System Requirements
-        run: |
-          brew install gcc
+        run:
           brew install fluidsynth
-          brew install g++
 
       - name: Install Conda dependencies
         uses: conda-incubator/setup-miniconda@v2
