@@ -13,6 +13,10 @@ on:
 jobs:
   ubuntu_testing:
     runs-on: ubuntu-20.04
+    defaults:
+      run:
+        shell: bash -l {0}
+
     steps:
       - uses: actions/checkout@v2
         with:
@@ -30,8 +34,10 @@ jobs:
       - name: Instal Conda dependencies
         run: |
           # $CONDA is an environment variable pointing to the root of the miniconda directory
-          $CONDA/bin/conda env update --file environment.yml --name base
-          $CONDA/bin/conda activate base
+          conda env create --file environment.yml
+          conda info
+          conda list
+          conda activate accompanion
           pip install -e .
 
       - name: Run Accompanion
