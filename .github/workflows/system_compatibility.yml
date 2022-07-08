@@ -33,7 +33,7 @@ jobs:
           bash --login
           conda update conda
           conda env create -f environment.yml
-          conda activate accompanion
+          $CONDA/bin/activate accompanion
           pip install -e .
 
       - name: Run Accompanion
