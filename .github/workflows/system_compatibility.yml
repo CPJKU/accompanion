@@ -33,7 +33,9 @@ jobs:
           bash --login
           conda update conda
           conda env create -f environment.yml
-          $CONDA/bin/activate accompanion
+          eval "$(${CONDA}/bin/conda shell.bash hook)"
+          conda activate accompanion
+          conda env update -f environment.yml
           pip install -e .
 
       - name: Run Accompanion
