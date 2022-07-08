@@ -31,13 +31,16 @@ jobs:
           sudo apt-get install libasound2-dev
           sudo apt install g++
 
-      - name: Instal Conda dependencies
+      - name: Install Conda dependencies
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: accompanion
+          environment-file: environment.yml
+          auto-activate-base: false
+
+      - name: Install Accompanion
         run: |
-          # $CONDA is an environment variable pointing to the root of the miniconda directory
-          conda env create --file environment.yml
-          conda info
           conda list
-          conda activate accompanion
           pip install -e .
 
       - name: Run Accompanion
