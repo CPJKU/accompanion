@@ -28,9 +28,12 @@ jobs:
           sudo apt-get install gcc
           sudo apt-get install libjack-dev
           sudo apt-get install libasound2-dev
-          sudo apt-get install alsa-tools
+          echo "installing Fluidsynth . . ."
           sudo apt-get install fluidsynth
+          echo "installing g++ . . ."
           sudo apt install g++
+          echo "installing Alsa. . ."
+          sudo apt-get -y install alsa-tools
 
       - name: Install Conda dependencies
         uses: conda-incubator/setup-miniconda@v2
