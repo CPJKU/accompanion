@@ -24,7 +24,8 @@ accompaniment_match = os.path.join(
 config = dict(
 	acc_fn = acc_fn,
 	solo_fn = solo_fn,
-	midi_fn = midi_fn,
+	midi_fn = None,
+	# midi_fn = midi_fn,
 	accompaniment_match = accompaniment_match,
 	follower = "oltw",
 	score_follower_kwargs={
@@ -48,10 +49,10 @@ config = dict(
         "mechanical_delay": 0.210,
     },
     midi_router_kwargs = dict(
-        solo_input_to_accompaniment_port_name='MPKmini2:MPKmini2 MIDI 1 24:0',
-        acc_output_to_sound_port_name=FluidsynthPlayer,
-        MIDIPlayer_to_sound_port_name=FluidsynthPlayer,
-        MIDIPlayer_to_accompaniment_port_name=0,
+        solo_input_to_accompaniment_port_name='Clavinova',
+        acc_output_to_sound_port_name='Clavinova',
+        MIDIPlayer_to_sound_port_name=None,
+        MIDIPlayer_to_accompaniment_port_name=None,
         simple_button_input_port_name=None,
     ),
     adjust_following_rate=0.2,

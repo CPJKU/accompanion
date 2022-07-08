@@ -3,6 +3,7 @@
 import multiprocessing
 import platform
 import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import accompanion.accompanist.tempo_models as tempo_models
 from accompanion.accompanist import ACCompanion

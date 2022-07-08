@@ -37,7 +37,7 @@ config = dict(
         "mechanical_delay": 0.210,
     },
     midi_router_kwargs = dict(
-        solo_input_to_accompaniment_port_name='MPKmini2',
+        solo_input_to_accompaniment_port_name='Clavinova',
         acc_output_to_sound_port_name='Clavinova',
         MIDIPlayer_to_sound_port_name=None,
         MIDIPlayer_to_accompaniment_port_name=None,
