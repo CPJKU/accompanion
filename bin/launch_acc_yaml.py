@@ -41,10 +41,11 @@ args = parser.parse_args()
 
 if args.config_file:
 	import yaml
-	with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "config_files", args.config_file + ".yml"), "rb") as f:
+	with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config_files",
+						   args.config_file + ".yml"), "rb") as f:
 		info_file = yaml.safe_load(f)
 	configurations = info_file["config"]
-	file_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample_pieces", info_file["piece_dir"])
+	file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_pieces", info_file["piece_dir"])
 	configurations["acc_fn"] = os.path.join(file_dir, os.path.normpath(info_file["acc_fn"]))
 	configurations["solo_fn"] = glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match"))[-5:]
 	configurations["accompaniment_match"] = os.path.join(file_dir, os.path.normpath(info_file["accompaniment_match"]))
