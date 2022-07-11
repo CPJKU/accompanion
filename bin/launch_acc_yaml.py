@@ -21,14 +21,13 @@ overridable_args=['use_mediator','delay','instrument_port','out_instrument_port'
 
 
 # This creates a RuntimeError: context has already been set.
-if PLATFORM == "Darwin" or PLATFORM == "Linux":
-	multiprocessing.set_start_method("spawn")
+# if PLATFORM == "Darwin" or PLATFORM == "Linux":
+# 	multiprocessing.set_start_method("spawn")
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser("Configure and Launch ACCompanion")
 
-	parser.add_argument("--delay",type=float)
-
+	parser.add_argument("--delay", type=float)
 	parser.add_argument("--live", default=False, action="store_true",)
 	parser.add_argument("--bypass_audio", default=False, help="bypass fluidsynth audio", action="store_true")
 	parser.add_argument("--use_mediator", default=False, help="use ceus mediator", action="store_true")
