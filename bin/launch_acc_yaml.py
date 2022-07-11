@@ -4,14 +4,10 @@ import multiprocessing
 import platform
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-
 import accompanion.accompanist.tempo_models as tempo_models
 from accompanion.accompanist import ACCompanion
 from accompanion.midi_handler.fluid import FluidsynthPlayer
-
-
 import mido
-
 import os
 import argparse
 import glob
@@ -20,11 +16,11 @@ from accompanion import PLATFORM
 overridable_args=['use_mediator','delay','instrument_port','out_instrument_port','bypass_audio','follower','config_file']
 
 
-# This creates a RuntimeError: context has already been set.
-# if PLATFORM == "Darwin" or PLATFORM == "Linux":
-# 	multiprocessing.set_start_method("spawn")
-
 if __name__ == '__main__':
+	# This creates a RuntimeError: context has already been set.
+	if PLATFORM == "Darwin" or PLATFORM == "Linux":
+		multiprocessing.set_start_method("spawn")
+
 	parser = argparse.ArgumentParser("Configure and Launch ACCompanion")
 
 	parser.add_argument("--delay", type=float)
