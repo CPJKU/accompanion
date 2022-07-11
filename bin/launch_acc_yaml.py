@@ -3,6 +3,7 @@
 import multiprocessing
 import platform
 import os
+
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import accompanion.accompanist.tempo_models as tempo_models
 from accompanion.accompanist import ACCompanion
@@ -36,16 +37,27 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	if args.config_file:
-		import yaml
-		with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config_files",
-							   args.config_file + ".yml"), "rb") as f:
-			info_file = yaml.safe_load(f)
-		configurations = info_file["config"]
-		file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_pieces", info_file["piece_dir"])
-		configurations["acc_fn"] = os.path.join(file_dir, os.path.normpath(info_file["acc_fn"]))
-		configurations["solo_fn"] = glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match"))[-5:]
-		configurations["accompaniment_match"] = os.path.join(file_dir, os.path.normpath(info_file["accompaniment_match"]))
-		# configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
+		if args.config_file == 'brahms':
+			import yaml
+			with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config_files",
+								args.config_file + ".yml"), "rb") as f:
+				info_file = yaml.safe_load(f)
+			configurations = info_file["config"]
+			file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_pieces", info_file["piece_dir"])
+			configurations["acc_fn"] = os.path.join(file_dir, os.path.normpath(info_file["acc_fn"]))
+			configurations["solo_fn"] = glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match"))[-5:]
+			configurations["accompaniment_match"] = os.path.join(file_dir, os.path.normpath(info_file["accompaniment_match"]))
+			# configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
+		elif args.config_file == 'simple_pieces':
+			import yaml
+			with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config_files",
+								args.config_file + ".yml"), "rb") as f:
+				info_file = yaml.safe_load(f)
+			configurations = info_file["config"]
+			file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_pieces", info_file["piece_dir"])
+			configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
+			configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
+			
 	else:
 		configurations = dict()
 
@@ -100,14 +112,10 @@ if __name__ == '__main__':
 		configurations['performance_codec_kwargs']['mechanical_delay'] = args.delay
 
 	if args.piece:
-		pass
-		# TODO overwrite piece.
-		# file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_pieces",
-		# 						args.piece)
-		# configurations["acc_fn"] = os.path.join(file_dir, os.path.normpath(info_file["acc_fn"]))
-		# configurations["solo_fn"] = glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match"))[-5:]
-		# configurations["accompaniment_match"] = os.path.join(file_dir, os.path.normpath(info_file["accompaniment_match"]))
-		# configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
+		file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_pieces", args.piece)
+		configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
+		configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
+
 
 
 	accompanion = ACCompanion(**configurations)
