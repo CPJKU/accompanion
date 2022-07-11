@@ -27,7 +27,7 @@ if __name__ == '__main__':
 	parser.add_argument("--live", default=False, action="store_true",)
 	parser.add_argument("--bypass_audio", default=False, help="bypass fluidsynth audio", action="store_true")
 	parser.add_argument("--use_mediator", default=False, help="use ceus mediator", action="store_true")
-	parser.add_argument("--piece", default="twinkle_twinkle_little_star")
+	parser.add_argument("--piece")
 	parser.add_argument("--follower")
 	parser.add_argument("-f", "--config_file", default="brahms", help="config file to load.")
 	parser.add_argument('--input', required=False, help="Input MIDI instrument port.")
@@ -99,6 +99,15 @@ if __name__ == '__main__':
 	if args.delay:
 		configurations['performance_codec_kwargs']['mechanical_delay'] = args.delay
 
+	if args.piece:
+		pass
+		# TODO overwrite piece.
+		# file_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_pieces",
+		# 						args.piece)
+		# configurations["acc_fn"] = os.path.join(file_dir, os.path.normpath(info_file["acc_fn"]))
+		# configurations["solo_fn"] = glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match"))[-5:]
+		# configurations["accompaniment_match"] = os.path.join(file_dir, os.path.normpath(info_file["accompaniment_match"]))
+		# configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
 
 
 	accompanion = ACCompanion(**configurations)
