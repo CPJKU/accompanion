@@ -20,10 +20,10 @@ config:
         log_articulation_scale: 0.1
         mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Silent Piano
-        acc_output_to_sound_port_name: Silent Piano
-        MIDIPlayer_to_sound_port_name: None
-        MIDIPlayer_to_accompaniment_port_name: None
+        solo_input_to_accompaniment_port_name: 0
+        acc_output_to_sound_port_name: "IAC Driver Web Midi"
+        MIDIPlayer_to_sound_port_name: "IAC Driver Web Midi"
+        MIDIPlayer_to_accompaniment_port_name: 0
         simple_button_input_port_name: None
     adjust_following_rate: 0.2
     bypass_audio: False
@@ -36,4 +36,4 @@ config:
 piece_dir : brahms_data
 acc_fn : musicxml/Brahms_Hungarian-Dance-5_Secondo.musicxml
 accompaniment_match : basismixer/bm_brahms_2021-08-30.match
-midi_fn : 0
+midi_fn : "midi/cc_solo/Brahms_Hungarian-Dance-5_Primo_2021-07-27.mid"

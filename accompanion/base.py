@@ -118,7 +118,7 @@ class ACCompanion(ACC_PARENT):
         # self.tempo_model: SyncModel = tempo_model
         self.tempo_model = None
 
-        self.bypass_audio: bool = bypass_audio
+        self.bypass_audio: bool = True if test else bypass_audio
 
         self.play_accompanion: bool = False
 
@@ -308,7 +308,7 @@ class ACCompanion(ACC_PARENT):
         if self.midi_fn is not None:
             print("Start playing MIDI file")
             self.dummy_solo = get_midi_file_player(
-                port_name=self.router.MIDIPlayer_to_accompaniment_port_name[1],
+                port=self.router.MIDIPlayer_to_accompaniment_port_name[1],
                 file_name=self.midi_fn,
                 player_class=FluidsynthPlayer,
                 thread=USE_THREADS,

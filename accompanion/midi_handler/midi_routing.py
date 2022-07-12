@@ -306,6 +306,8 @@ class DummyPort(object):
     def panic(self):
         pass
 
+    def poll(self):
+        pass
 
 
 class DummyRouter(object):

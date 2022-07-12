@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("--piece")
     parser.add_argument("--follower")
     parser.add_argument(
-        "-f", "--config_file", default="brahms", help="config file to load."
+        "-f", "--config_file", default="test", help="config file to load."
     )
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
@@ -80,9 +80,6 @@ if __name__ == "__main__":
         if args.config_file == "simple_pieces":
             configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
             configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
-            configurations["accompaniment_match"] = os.path.join(
-                file_dir, os.path.normpath(info_file["accompaniment_match"])
-            )
 
         else:
             file_dir = os.path.join(
@@ -92,10 +89,13 @@ if __name__ == "__main__":
             configurations["acc_fn"] = os.path.join(
                 file_dir, os.path.normpath(info_file["acc_fn"])
             )
+            configurations["accompaniment_match"] = os.path.join(
+                file_dir, os.path.normpath(info_file["accompaniment_match"])
+            )
             configurations["solo_fn"] = glob.glob(
                 os.path.join(file_dir, "match", "cc_solo", "*.match")
             )[-5:]
-            # configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
+            configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"])) if info_file["midi_fn"] else None
     else:
         configurations = dict()
 
