@@ -18,10 +18,10 @@ from basismixer.performance_codec import get_performance_codec
 from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 from scipy.interpolate import interp1d
 
-from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
-from accompanion.midi_handler.midi_file_player import get_midi_file_player
-from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
-from accompanion.midi_handler.midi_routing import MidiRouter
+from accompanion.midi_handler.MIDI_input import create_midi_poll, POLLING_PERIOD
+from accompanion.midi_handler.MIDI_file_player import get_midi_file_player
+from accompanion.midi_handler.MIDI_sequencing_threads import ScoreSequencer
+from accompanion.midi_handler.MIDI_routing import MidiRouter
 
 # from accompanion.mtchmkr.features_midi import PianoRollProcessor
 # from accompanion.mtchmkr.alignment_online_oltw import OnlineTimeWarping

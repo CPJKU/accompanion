@@ -1,0 +1,82 @@
+name : Accompanion System Compatibility test
+
+on:
+  push:
+    branches:
+      - windows
+      - main
+  pull_request:
+    branches:
+      - windows
+      - main
+
+jobs:
+  ubuntu_testing:
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Install System Requirements
+        run: |
+          sudo apt-get install gcc
+          sudo apt-get install libjack-dev
+          sudo apt-get install libasound2-dev
+          echo "installing Fluidsynth . . ."
+          sudo apt-get install fluidsynth
+          echo "installing g++ . . ."
+          sudo apt install g++
+          echo "installing Alsa. . ."
+          sudo apt-get -y install alsa-tools
+
+      - name: Install Conda dependencies
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: accompanion
+          environment-file: environment.yml
+          auto-activate-base: false
+
+      - name: Install Accompanion
+        run: |
+          conda list
+          pip install pyfluidsynth
+          pip install -e .
+
+      - name: Run Accompanion
+        run:
+          ./bin/ACCompanion
+  macOS_testing:
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install System Requirements
+        run:
+          brew install fluidsynth
+
+      - name: Install Conda dependencies
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: accompanion
+          environment-file: environment.yml
+          auto-activate-base: false
+
+      - name: Install Accompanion
+        run: |
+          conda list
+          pip install pyfluidsynth
+          pip install -e .
+
+      - name: Run Accompanion
+        run:
+          ./bin/ACCompanion
