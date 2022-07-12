@@ -3,12 +3,12 @@ name : Accompanion System Compatibility test
 on:
   push:
     branches:
-      - windows
       - main
+      - develop
   pull_request:
     branches:
-      - windows
       - main
+      - develop
 
 jobs:
   ubuntu_testing:
