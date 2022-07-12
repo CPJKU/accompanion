@@ -58,23 +58,34 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.config_file:
-        if args.config_file == "brahms":
-            import yaml
+        import yaml
 
-            with open(
+        with open(
                 os.path.join(
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     "config_files",
                     args.config_file + ".yml",
                 ),
                 "rb",
-            ) as f:
-                info_file = yaml.safe_load(f)
-            configurations = info_file["config"]
+        ) as f:
+            info_file = yaml.safe_load(f)
+        configurations = info_file["config"]
+        file_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "sample_pieces",
+            info_file["piece_dir"],
+        )
+        if args.config_file == "simple_pieces":
+            configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
+            configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
+            configurations["accompaniment_match"] = os.path.join(
+                file_dir, os.path.normpath(info_file["accompaniment_match"])
+            )
+
+        else:
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "sample_pieces",
-                info_file["piece_dir"],
+                "sample_pieces", info_file["piece_dir"]
             )
             configurations["acc_fn"] = os.path.join(
                 file_dir, os.path.normpath(info_file["acc_fn"])
@@ -82,31 +93,7 @@ if __name__ == "__main__":
             configurations["solo_fn"] = glob.glob(
                 os.path.join(file_dir, "match", "cc_solo", "*.match")
             )[-5:]
-            configurations["accompaniment_match"] = os.path.join(
-                file_dir, os.path.normpath(info_file["accompaniment_match"])
-            )
             # configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
-        elif args.config_file == "simple_pieces":
-            import yaml
-
-            with open(
-                os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "config_files",
-                    args.config_file + ".yml",
-                ),
-                "rb",
-            ) as f:
-                info_file = yaml.safe_load(f)
-            configurations = info_file["config"]
-            file_dir = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "sample_pieces",
-                info_file["piece_dir"],
-            )
-            configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
-            configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
-
     else:
         configurations = dict()
 
