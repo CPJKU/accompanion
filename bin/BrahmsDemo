@@ -17,6 +17,7 @@ import glob
 from accompanion import PLATFORM
 
 
+
 if __name__ == "__main__":
 
     if PLATFORM == "Darwin" or PLATFORM == "Linux":
@@ -105,6 +106,7 @@ if __name__ == "__main__":
             "Babyface (23665044) Port 1",
             "Babyface (23664861) Port 1",
             "Disklavier",
+            "Clavinova 0"
         )
 
         available_input_ports = mido.get_input_names()
@@ -115,10 +117,18 @@ if __name__ == "__main__":
         if len(port_intersection) > 0:
             # Assume that there is only one live instrument
             instrument_port = list(port_intersection)[0]
+        # else:
+        #     raise BlockingIOError("Cannot find the Instrument port.")
+
+        # out_instrument_port = instrument_port if not instrument_port.endswith(" 0") else instrument_port[:-1] + "1"
+
+        instrument_port = 'M-Audio MIDISPORT Uno 0'
+        out_instrument_port = 'M-Audio MIDISPORT Uno 1'
+
 
         router_kwargs = dict(
             solo_input_to_accompaniment_port_name=instrument_port,
-            acc_output_to_sound_port_name=instrument_port,
+            acc_output_to_sound_port_name=out_instrument_port,
             MIDIPlayer_to_sound_port_name=None,
             MIDIPlayer_to_accompaniment_port_name=None,
             simple_button_input_port_name=None,
@@ -133,7 +143,7 @@ if __name__ == "__main__":
         "velocity_solo_scale": 0.85,
         "timing_scale": 0.001,
         "log_articulation_scale": 0.1,
-        "mechanical_delay": 0.0,
+        "mechanical_delay": 0.210,
     }
 
     accompanion = ACCompanion(
@@ -162,9 +172,9 @@ if __name__ == "__main__":
 
     try:
         accompanion.start()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         print("stop_playing")
-        accompanion.stop_playing()
         accompanion.seq.panic_button()
+        accompanion.stop_playing()
     finally:
         accompanion.join()

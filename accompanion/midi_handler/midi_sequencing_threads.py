@@ -133,7 +133,10 @@ class ScoreSequencer(threading.Thread):
         # self.play = False
         # better use Mido's built-in panic button...
         try:
+            print("Trying to note off all notes.")
             self.outport.panic()
+            self.outport.reset()
+
         except AttributeError:
             pass
         # self.outport.reset()

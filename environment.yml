@@ -23,6 +23,7 @@ dependencies:
     - python-rtmidi
     - madmom
     - PyQt5
+    - pyyaml
     - pyqtgraph
     - git+https://github.com/OFAI/basismixer.git
     - git+https://github.com/CPJKU/partitura.git@develop

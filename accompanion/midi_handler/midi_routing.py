@@ -4,6 +4,7 @@ This module provides basic functionality to process MIDI inputs in
 real time. This is a copy from matchmaker/io/midi.py, so that it can
 be updated without requiring to re-install matchmaker
 """
+import time
 
 import mido
 
@@ -11,6 +12,75 @@ from accompanion.midi_handler.fluid import FluidsynthPlayer
 
 
 class MidiRouter(object):
+    """
+    This is the main class handling MIDI I/O.
+    It takes (partial) strings for port names as inputs
+    and searches for a fitting port.
+    The reason this is set up in this way is that 
+    different OS tend to name/index MIDI ports differently.
+    
+    Use an instance if this class (and *only* this instance)
+    to handle everything related to port opening, closing,
+    finding, and panic. Expecially Windows is very finicky
+    about MIDI ports and it'll likely break if ports are
+    handled separately.
+    
+    This class can be used to:
+    - create a midirouter = MidiRouter(**kwargs) with
+    a number of (partial) port names or fluidsynths
+    - poll a specific port: e.g. 
+    midirouter.solo_input_to_accompaniment_port.poll()
+    - send on a specific port: e.g. 
+    midirouter.acc_output_to_sound_port.send(msg)
+    - open all set ports: midirouter.open_ports()
+    - close all set ports: midirouter.close_ports()
+    - panic reset all ports: midirouter.panic()
+    - get the full name of the used midi ports: e.g.
+    midirouter.solo_input_to_accompaniment_port_name
+    (DON'T use this name to open, close, etc with it,
+    use the midirouter functions instead)
+    
+    Args:
+        solo_input_to_accompaniment_port_name (string): 
+            a (partial) string for the input name at which the
+            score follower is listening for soloist MIDI messages
+        acc_output_to_sound_port_name (string): 
+            a (partial) string for the output name where the
+            accompanist sends MIDI messages
+            alternatively, it takes a FluidSynthPlayer object,
+            any out messages are then sent to a fludisynth for
+            audio rendering.
+            
+    It is possible to use a built-in MIDIPlayer instead of a soloist.
+    The MIDIPlayer sends midi messages to MIDI and/or sound ports.
+    Note that a virtual MIDI connection is necessary to send messages
+    froom the MIDIPlayer to the Score Follower. Virtual MIDI connections
+    are available on MacOSX (via IAC Driver) and Windows (
+    https://www.tobias-erichsen.de/software/loopmidi.html
+    ). 
+    
+    MIDIPlayer_to_sound_port_name (string): 
+        a (partial) string for the output name where the
+        MIDIPlayer sends MIDI messages
+        alternatively, it takes a FluidSynthPlayer object,
+        any out messages are then sent to a fludisynth for
+        audio rendering.
+    MIDIPlayer_to_accompaniment_port_name (string): 
+        a (partial) string for the output name where the
+        MIDIPlayer sends MIDI messages. Most likely virtual
+        port that loops back to the accompanion input.
+        
+    
+    It is possible to use a built-in controllable MIDIPlayer 
+    (which plays a midi file based in a single button)
+    to play as a soloist.
+    Use any midi controller as input to this Player.
+    
+    simple_button_input_port_name (string): 
+        a (partial) string for the input name at which the
+        MIDIPlayer is listening for
+        "single button player" MIDI messages.
+    """
     def __init__(
         self,
         solo_input_to_accompaniment_port_name=None,
@@ -19,8 +89,15 @@ class MidiRouter(object):
         MIDIPlayer_to_accompaniment_port_name=None,
         simple_button_input_port_name=None,
     ):
-        self.available_input_ports = mido.get_input_names()
-        self.available_output_ports = mido.get_output_names()
+        try:
+            self.available_input_ports = mido.get_input_names()
+            self.available_output_ports = mido.get_output_names()
+            print("Available outputs MIDI for mido", self.available_output_ports)
+        except RuntimeError as e:
+            print(e)
+            print("No ports available, mido crashes, switching to dummy input ports.")
+            self.available_input_ports = []
+            self.available_output_ports = []
         self.input_port_names = {}
         self.output_port_names = {}
         self.open_ports_list = []
@@ -87,6 +164,9 @@ class MidiRouter(object):
                     for i, name in enumerate(self.available_output_ports)
                     if try_name in name
                 ]
+                # possible_names = ["RD-88 1"]
+                # print("Possibly output names", possible_names)
+                # print("Try name", try_name)
 
             if len(possible_names) == 1:
                 print(
@@ -140,6 +220,8 @@ class MidiRouter(object):
                 port = mido.open_input(try_name)
             else:
                 port = mido.open_output(try_name)
+                # Adding eventual key release.
+                port.reset()
 
             self.open_ports_list.append(port)
             return port
@@ -149,17 +231,28 @@ class MidiRouter(object):
 
     def open_ports(self):
         for port_name in self.input_port_names.keys():
-            port = self.open_ports_by_name(port_name, input=True)
-            self.input_port_names[port_name] = port
+            if self.input_port_names[port_name] == None:
+                port = self.open_ports_by_name(port_name, input=True)
+                self.input_port_names[port_name] = port
         for port_name in self.output_port_names.keys():
-            port = self.open_ports_by_name(port_name, input=False)
-            self.output_port_names[port_name] = port
+            if self.output_port_names[port_name] == None:
+                port = self.open_ports_by_name(port_name, input=False)
+                self.output_port_names[port_name] = port
 
     def close_ports(self):
         for port in self.open_ports_list:
             port.close()
         self.open_ports_list = []
+        
+        for port_name in self.output_port_names.keys():
+            self.output_port_names[port_name] = None
+        for port_name in self.input_port_names.keys():
+            self.input_port_names[port_name] = None
 
+    def panic(self):
+        for port in self.open_ports_list:
+            port.panic()
+        
     def assign_ports_by_name(self, try_name, input=True):
         if isinstance(try_name, FluidsynthPlayer):
             return try_name

@@ -67,6 +67,7 @@ if __name__ == "__main__":
         "Babyface (23665044) Port 1",
         "Babyface (23664861) Port 1",
         "Disklavier",
+        "Clavinova 0"
     )
 
     available_input_ports = mido.get_input_names()
@@ -75,12 +76,19 @@ if __name__ == "__main__":
     if len(port_intersection) > 0:
         # Assume that there is only one live instrument
         instrument_port = list(port_intersection)[0]
+    # else:
+    #     raise BlockingIOError("Cannot find the Instrument port.")
+
+    # out_instrument_port = instrument_port if not instrument_port.endswith(" 0") else instrument_port[:-1] + "1"
+
+    instrument_port = 'MPKmini2'
+    out_instrument_port = 'Clavinova'
 
     router_kwargs = dict(
-        solo_input_to_accompaniment_port_name=instrument_port,
-        acc_output_to_sound_port_name=instrument_port,
-        MIDIPlayer_to_sound_port_name=None,
-        MIDIPlayer_to_accompaniment_port_name=None,
+        solo_input_to_accompaniment_port_name="asd",
+        acc_output_to_sound_port_name='Clavinova',
+        MIDIPlayer_to_sound_port_name='Clavinova',
+        MIDIPlayer_to_accompaniment_port_name="asd",
         simple_button_input_port_name=None,
     )
 
@@ -93,7 +101,7 @@ if __name__ == "__main__":
         "velocity_solo_scale": 0.85,
         "timing_scale": 0.001,
         "log_articulation_scale": 0.1,
-        "mechanical_delay": 0.0,
+        "mechanical_delay": 0.210,
     }
     accompanion = ACCompanion(
         solo_fn=solo_fn,

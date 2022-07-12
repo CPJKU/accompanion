@@ -9,7 +9,6 @@ TODO
 import multiprocessing
 import threading
 import time
-
 import numpy as np
 
 from typing import Optional
@@ -208,7 +207,7 @@ class ACCompanion(ACC_PARENT):
         self.accompanist.pc.note_tracker = self.note_tracker
 
         self.pipe_out, self.queue, self.midi_input_process = create_midi_poll(
-            port_name=self.router.solo_input_to_accompaniment_port_name[1],
+            port=self.router.solo_input_to_accompaniment_port,
             polling_period=self.polling_period,
             # velocities only for visualization purposes
             pipeline=self.input_pipeline,
@@ -327,9 +326,7 @@ class ACCompanion(ACC_PARENT):
         pioi = self.polling_period
 
         try:
-
             while self.play_accompanion and not self.seq.end_of_piece:
-
                 if self.queue.poll():
                     output = self.queue.recv()
                     # CC: moved solo_p_onset here because of the delays...
@@ -439,6 +436,7 @@ class ACCompanion(ACC_PARENT):
                             adjusted_sf = True
 
         except Exception as e:
+            print('HEEEERRREEE')
             print(e)
             pass
         finally:

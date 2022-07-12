@@ -7,7 +7,7 @@ The ACCompanion is an expressive accompaniment system.
 Clone and install the accompanion environment:
 ```shell
 git clone https://github.com/CPJKU/accompanion.git
-cd ./accompanion
+cd .\accompanion
 conda env create -f environment.yml
 ```
 
@@ -30,7 +30,8 @@ python SimplePiecesDemo
 ```
 To run a different piece, use the `--piece` flag and specify which piece you want to play:
 ```shell
-python SimplePiecesDemo --piece bach_menuett
+cd Path\to\accompanion
+.\bin\ACCompanion
 ```
 
 **Advanced Mode**
