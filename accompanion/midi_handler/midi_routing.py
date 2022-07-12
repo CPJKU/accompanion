@@ -89,9 +89,15 @@ class MidiRouter(object):
         MIDIPlayer_to_accompaniment_port_name=None,
         simple_button_input_port_name=None,
     ):
-        self.available_input_ports = mido.get_input_names()
-        self.available_output_ports = mido.get_output_names()
-        print("Available outputs MIDI for mido", self.available_output_ports)
+        try:
+            self.available_input_ports = mido.get_input_names()
+            self.available_output_ports = mido.get_output_names()
+            print("Available outputs MIDI for mido", self.available_output_ports)
+        except RuntimeError as e:
+            print(e)
+            print("No ports available, mido crashes, switching to dummy input ports.")
+            self.available_input_ports = []
+            self.available_output_ports = []
         self.input_port_names = {}
         self.output_port_names = {}
         self.open_ports_list = []
