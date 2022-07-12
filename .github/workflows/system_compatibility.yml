@@ -49,8 +49,9 @@ jobs:
           pip install -e .
 
       - name: Run Accompanion
-        run:
-          ./bin/ACCompanion
+        run: |
+          cd bin
+          python launch_acc_yaml.py --config test
   macOS_testing:
     runs-on: macos-latest
     defaults:
@@ -78,5 +79,6 @@ jobs:
           pip install -e .
 
       - name: Run Accompanion
-        run:
-          ./bin/ACCompanion
+        run: |
+          cd bin
+          python launch_acc_yaml.py --config test
