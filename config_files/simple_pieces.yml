@@ -16,10 +16,10 @@ config:
         velocity_solo_scale: 0.85
         timing_scale: 0.001
         log_articulation_scale: 0.1
-        mechanical_delay: 0.210
+        mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Clavinova
-        acc_output_to_sound_port_name: Clavinova
+        solo_input_to_accompaniment_port_name: Silent Piano
+        acc_output_to_sound_port_name: Silent Piano
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
