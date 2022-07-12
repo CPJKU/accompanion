@@ -16,7 +16,7 @@ from typing import Optional
 from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
 from accompanion.midi_handler.midi_file_player import get_midi_file_player
 from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
-from accompanion.midi_handler.midi_routing import MidiRouter
+from accompanion.midi_handler.midi_routing import MidiRouter, DummyRouter
 
 from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
@@ -66,6 +66,8 @@ class ACCompanion(ACC_PARENT):
     adjust_following_rate: float
     bypass_audio: bool = False
         Bypass fluidsynth audio
+    test: bool = False
+        switch to Dummy MIDI ROuter for test environment
     """
 
     def __init__(
@@ -82,6 +84,7 @@ class ACCompanion(ACC_PARENT):
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
+        test: bool = False, # switch to Dummy MIDI ROuter for test environment
     ) -> None:
         super(ACCompanion, self).__init__()
 
@@ -138,6 +141,8 @@ class ACCompanion(ACC_PARENT):
 
         self.dummy_solo = None
 
+        self.test=test
+
     def setup_scores(self) -> None:
         raise NotImplementedError
 
@@ -187,7 +192,7 @@ class ACCompanion(ACC_PARENT):
         if self.use_mediator:
             self.mediator = CeusMediator()
 
-        self.router = MidiRouter(**self.router_kwargs)
+        self.router = MidiRouter(**self.router_kwargs) if not self.test else DummyRouter(**self.router_kwargs)
 
         self.seq: ScoreSequencer = ScoreSequencer(
             score_or_notes=self.acc_score,
