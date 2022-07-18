@@ -309,6 +309,21 @@ class DummyPort(object):
     def poll(self):
         pass
 
+from queue import Queue
+
+class MidiFilePlayerInterceptPort(object):
+    def __init__(self, *args, **kwargs):
+        self.queue = Queue()
+
+    def send(self, msg):
+        self.queue.put(msg)
+
+    def panic(self):
+        self.queue.join()
+
+    def poll(self):
+        return self.queue.get()
+
 
 class DummyRouter(object):
     """
@@ -331,6 +346,11 @@ class DummyRouter(object):
 
         # the MIDI port name the accompanion listens at (port name)
         self.solo_input_to_accompaniment_port_name = None
+
+
+        self.solo_input_to_accompaniment_port = MidiFilePlayerInterceptPort()
+
+
         # the MIDI port name / Instrument the accompanion is sent
         # to (Fluidsynth, port name)
         self.acc_output_to_sound_port_name = None
@@ -340,16 +360,15 @@ class DummyRouter(object):
         self.MIDIPlayer_to_sound_port_name = None
         # the MIDI port name (if any) the solo is sent for the accompanion
         # to listen, if a MIDI Player is used (port name, None)
-        self.MIDIPlayer_to_accompaniment_port_name = (DummyPort(),DummyPort())
+
+        self.MIDIPlayer_to_accompaniment_port_name = (DummyPort(),self.solo_input_to_accompaniment_port)
         # the MIDI port name (if any) a single button MIDI Player is listening
         # at (port name, None)
         self.simple_button_input_port_name = None
 
         self.open_ports()
 
-        self.solo_input_to_accompaniment_port = self.assign_ports_by_name(
-            self.solo_input_to_accompaniment_port_name, input=True
-        )
+        
         self.acc_output_to_sound_port = self.assign_ports_by_name(
             self.acc_output_to_sound_port_name, input=False
         )
