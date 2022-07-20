@@ -37,12 +37,14 @@ REQUIRED = [
     "scipy",
     "madmom",
     "partitura",
-    # 'pyfluidsynth',
     "tqdm",
 ]
 
 EXTRAS = {"fluid": ["pyfluidsynth"]}
 
+SCRIPTS = [
+    "bin/panic_button",
+]
 
 setup(
     name=NAME,
@@ -61,6 +63,7 @@ setup(
         annotate=True,
         language_level=3,
     ),  # enables generation of the html annotation file
+    scripts=SCRIPTS,
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
