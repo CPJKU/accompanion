@@ -24,7 +24,7 @@ class RECVQueue(Queue):
         return self.get()
 
     def poll(self):
-        return self.not_empty
+        return self.empty()
 
 
 class MidiInputProcess(multiprocessing.Process):
@@ -65,6 +65,7 @@ class MidiInputProcess(multiprocessing.Process):
         self.start_listening()
 
         while self.listen:
+            print("midi input listening")
             msg = self.midi_in.poll()
             if msg is not None:
                 c_time = self.current_time
@@ -108,9 +109,9 @@ class MidiInputProcess(multiprocessing.Process):
         # close port
         # TODO!!!
 
-        self.terminate()
+        #self.terminate()
         # Join thread
-        self.join()
+        #self.join()
 
     def save_midi(self):
         # sort MIDI messages
@@ -144,8 +145,9 @@ class MidiInputThread(threading.Thread):
 
     def run(self):
         self.start_listening()
-
         while self.listen:
+            
+            
             msg = self.midi_in.poll()
             if msg is not None:
                 if (
@@ -189,8 +191,10 @@ class MidiInputThread(threading.Thread):
         # reset init time
         self.init_time = None
 
+        #self.terminate()
+
         # Join thread
-        self.join()
+        #self.join()
 
 
 class Buffer(object):

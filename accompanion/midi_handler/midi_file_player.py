@@ -30,7 +30,6 @@ class MidiFilePlayerThread(threading.Thread):
 
     def stop_playing(self):
         self.continue_playing = False
-        self.join()
 
 
 

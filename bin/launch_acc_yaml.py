@@ -138,7 +138,7 @@ if __name__ == "__main__":
             )
     else:
         raise ValueError(
-            "Neither through console arguments or configuration file has a score follower type been specified"
+            "Neither through console arguments nor configuration file has a score follower type been specified"
         )
 
     if "follower" in configurations.keys():
@@ -170,11 +170,21 @@ if __name__ == "__main__":
 
     accompanion = ACCompanion(**configurations)
 
-    try:
-        accompanion.start()
-    except KeyboardInterrupt:
-        print("stop_playing")
-        accompanion.stop_playing()
-        accompanion.seq.panic_button()
-    finally:
-        accompanion.join()
+    accompanion.run()
+    
+    
+
+    # try:
+    #     accompanion.start()
+    # except KeyboardInterrupt:
+    #     print("stop_playing")
+    #     accompanion.stop_playing()
+    #     accompanion.seq.panic_button()
+    # finally:
+    # try:
+    #     accompanion.join()
+    # except KeyboardInterrupt:
+    #     print("stop_playing")
+    #     accompanion.terminate()
+    #     # accompanion.stop_playing()
+    #     # accompanion.seq.panic_button()
