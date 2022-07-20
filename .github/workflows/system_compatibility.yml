@@ -52,6 +52,7 @@ jobs:
         run: |
           cd bin
           python launch_acc_yaml.py --test
+          
   macOS_testing:
     runs-on: macos-latest
     defaults:
@@ -82,3 +83,4 @@ jobs:
         run: |
           cd bin
           python launch_acc_yaml.py --test
+
