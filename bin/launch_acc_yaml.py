@@ -4,6 +4,8 @@ import multiprocessing
 import platform
 import os
 
+from config_files.brahms_config import accompaniment_match
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 import accompanion.accompanist.tempo_models as tempo_models
 from accompanion.accompanist import ACCompanion
@@ -89,13 +91,18 @@ if __name__ == "__main__":
             configurations["acc_fn"] = os.path.join(
                 file_dir, os.path.normpath(info_file["acc_fn"])
             )
+
             configurations["accompaniment_match"] = os.path.join(
                 file_dir, os.path.normpath(info_file["accompaniment_match"])
-            )
+            ) if "accompaniment_match" in info_file.keys() else None
+
             configurations["solo_fn"] = glob.glob(
                 os.path.join(file_dir, "match", "cc_solo", "*.match")
-            )[-5:]
-            configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"])) if info_file["midi_fn"] else None
+            )[-5:] if "solo_fn" not in info_file.keys() else os.path.join(
+                file_dir, os.path.normpath(info_file["solo_fn"])
+            )
+
+            configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"])) if "midi_fn" in info_file.keys() else None
     else:
         configurations = dict()
 
@@ -154,7 +161,7 @@ if __name__ == "__main__":
             "acc_output_to_sound_port_name"
         ] = args.output
 
-    if args.delay:
+    if args.delay is not None:
         configurations["performance_codec_kwargs"]["mechanical_delay"] = args.delay
 
     if args.piece:

@@ -16,10 +16,10 @@ config:
         velocity_solo_scale: 0.85
         timing_scale: 0.001
         log_articulation_scale: 0.1
-        mechanical_delay: 0.0
+        mechanical_delay: 0.1
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Silent Piano
-        acc_output_to_sound_port_name: Silent Piano
+        solo_input_to_accompaniment_port_name: Yamaha USB-MIDI-1
+        acc_output_to_sound_port_name: Yamaha USB-MIDI-1
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
@@ -29,6 +29,6 @@ config:
         tempo_model: LSM
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm : 120
+    init_bpm : 110
     init_velocity : 60
 piece_dir : twinkle_twinkle_little_star
