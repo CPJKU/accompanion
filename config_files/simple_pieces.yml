@@ -1,8 +1,8 @@
-# Accompanion config for brahms piece.
+# Accompanion config for simple pieces.
 config:
     follower : hmm
     score_follower_kwargs :
-        score_follower: PitchIOIHMM
+        score_follower: PitchIOIKHMM
         input_processor:
             processor: PitchIOIProcessor
             processor_kwargs:
@@ -28,7 +28,7 @@ config:
     tempo_model_kwargs:
         tempo_model: LSM
     use_ceus_mediator: False
-    polling_period: 0.01
+    polling_period: 0.035
     init_bpm : 120
     init_velocity : 60
 piece_dir : twinkle_twinkle_little_star
