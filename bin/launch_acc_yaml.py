@@ -34,7 +34,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser("Configure and Launch ACCompanion")
 
-    parser.add_argument("--test", action="store_true", help="switch on Dummy MIDI Router for test environment")
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="switch on Dummy MIDI Router for test environment",
+    )
 
     parser.add_argument("--delay", type=float)
     parser.add_argument(
@@ -65,12 +69,12 @@ if __name__ == "__main__":
         import yaml
 
         with open(
-                os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "config_files",
-                    args.config_file + ".yml",
-                ),
-                "rb",
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "config_files",
+                args.config_file + ".yml",
+            ),
+            "rb",
         ) as f:
             info_file = yaml.safe_load(f)
         configurations = info_file["config"]
@@ -86,7 +90,8 @@ if __name__ == "__main__":
         else:
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "sample_pieces", info_file["piece_dir"]
+                "sample_pieces",
+                info_file["piece_dir"],
             )
             configurations["acc_fn"] = os.path.join(
                 file_dir, os.path.normpath(info_file["acc_fn"])
@@ -103,6 +108,7 @@ if __name__ == "__main__":
             )
 
             configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"])) if "midi_fn" in info_file.keys() else None
+
     else:
         configurations = dict()
 
@@ -173,7 +179,7 @@ if __name__ == "__main__":
         configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
         configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
 
-    configurations['test']= True if args.test else False
+    configurations["test"] = True if args.test else False
 
     accompanion = ACCompanion(**configurations)
 
