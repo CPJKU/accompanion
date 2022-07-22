@@ -3,6 +3,7 @@ import setuptools
 from setuptools import setup
 from Cython.Build import cythonize
 from distutils.extension import Extension
+from sys import platform
 
 # Package meta-data.
 NAME = "accompanion"
@@ -63,7 +64,7 @@ setup(
         annotate=True,
         language_level=3,
     ),  # enables generation of the html annotation file
-    scripts=SCRIPTS,
+    scripts=SCRIPTS if platform not in ["win32", "win64", "cygwin"] else None,
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
