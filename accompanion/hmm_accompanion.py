@@ -86,7 +86,8 @@ class HMMACCompanion(ACCompanion):
             adjust_following_rate=adjust_following_rate,
             bypass_audio=bypass_audio,
             tempo_model_kwargs=tempo_model_kwargs,
-            test=test
+            test=test,
+            onset_tracker_type="continuous",
         )
 
     def setup_scores(self):

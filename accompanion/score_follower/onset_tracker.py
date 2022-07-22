@@ -66,7 +66,7 @@ class OnsetTracker(object):
 
     def acc_onset(self, acc_score_time) -> Tuple[float, int]:
         min_idx: int = np.argmax(
-            acc_score_time >= self.unique_onsets[self.current_idx:]
+            acc_score_time >= self.unique_onsets[self.current_idx :]
         )  # np.where(acc_score_time >= self.unique_onsets)[0]
         try:
             c_idx: int = self.current_idx + min_idx
@@ -82,9 +82,38 @@ class OnsetTracker(object):
             return self.unique_onsets[-1]
 
 
-
-class HMMOnsetTracker(object):
-    
+class DiscreteOnsetTracker(object):
     def __init__(self, unique_onsets: np.ndarray, *args, **kwargs) -> None:
-
+        print("Using discrete onset tracker")
         self.unique_onsets = unique_onsets
+        self.max_idx: int = len(self.unique_onsets) - 1
+        self.unique_onsets.sort()
+        self.current_idx: int = 0
+        self.performed_onsets: List[float] = []
+
+        self.idx_dict = dict([(uo, i) for i, uo in enumerate(self.unique_onsets)])
+        self.current_onset = self.unique_onsets[0]
+
+    def __call__(
+        self,
+        score_time: Optional[float],
+        acc_score_time: float = -np.inf,
+    ) -> Tuple[Optional[float], Optional[int], bool]:
+        solo_s_onset: Optional[float] = None
+        onset_index: Optional[int] = None
+        acc_update: Optional[bool] = False
+
+        if score_time is not None:
+            if (
+                score_time in self.unique_onsets
+                and score_time not in self.performed_onsets
+            ):
+                solo_s_onset = score_time
+                self.current_idx = self.idx_dict[solo_s_onset]
+                self.current_onset = solo_s_onset
+                self.performed_onsets.append(score_time)
+                onset_index = self.current_idx
+
+                print(f'onset tracker {score_time}')
+
+        return solo_s_onset, onset_index, acc_update

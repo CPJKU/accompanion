@@ -35,7 +35,7 @@ from accompanion.utils.partitura_utils import (
 
 from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.score_follower.note_tracker import NoteTracker
-from accompanion.score_follower.onset_tracker import OnsetTracker
+from accompanion.score_follower.onset_tracker import OnsetTracker, DiscreteOnsetTracker
 from accompanion.score_follower.trackers import AccompanimentScoreFollower
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 
@@ -83,6 +83,7 @@ class ACCompanion(ACC_PARENT):
         polling_period: float = POLLING_PERIOD,
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
+        onset_tracker_type: str = "continuous",
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False, # switch to Dummy MIDI ROuter for test environment
     ) -> None:
@@ -141,7 +142,9 @@ class ACCompanion(ACC_PARENT):
 
         self.dummy_solo = None
 
-        self.test=test
+        self.test = test
+
+        self.onset_tracker_type = onset_tracker_type
 
     def setup_scores(self) -> None:
         raise NotImplementedError
@@ -297,7 +300,11 @@ class ACCompanion(ACC_PARENT):
         # intialize beat period
         # perf_start = False
 
-        onset_tracker = OnsetTracker(self.solo_score.unique_onsets)
+        if self.onset_tracker_type == "discrete":
+            onset_tracker = DiscreteOnsetTracker(self.solo_score.unique_onsets)
+        else:
+            onset_tracker = OnsetTracker(self.solo_score.unique_onsets)
+        
         # Initialize on-line Basis Mixer here
         # expression_model = BasisMixer()
         self.midi_input_process.start()
