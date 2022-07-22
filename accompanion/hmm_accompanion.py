@@ -101,8 +101,18 @@ class HMMACCompanion(ACCompanion):
 
         solo_spart = partitura.load_score(self.score_kwargs["solo_fn"])
 
+        if isinstance(solo_spart, list):
+            solo_spart = solo_spart[0]
+        elif isinstance(solo_spart, partitura.score.PartGroup):
+            solo_spart = solo_spart.children[0]
+
         if self.score_kwargs["accompaniment_match"] is None:
             acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])
+
+            if isinstance(acc_spart, list):
+                acc_spart = acc_spart[0]
+            elif isinstance(acc_spart, partitura.score.PartGroup):
+                acc_spart = acc_spart.children[0]
             acc_notes = list(part_to_score(acc_spart, bpm=self.init_bpm).notes)
             velocity_trend = None
             velocity_dev = None
