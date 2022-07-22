@@ -36,4 +36,3 @@ config:
 piece_dir : brahms_data
 acc_fn : musicxml/Brahms_Hungarian-Dance-5_Secondo.musicxml
 accompaniment_match : basismixer/bm_brahms_2021-08-30.match
-midi_fn : 0

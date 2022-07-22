@@ -260,6 +260,7 @@ class ACCompanion(ACC_PARENT):
         """
         self.play_accompanion = False
         if self.dummy_solo is not None:
+
             self.dummy_solo.stop_playing()
         self.midi_input_process.stop_listening()
         self.seq.stop_playing()
@@ -269,10 +270,10 @@ class ACCompanion(ACC_PARENT):
         """
         Terminate process of the ACCompanion
         """
-        if hasattr(super(ACCompanion, self), "terminate"):
-            super(ACCompanion, self).terminate()
-        else:
-            self.stop_playing()
+        # if hasattr(super(ACCompanion, self), "terminate"):
+        #     super(ACCompanion, self).terminate()
+        # else:
+        self.stop_playing()
 
     def run(self):
         """
@@ -330,9 +331,11 @@ class ACCompanion(ACC_PARENT):
 
         pioi = self.polling_period
 
+        test_counter = 0
+
         try:
-            while self.play_accompanion and not self.seq.end_of_piece:
-                if self.queue.poll():
+            while not self.seq.end_of_piece:#self.play_accompanion and not self.seq.end_of_piece:
+                if not self.queue.poll():
                     output = self.queue.recv()
                     # CC: moved solo_p_onset here because of the delays...
                     # perhaps it would be good to take the time from
@@ -399,6 +402,11 @@ class ACCompanion(ACC_PARENT):
                             f"adjusted {acc_update or adjusted_sf}",
                         )
 
+                        if self.test and test_counter==10:
+                            break
+                        else:
+                            test_counter+=1
+
                         if not acc_update:
                             asynch = expected_position - solo_s_onset
                             # print('asynchrony', asynch)
@@ -439,9 +447,7 @@ class ACCompanion(ACC_PARENT):
                         if self.score_follower.current_position < expected_position:
                             self.score_follower.update_position(expected_position)
                             adjusted_sf = True
-
         except Exception as e:
-            print('HEEEERRREEE')
             print(e)
             pass
         finally:

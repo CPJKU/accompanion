@@ -309,20 +309,30 @@ class DummyPort(object):
     def poll(self):
         pass
 
-from queue import Queue
+    def reset(self):
+        pass
+
+import queue
+import sys
 
 class MidiFilePlayerInterceptPort(object):
     def __init__(self, *args, **kwargs):
-        self.queue = Queue()
+        self.queue = queue.Queue()
+        self.active = True
 
     def send(self, msg):
         self.queue.put(msg)
 
     def panic(self):
-        self.queue.join()
+        self.active=False
 
     def poll(self):
-        return self.queue.get()
+        while self.active:
+            try:
+                msg = self.queue.get(True,1)
+                return msg
+            except queue.Empty:
+                pass
 
 
 class DummyRouter(object):
@@ -395,7 +405,7 @@ class DummyRouter(object):
         pass
 
     def close_ports(self):
-        pass
+        self.solo_input_to_accompaniment_port.active=False
 
     def panic(self):
         pass

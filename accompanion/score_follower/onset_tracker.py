@@ -80,3 +80,11 @@ class OnsetTracker(object):
             return self.unique_onsets[self.current_idx + 1]
         except IndexError:
             return self.unique_onsets[-1]
+
+
+
+class HMMOnsetTracker(object):
+    
+    def __init__(self, unique_onsets: np.ndarray, *args, **kwargs) -> None:
+
+        self.unique_onsets = unique_onsets

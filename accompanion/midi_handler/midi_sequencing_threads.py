@@ -155,7 +155,9 @@ class ScoreSequencer(threading.Thread):
 
         self.curr_frame = np.zeros(MIDI_KEYS, dtype=np.uint8)
         next_notes = self.notes
+
         while self.play:
+            
 
             # current time
             c_time = time.time() - self.init_time
@@ -226,7 +228,7 @@ class ScoreSequencer(threading.Thread):
     def stop_playing(self):
 
         self.play = False
-        self.join()
+        #self.join()
 
 
 class MODIFIEDScoreSequencer(threading.Thread):

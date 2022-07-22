@@ -11,6 +11,33 @@ on:
 #      - develop
 
 jobs:
+  windows_testing:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Conda dependencies
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: accompanion
+          environment-file: environment.yml
+          auto-activate-base: false
+
+      - name: Install Accompanion
+        run: |
+          conda list
+          pip install pyfluidsynth
+          pip install -e .
+
+      - name: Run Accompanion
+        run: |
+          cd bin
+          python launch_acc_yaml.py --test
+
   ubuntu_testing:
     runs-on: ubuntu-20.04
     defaults:
@@ -52,6 +79,7 @@ jobs:
         run: |
           cd bin
           python launch_acc_yaml.py --test
+          
   macOS_testing:
     runs-on: macos-latest
     defaults:
@@ -82,3 +110,4 @@ jobs:
         run: |
           cd bin
           python launch_acc_yaml.py --test
+

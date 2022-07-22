@@ -1,10 +1,12 @@
-# Accompanion config for simple pieces.
+# Accompanion config for brahms piece.
 config:
-    follower : hmm
+    follower : oltw
     score_follower_kwargs :
-        score_follower: PitchIOIKHMM
+        score_follower: OnlineTimeWarping
+        window_size: 80
+        step_size: 10
         input_processor:
-            processor: PitchIOIProcessor
+            processor: PianoRollProcessor
             processor_kwargs:
               piano_range: True
     performance_codec_kwargs :
@@ -16,19 +18,21 @@ config:
         velocity_solo_scale: 0.85
         timing_scale: 0.001
         log_articulation_scale: 0.1
-        mechanical_delay: 0.1
+        mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Yamaha USB-MIDI-1
-        acc_output_to_sound_port_name: Yamaha USB-MIDI-1
+        solo_input_to_accompaniment_port_name: Silent Piano
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
-    adjust_following_rate: 0.2
+    adjust_following_rate: 0.1
     bypass_audio: False
     tempo_model_kwargs:
-        tempo_model: LSM
+        tempo_model: LTESM
     use_ceus_mediator: False
-    polling_period: 0.035
-    init_bpm : 110
+    polling_period: 0.01
+    init_bpm : 60
     init_velocity : 60
-piece_dir : twinkle_twinkle_little_star
+piece_dir : schubert
+acc_fn : musicxml/Rondo_in_A_E2_cut62_final-Piano_2.musicxml
+accompaniment_match : basismixer/bm_v4_fixed_notes_vel30.match
+midi_fn : "midi/gw_final_12_no_pedal.mid"

@@ -1,8 +1,8 @@
-# Accompanion config for simple pieces.
+# Accompanion config for bach_invention piece.
 config:
     follower : hmm
     score_follower_kwargs :
-        score_follower: PitchIOIKHMM
+        score_follower: PitchIOIHMM
         input_processor:
             processor: PitchIOIProcessor
             processor_kwargs:
@@ -28,7 +28,9 @@ config:
     tempo_model_kwargs:
         tempo_model: LSM
     use_ceus_mediator: False
-    polling_period: 0.035
-    init_bpm : 110
+    polling_period: 0.01
+    init_bpm : 90
     init_velocity : 60
-piece_dir : twinkle_twinkle_little_star
+piece_dir : bach_invention
+acc_fn : "secondo.musicxml"
+solo_fn: "primo.musicxml"
