@@ -238,6 +238,7 @@ class HMMACCompanion(ACCompanion):
                 pitch_profiles=pitch_profiles,
                 ioi_matrix=ioi_matrix,
                 score_onsets=state_space,
+                init_beat_period=self.init_bp,
                 ioi_precision=ioi_precision,
                 initial_probabilities=initial_probabilities,
                 **score_follower_kwargs,

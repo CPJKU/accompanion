@@ -2,7 +2,7 @@
 config:
     follower : hmm
     score_follower_kwargs :
-        score_follower: PitchIOIKHMM
+        score_follower: PitchIOIHMM
         input_processor:
             processor: PitchIOIProcessor
             processor_kwargs:
