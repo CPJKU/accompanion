@@ -37,6 +37,8 @@ class HMMACCompanion(ACCompanion):
         midi_fn: Optional[str] = None,
         score_follower_kwargs: dict = {
             "score_follower": "PitchIOIHMM",
+            # For the future!
+            "score_follower_kwargs": {},
             "input_processor": {
                 "processor": "PitchIOIProcessor",
                 "processor_kwargs": {},
@@ -62,6 +64,7 @@ class HMMACCompanion(ACCompanion):
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
+        test: bool = False # bypass MIDIRouter
     ) -> None:
 
         score_kwargs = dict(
@@ -83,6 +86,8 @@ class HMMACCompanion(ACCompanion):
             adjust_following_rate=adjust_following_rate,
             bypass_audio=bypass_audio,
             tempo_model_kwargs=tempo_model_kwargs,
+            test=test,
+            onset_tracker_type="continuous",
         )
 
     def setup_scores(self):
@@ -96,8 +101,18 @@ class HMMACCompanion(ACCompanion):
 
         solo_spart = partitura.load_score(self.score_kwargs["solo_fn"])
 
+        if isinstance(solo_spart, list):
+            solo_spart = solo_spart[0]
+        elif isinstance(solo_spart, partitura.score.PartGroup):
+            solo_spart = solo_spart.children[0]
+
         if self.score_kwargs["accompaniment_match"] is None:
             acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])
+
+            if isinstance(acc_spart, list):
+                acc_spart = acc_spart[0]
+            elif isinstance(acc_spart, partitura.score.PartGroup):
+                acc_spart = acc_spart.children[0]
             acc_notes = list(part_to_score(acc_spart, bpm=self.init_bpm).notes)
             velocity_trend = None
             velocity_dev = None
@@ -184,6 +199,8 @@ class HMMACCompanion(ACCompanion):
 
     def setup_score_follower(self):
 
+        # These parameters should go in the score follower kwargs
+        # but for now are here since there are no other alternatives
         piano_range = False
         inserted_states = True
         ioi_precision = 2
@@ -191,9 +208,14 @@ class HMMACCompanion(ACCompanion):
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
 
         try:
-            chord_pitches = [chord.pitch for chord in self.solo_score.chords]
-        except:
-            print(self.solo_score.chords)
+            score_follower_kwargs = self.score_follower_kwargs.pop("score_follower_kwargs")
+        except KeyError:
+            score_follower_kwargs = {}
+
+        # try:
+        chord_pitches = [chord.pitch for chord in self.solo_score.chords]
+        # except:
+        #     print(self.solo_score.chords)
         pitch_profiles = score_hmm.compute_pitch_profiles(
             chord_pitches, piano_range=piano_range, inserted_states=inserted_states,
         )
@@ -208,16 +230,32 @@ class HMMACCompanion(ACCompanion):
             scale=0.5,
         )
         initial_probabilities = score_hmm.gumbel_init_dist(n_states=n_states)
-        score_follower = score_hmm.PitchIOIHMM(
-            transition_matrix=transition_matrix,
-            pitch_profiles=pitch_profiles,
-            ioi_matrix=ioi_matrix,
-            score_onsets=state_space,
-            tempo_model=self.tempo_model,
-            ioi_precision=ioi_precision,
-            initial_probabilities=initial_probabilities,
-        )
 
+        if score_follower_type == 'PitchIOIHMM':
+            score_follower = score_hmm.PitchIOIHMM(
+                transition_matrix=transition_matrix,
+                pitch_profiles=pitch_profiles,
+                ioi_matrix=ioi_matrix,
+                score_onsets=state_space,
+                tempo_model=self.tempo_model,
+                ioi_precision=ioi_precision,
+                initial_probabilities=initial_probabilities,
+                **score_follower_kwargs,
+            )
+        elif score_follower_type == "PitchIOIKHMM":
+            score_follower = score_hmm.PitchIOIKHMM(
+                transition_matrix=transition_matrix,
+                pitch_profiles=pitch_profiles,
+                ioi_matrix=ioi_matrix,
+                score_onsets=state_space,
+                init_beat_period=self.init_bp,
+                ioi_precision=ioi_precision,
+                initial_probabilities=initial_probabilities,
+                **score_follower_kwargs,
+            )
+
+        else:
+            raise ValueError(f"{score_follower_type} is not a valid score HMM")
         self.score_follower = HMMScoreFollower(score_follower)
         self.input_pipeline = SequentialOutputProcessor([PitchIOIProcessor()])
 

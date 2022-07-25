@@ -449,6 +449,145 @@ def compute_pitch_profiles(
     return pitch_profiles
 
 
+class PitchIOIKHMM(HiddenMarkovModel):
+    """
+    Implements the bahaviour of a HiddenMarkovModel, specifically designed for
+    the task of score following.
+
+    Parameters
+    ----------
+    _transition_matrix : numpy.ndarray
+        Matrix for computations of state transitions within the HMM.
+
+    _observation_model : ObservationModel
+        Object responsible for computing the observation probabilities for each
+        state of the HMM.
+
+    initial_distribution : numpy array
+        The initial distribution of the model. If not given, it is asumed to
+        be uniform.
+
+    forward_variable : numpy array
+        The current (latest) value of the forward variable.
+
+    _variation_coeff : float
+        The normalized coefficient of variation of the current (latest) forward
+        variable. Used to determine the confidence of the prediction of the HMM.
+
+    current_state : int
+        The index of the current state of the HMM.
+    """
+
+    def __init__(
+        self,
+        transition_matrix: np.ndarray,
+        pitch_profiles: np.ndarray,
+        ioi_matrix: np.ndarray,
+        score_onsets: np.ndarray,
+        init_beat_period: float = 0.5,
+        init_score_onset: float = 0,
+        trans_par: float = 1,
+        trans_var: float = 0.03,
+        obs_var: float = 0.0213,  # values from old ACCompanion
+        init_var: float = 1,
+        ioi_precision: float = 1,
+        initial_probabilities: Optional[np.ndarray] = None,
+        has_insertions=True,
+    ) -> None:
+        """
+        Initialize the object.
+
+        Parameters
+        ----------
+        transition_matrix : numpy array
+            The Tranistion probability matrix of HMM.
+
+        pitch_profiles : numpy array
+            The pre-computed pitch profiles, for each separate possible pitch
+            in the MIDI range. Used in calculating the pitch observation
+            probabilities.
+
+        ioi_matrix : numpy array
+            The pre-computed score IOI values in beats, from each unique state
+            to all other states, stored in a matrix.
+
+        ioi_precision : float
+            The precision parameter for computing the IOI observation
+            probability.
+
+        score_onsets : numpy array
+            TODO
+
+        initial_distribution : numpy array
+            The initial distribution of the model. If not given, it is asumed to
+            be uniform.
+            Default = None.
+        """
+
+        from accompanion.accompanist.tempo_models import KalmanTempoSyncModel
+        # reference_features = (transition_matrix, pitch_profiles, ioi_matrix)
+
+        observation_model = PitchIOIObservationModel(
+            pitch_profiles=pitch_profiles,
+            ioi_matrix=ioi_matrix,
+            ioi_precision=ioi_precision,
+        )
+
+        super().__init__(
+            observation_model=observation_model,
+            transition_model=ConstantTransitionModel(
+                transition_probabilities=transition_matrix,
+                init_probabilities=initial_probabilities,
+            ),
+            state_space=score_onsets,
+            # reference_features=reference_features,
+        )
+
+        self.prev_perf_onset = None
+
+        self.tempo_model = KalmanTempoSyncModel(
+            init_beat_period=init_beat_period,
+            init_score_onset=self.state_space[0],
+            trans_par=trans_par,
+            trans_var=trans_var,
+            obs_var=obs_var,
+            init_var=init_var
+        )
+        self.has_insertions = has_insertions
+
+    def __call__(self, input):
+        self.current_state = self.forward_algorithm_step(
+            observation=input + (self.tempo_model.beat_period,), log_probabilities=False
+        )
+
+        if self.prev_perf_onset is None:
+            perf_onset = 0
+        else:
+            # previous onset + last observed ioi
+            perf_onset = self.prev_perf_onset + input[1]
+        self.prev_perf_onset = perf_onset
+        # Update tempo model for real notes (not insertions)
+        if self.current_state % 2 == 0 and self.has_insertions:
+            current_score_onset = self.state_space[self.current_state]
+
+            self.tempo_model.update_beat_period(
+                performed_onset=perf_onset,
+                score_onset=current_score_onset,
+            )
+            self.tempo_model.counter += 1
+
+        return self.state_space[self.current_state]
+
+    @property
+    def current_state(self):
+        return self.observation_model.current_state
+
+    @current_state.setter
+    def current_state(self, state):
+        self.observation_model.current_state = state
+
+
+
 if __name__ == "__main__":
 
     rng = np.random.RandomState(1984)

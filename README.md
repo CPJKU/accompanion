@@ -70,6 +70,10 @@ python SimplePiecesDemo --piece new_piece
 
 TBA!
 
+# Turn off MIDI routing
+
+add `--test` flag to your command line arguments in order to switch to a Dummy MIDI routing system
+necessary for testing purposes on VMs where ports and such cannot be accessed
 
 
 # Additional Resources

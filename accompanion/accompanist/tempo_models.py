@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+"""
+Tempo Models
+"""
+from typing import ClassVar, Tuple
 import numpy as np
 from scipy.interpolate import interp1d
 
@@ -6,9 +10,37 @@ from scipy.interpolate import interp1d
 class SyncModel(object):
     """
     Base class for synchronization models
+
+    Attributes
+    ----------
+    beat_period : float
+        The current tempo in beats per second
+    prev_score_onset: float
+        Latest covered score onset (in beats)
+    prev_perf_onset : float
+        Last performed onset time in seconds
+    asynchrony : float
+        Asynchrony of the estimated onset time and the actually performed onset time.
+    has_tempo_expectations : bool
+        Whether the model includes tempo expectations
+    counter: int
+        The number of times that the model has been updated. Useful for debugging
+        purposes.
     """
 
-    def __init__(self, init_beat_period=0.5, init_score_onset=0):
+    beat_period: ClassVar[float]
+    prev_score_onset: ClassVar[float]
+    prev_perf_onset: ClassVar[float]
+    est_onset: ClassVar[float]
+    asynchrony: ClassVar[float]
+    has_tempo_expectations: ClassVar[bool]
+    counter: ClassVar[int]
+
+    def __init__(
+        self,
+        init_beat_period: float = 0.5,
+        init_score_onset: float = 0,
+    ) -> None:
         self.beat_period = init_beat_period
         self.prev_score_onset = init_score_onset
         self.prev_perf_onset = None
@@ -19,19 +51,53 @@ class SyncModel(object):
         # called
         self.counter = 0
 
-    def __call__(self, performed_onset, score_onset, *args, **kwargs):
+    def __call__(
+        self,
+        performed_onset: float,
+        score_onset: float,
+        *args,
+        **kwargs,
+    ) -> Tuple[float]:
+        """
+        Update beat period and estimated onset
+
+        Parameters
+        ----------
+        performed_onset : float
+            Latest performed onset
+        score_onset: float
+            Latest score onset corresponding to the performed onset
+
+        Returns
+        -------
+        beat_period : float
+            Tempo in beats per second
+        est_onsete : float
+            Estimated onset given the current beat period
+        """
         self.update_beat_period(performed_onset, score_onset, *args, **kwargs)
         self.counter += 1
         return self.beat_period, self.est_onset
 
-    def update_beat_period(self, performed_onset, score_onset, *args, **kwargs):
+    def update_beat_period(
+        self,
+        performed_onset: float,
+        score_onset: float,
+        *args,
+        **kwargs,
+    ) -> None:
+        """
+        Internal method for updating the beat period.
+        Needs to be implemented for each variant of the model
+        """
         raise NotImplementedError
 
 
 class ReactiveSyncModel(SyncModel):
     def __init__(self, init_beat_period=0.5, init_score_onset=0):
         super().__init__(
-            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+            init_beat_period=init_beat_period,
+            init_score_onset=init_score_onset,
         )
 
     def update_beat_period(self, performed_onset, score_onset):
@@ -357,3 +423,76 @@ class LinearTempoExpectationsSyncModel(SyncModel):
 
 # Alias
 LTESM = LinearTempoExpectationsSyncModel
+
+
+class KalmanTempoSyncModel(SyncModel):
+    """
+    A Tempo model using a linear Kalman filter.
+    """
+
+    # The initialization function:
+
+    def __init__(
+        self,
+        init_beat_period: float = 0.5,
+        init_score_onset: float = 0,
+        trans_par: float = 1,
+        trans_var: float = 0.03,
+        obs_var: float = 0.0213,  # values from old ACCompanion
+        init_var: float = 1,
+    ) -> None:
+        super().__init__(
+            init_beat_period=init_beat_period,
+            init_score_onset=init_score_onset,
+        )
+        # Assign the parameters:
+        self.trans_par = trans_par
+        self.trans_var = trans_var
+        self.obs_var = obs_var
+
+        # Assing the initial values:
+        self.var_est = init_var
+
+    # A function to compute one step of the predict-update cycle:
+    def update_beat_period(self, performed_onset: float, score_onset: float) -> None:
+        """
+        Updates the model, when a new IOI observation is made. Computes
+        one step of the predict-update cycle in the Kalman Filter.
+
+        Parameters
+        ----------
+        performed_onset: float
+            The latest performed onset
+
+        score_onset : float
+           Latest score onset corresponding to the performed onset
+        """
+
+        if self.counter == 0:
+            score_ioi = 0
+            performed_ioi = 0
+            self.est_onset = performed_onset
+        else:
+            performed_ioi = abs(performed_onset - self.prev_perf_onset)
+
+            score_ioi = abs(score_onset - self.prev_score_onset)
+
+        self.prev_score_onset = score_onset
+        self.prev_perf_onset = performed_onset
+        # First, compute the prediction step:
+        period_pred = self.beat_period * self.trans_par
+        var_pred = (self.trans_par ** 2) * self.var_est + self.trans_var
+
+        # Compute the error (innovation), between the estimation and obs:
+        err = performed_ioi - score_ioi * period_pred
+        # Compute the Kalman gain with the new predictions:
+        kalman_gain = float(var_pred * score_ioi) / (
+            (score_ioi ** 2) * var_pred + self.obs_var
+        )
+        # Compute the estimations after the update step:
+        self.beat_period = period_pred + kalman_gain * err
+        self.var_est = (1 - kalman_gain * score_ioi) * var_pred
+        self.est_onset += score_ioi * self.beat_period
+
+
+KTSM = KalmanTempoSyncModel

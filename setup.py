@@ -3,6 +3,7 @@ import setuptools
 from setuptools import setup
 from Cython.Build import cythonize
 from distutils.extension import Extension
+from sys import platform
 
 # Package meta-data.
 NAME = "accompanion"
@@ -37,12 +38,14 @@ REQUIRED = [
     "scipy",
     "madmom",
     "partitura",
-    # 'pyfluidsynth',
     "tqdm",
 ]
 
 EXTRAS = {"fluid": ["pyfluidsynth"]}
 
+SCRIPTS = [
+    "bin/panic_button",
+]
 
 setup(
     name=NAME,
@@ -61,6 +64,7 @@ setup(
         annotate=True,
         language_level=3,
     ),  # enables generation of the html annotation file
+    scripts=SCRIPTS if platform not in ["win32", "win64", "cygwin"] else None,
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

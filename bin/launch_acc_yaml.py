@@ -4,6 +4,8 @@ import multiprocessing
 import platform
 import os
 
+from config_files.brahms_config import accompaniment_match
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 import accompanion.accompanist.tempo_models as tempo_models
 from accompanion.accompanist import ACCompanion
@@ -32,6 +34,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser("Configure and Launch ACCompanion")
 
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="switch on Dummy MIDI Router for test environment",
+    )
+
     parser.add_argument("--delay", type=float)
     parser.add_argument(
         "--live",
@@ -50,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("--piece")
     parser.add_argument("--follower")
     parser.add_argument(
-        "-f", "--config_file", default="brahms", help="config file to load."
+        "-f", "--config_file", default="test", help="config file to load."
     )
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
@@ -61,12 +69,12 @@ if __name__ == "__main__":
         import yaml
 
         with open(
-                os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "config_files",
-                    args.config_file + ".yml",
-                ),
-                "rb",
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "config_files",
+                args.config_file + ".yml",
+            ),
+            "rb",
         ) as f:
             info_file = yaml.safe_load(f)
         configurations = info_file["config"]
@@ -78,22 +86,29 @@ if __name__ == "__main__":
         if args.config_file == "simple_pieces":
             configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
             configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
-            configurations["accompaniment_match"] = os.path.join(
-                file_dir, os.path.normpath(info_file["accompaniment_match"])
-            )
 
         else:
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "sample_pieces", info_file["piece_dir"]
+                "sample_pieces",
+                info_file["piece_dir"],
             )
             configurations["acc_fn"] = os.path.join(
                 file_dir, os.path.normpath(info_file["acc_fn"])
             )
+
+            configurations["accompaniment_match"] = os.path.join(
+                file_dir, os.path.normpath(info_file["accompaniment_match"])
+            ) if "accompaniment_match" in info_file.keys() else None
+
             configurations["solo_fn"] = glob.glob(
                 os.path.join(file_dir, "match", "cc_solo", "*.match")
-            )[-5:]
-            # configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
+            )[-5:] if "solo_fn" not in info_file.keys() else os.path.join(
+                file_dir, os.path.normpath(info_file["solo_fn"])
+            )
+
+            configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"])) if "midi_fn" in info_file.keys() else None
+
     else:
         configurations = dict()
 
@@ -136,7 +151,7 @@ if __name__ == "__main__":
             )
     else:
         raise ValueError(
-            "Neither through console arguments or configuration file has a score follower type been specified"
+            "Neither through console arguments nor configuration file has a score follower type been specified"
         )
 
     if "follower" in configurations.keys():
@@ -152,7 +167,7 @@ if __name__ == "__main__":
             "acc_output_to_sound_port_name"
         ] = args.output
 
-    if args.delay:
+    if args.delay is not None:
         configurations["performance_codec_kwargs"]["mechanical_delay"] = args.delay
 
     if args.piece:
@@ -164,13 +179,25 @@ if __name__ == "__main__":
         configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
         configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
 
+    configurations["test"] = True if args.test else False
+
     accompanion = ACCompanion(**configurations)
 
-    try:
-        accompanion.start()
-    except KeyboardInterrupt:
-        print("stop_playing")
-        accompanion.stop_playing()
-        accompanion.seq.panic_button()
-    finally:
-        accompanion.join()
+    accompanion.run()
+    
+    
+
+    # try:
+    #     accompanion.start()
+    # except KeyboardInterrupt:
+    #     print("stop_playing")
+    #     accompanion.stop_playing()
+    #     accompanion.seq.panic_button()
+    # finally:
+    # try:
+    #     accompanion.join()
+    # except KeyboardInterrupt:
+    #     print("stop_playing")
+    #     accompanion.terminate()
+    #     # accompanion.stop_playing()
+    #     # accompanion.seq.panic_button()

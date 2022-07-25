@@ -89,15 +89,18 @@ class MidiRouter(object):
         MIDIPlayer_to_accompaniment_port_name=None,
         simple_button_input_port_name=None,
     ):
-        try:
-            self.available_input_ports = mido.get_input_names()
-            self.available_output_ports = mido.get_output_names()
-            print("Available outputs MIDI for mido", self.available_output_ports)
-        except RuntimeError as e:
-            print(e)
-            print("No ports available, mido crashes, switching to dummy input ports.")
-            self.available_input_ports = []
-            self.available_output_ports = []
+        self.available_input_ports = mido.get_input_names()
+        self.available_output_ports = mido.get_output_names()
+        print("Available outputs MIDI for mido", self.available_output_ports)
+        # try:
+        #     self.available_input_ports = mido.get_input_names()
+        #     self.available_output_ports = mido.get_output_names()
+        #     print("Available outputs MIDI for mido", self.available_output_ports)
+        # except RuntimeError as e:
+        #     print(e)
+        #     print("No ports available, mido crashes, switching to dummy input ports.")
+        #     self.available_input_ports = []
+        #     self.available_output_ports = []
         self.input_port_names = {}
         self.output_port_names = {}
         self.open_ports_list = []
@@ -302,3 +305,113 @@ class DummyPort(object):
 
     def panic(self):
         pass
+
+    def poll(self):
+        pass
+
+    def reset(self):
+        pass
+
+import queue
+import sys
+
+class MidiFilePlayerInterceptPort(object):
+    def __init__(self, *args, **kwargs):
+        self.queue = queue.Queue()
+        self.active = True
+
+    def send(self, msg):
+        self.queue.put(msg)
+
+    def panic(self):
+        self.active=False
+
+    def poll(self):
+        while self.active:
+            try:
+                msg = self.queue.get(True,1)
+                return msg
+            except queue.Empty:
+                pass
+
+
+class DummyRouter(object):
+    """
+    
+    """
+    def __init__(
+        self,
+        solo_input_to_accompaniment_port_name=None,
+        acc_output_to_sound_port_name=None,
+        MIDIPlayer_to_sound_port_name=None,
+        MIDIPlayer_to_accompaniment_port_name=None,
+        simple_button_input_port_name=None,
+    ):
+        self.available_input_ports = None
+        self.available_output_ports = None
+        print("Available outputs MIDI for mido", self.available_output_ports)
+        self.input_port_names = {}
+        self.output_port_names = {}
+        self.open_ports_list = []
+
+        # the MIDI port name the accompanion listens at (port name)
+        self.solo_input_to_accompaniment_port_name = None
+
+
+        self.solo_input_to_accompaniment_port = MidiFilePlayerInterceptPort()
+
+
+        # the MIDI port name / Instrument the accompanion is sent
+        # to (Fluidsynth, port name)
+        self.acc_output_to_sound_port_name = None
+
+        # the MIDI port name / Instrument (if any) the solo is sent to,
+        # if a MIDI Player is used (Fluidsynth, port name, None)
+        self.MIDIPlayer_to_sound_port_name = None
+        # the MIDI port name (if any) the solo is sent for the accompanion
+        # to listen, if a MIDI Player is used (port name, None)
+
+        self.MIDIPlayer_to_accompaniment_port_name = (DummyPort(),self.solo_input_to_accompaniment_port)
+        # the MIDI port name (if any) a single button MIDI Player is listening
+        # at (port name, None)
+        self.simple_button_input_port_name = None
+
+        self.open_ports()
+
+        
+        self.acc_output_to_sound_port = self.assign_ports_by_name(
+            self.acc_output_to_sound_port_name, input=False
+        )
+
+        self.MIDIPlayer_to_sound_port = self.assign_ports_by_name(
+            self.MIDIPlayer_to_sound_port_name, input=False
+        )
+        self.MIDIPlayer_to_accompaniment_port = self.assign_ports_by_name(
+            self.MIDIPlayer_to_accompaniment_port_name, input=False
+        )
+        self.simple_button_input_port = self.assign_ports_by_name(
+            self.simple_button_input_port_name
+        )
+
+        self.MIDIPlayer_port = self.assign_midi_player_out()
+
+    def proper_port_name(self, try_name, input=True):
+        return None
+
+    def open_ports_by_name(self, try_name, input=True):
+        return DummyPort()
+
+    def open_ports(self):
+        pass
+
+    def close_ports(self):
+        self.solo_input_to_accompaniment_port.active=False
+
+    def panic(self):
+        pass
+        
+    def assign_ports_by_name(self, try_name, input=True):
+        return DummyPort()
+
+    def assign_midi_player_out(self):
+        return None
