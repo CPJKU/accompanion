@@ -120,10 +120,13 @@ class ScoreSequencer(threading.Thread):
         self.last_performed_note = None
 
     def _next_notes(self, t):
-        # eps = 1e-4
-        return sorted(
-            [n for n in self.notes if n.p_onset >= t], key=lambda x: x.p_onset
-        )
+        try:
+            return sorted(
+                [n for n in self.notes if n.p_onset >= t], key=lambda x: x.p_onset
+            )
+        except Exception as e:
+            print('it happens here')
+            print(e)
 
     def panic_button(self):
         """
@@ -157,7 +160,6 @@ class ScoreSequencer(threading.Thread):
         next_notes = self.notes
 
         while self.play:
-            
 
             # current time
             c_time = time.time() - self.init_time
@@ -228,7 +230,7 @@ class ScoreSequencer(threading.Thread):
     def stop_playing(self):
 
         self.play = False
-        #self.join()
+        # self.join()
 
 
 class MODIFIEDScoreSequencer(threading.Thread):

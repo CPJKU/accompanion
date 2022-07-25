@@ -28,7 +28,7 @@ config:
     tempo_model_kwargs:
         tempo_model: LSM
     use_ceus_mediator: False
-    polling_period: 0.01
+    polling_period: 0.035
     init_bpm: 130
     init_velocity : 60
 piece_dir : mozart_sonata_facile_long
