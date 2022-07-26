@@ -20,8 +20,8 @@ config:
         log_articulation_scale: 0.1
         mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Silent Piano
-        acc_output_to_sound_port_name: Silent Piano
+        solo_input_to_accompaniment_port_name: YAMAHA USB Device Port1
+        acc_output_to_sound_port_name: YAMAHA USB Device Port1
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
