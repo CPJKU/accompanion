@@ -230,6 +230,7 @@ class ScoreSequencer(threading.Thread):
     def stop_playing(self):
 
         self.play = False
+        self.panic_button()
         # self.join()
 
 

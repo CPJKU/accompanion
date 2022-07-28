@@ -262,11 +262,15 @@ class ACCompanion(ACC_PARENT):
         """
         self.play_accompanion = False
         if self.dummy_solo is not None:
-
             self.dummy_solo.stop_playing()
+            self.dummy_solo.join()
         self.midi_input_process.stop_listening()
         self.seq.stop_playing()
+        self.seq.panic_button()
         self.router.close_ports()
+        self.seq.join()
+        self.midi_input_process.join()
+        print("All processes have finished")
 
     def terminate(self):
         """
