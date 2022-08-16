@@ -26,12 +26,13 @@ from accompanion.score_follower.trackers import HMMScoreFollower
 from accompanion.accompanist import tempo_models
 from accompanion.mtchmkr import score_hmm
 
+from typing import List
 
 class HMMACCompanion(ACCompanion):
     def __init__(
         self,
-        solo_fn,
-        acc_fn,
+        solo_fn:List[str],
+        acc_fn: str,
         midi_router_kwargs: dict,  # this is just a workaround for now
         accompaniment_match: Optional[str] = None,
         midi_fn: Optional[str] = None,

@@ -8,7 +8,13 @@ from config_files.brahms_config import accompaniment_match
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 import accompanion.accompanist.tempo_models as tempo_models
+
+
+# TODO: is this still valid?
 from accompanion.accompanist import ACCompanion
+
+
+
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 import mido
 import os
@@ -27,12 +33,22 @@ overridable_args = [
 ]
 
 
+import config_gui
+
+
+
 if __name__ == "__main__":
     # This creates a RuntimeError: context has already been set.
     if PLATFORM == "Darwin" or PLATFORM == "Linux":
         multiprocessing.set_start_method("spawn")
 
     parser = argparse.ArgumentParser("Configure and Launch ACCompanion")
+
+    parser.add_argument(
+        "--skip_gui",
+        action="store_true",
+        help="skip configuration gui at startup"
+    )
 
     parser.add_argument(
         "--test",
@@ -65,7 +81,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.config_file:
+    if not args.skip_gui:
+        y = config_gui.get_accompanion_arguments()
+
+        if y is None:
+            import sys
+            sys.exit()
+
+        configurations, ACCompanion = y
+
+        if 'midi_fn' in configurations.keys() and configurations['midi_fn'] is '':
+            configurations['midi_fn']=None
+    elif args.config_file:
         import yaml
 
         with open(
@@ -113,7 +140,9 @@ if __name__ == "__main__":
         configurations = dict()
 
     # import ACCompanion version
-    if args.follower:
+    if not args.skip_gui:
+        pass
+    elif args.follower:
         if args.follower == "hmm":
             from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
 
