@@ -21,7 +21,8 @@ def class_init_args(class_init):
 	return [p for p in s.parameters.values()][1:]
 
 
-
+def currently_supported_types(t):
+	return t in (int,float,bool,list,dict,str)
 
 _currently_supported_versions = dict(
 	HMM_based=('accompanion.hmm_accompanion','HMMACCompanion'),
@@ -29,8 +30,66 @@ _currently_supported_versions = dict(
 )
 
 
+class Hook(object):
+	__slots__=('trigger','configuration','layout','update','evaluation')
+	'''
+	A Hook object is intended to make it possible for users to provide or override functionality in the configuration GUI system
+
+	Attributes:
+		configuration: object -> ConfigurationNode
+			this function is intended for transforming python objects into ConfigurationNodes which aren't currently supported (see currently_supported_types)
+			can also be used to override the default transformation of supported types
+
+		layout: (ConfigurationNode, enclosing_scope: str) -> [[PySimpleGUI.Element]]
+			PySimpleGUI works by defining a grid of Elements
+			this function transforms a ConfigurationNode into a list of rows of PySimpleGUI.Elements,
+				which then get inserted into the overall layout of the GUI wherever the trigger occured
+			with this function the look and interaction of/with parameters can be customized
+
+		update: (PySimpleGUI.Window, event: str, values: dict) -> void
+			this function is somewhat of a workaround of PySimpleGUIs limited capabilities
+			window.read is used in the configuration GUI and that method returns an event (in the form of a string)
+				and	either a list or a dict of values (usually a dict, for details see PySimpleGUI docs)
+			if a PySimpleGUI.Button is part of your layout, assigning that Button a key attribute (for details see PySimpleGUI docs),
+				results in the event string being the key if the Button is pressed and in the values being a dict which can be looked up with the event
+				furthermore, a Button can be assigned the keys of targets which are used as storage for the Button's result,
+				which again can be looked up with the target key in the values dict
+			using the event and values dict, one can update the GUI window accordingly (for details on how to update a PySimpleGUI.Window, see the docs)
+			this function is intended to adapt the window layout during configuration while the layout function is for defining the initial layout
+			this separation makes sense since PySimpleGUI offers limited ways to change a window once it has been initialized
+			
+		evaluation: (config_string: str) -> object
+			the configurations done by the user are done over strings
+			this function is intended to transform the result of such a configuration string into a proper Python object which isn't currently supported (see currently_supported_types)
+			can also be used to override the default transformation of supported types (currently this is ast.literal_eval for non-string types)
+
+		trigger : (name:str, data_type:type, data: object) -> bool
+			boolean function which determines if the other functions should be employed in a certain context which is represented by the input
+			name is similiar to accessing nested objects, i.e. 'person.birth_date.year'
+	'''
+
+	def __init__(self,trigger,configuration=None,layout=None,update=None,evaluation=None):
+		if trigger is None:
+			raise ValueError("a Hook object needs a trigger")
+
+		if configuration is None and layout is None and update is None and evaluation is None:
+			raise ValueError("a Hook object needs either a configuration, layout, update or evaluation function")
+
+		self.trigger=trigger
+		self.configuration=configuration
+		self.layout=layout
+		self.update=update
+		self.evaluation=evaluation
 
 
+def _retrieve(full_name,data_type,data,hooks):
+	for i,trigger in enumerate(hooks['triggers']):
+		if trigger(full_name,data_type,data):
+			return hooks['functions'][i]
+	return None
+
+
+#The following functions define additional functionality in order to make ACCompanion configuration more convenient and are used via the Hook system
 
 #####################################################################
 def midi_router_kwargs_trigger(name,data_type,data):
@@ -45,8 +104,6 @@ def _in_out_port_distribution():
 	return (in_ports,out_ports,out_ports,out_ports,in_ports)
 
 def midi_router_kwargs_configuration(value):
-	
-
 	port_names = [p.name for p in class_init_args(load_class('accompanion.midi_handler.midi_routing','MidiRouter').__init__)]
 
 	distribution = _in_out_port_distribution()
@@ -121,43 +178,32 @@ def single_file_name_layout(config_node,enclosing_scope):
 
 ##########################################################################################
 def multiple_file_name_trigger(name,data_type,data):
-	return 'fn' in name.split('.')[-1] and data_type in (list,'event')
+	return 'fn' in name.split('.')[-1] and data_type in (list,)
 
 def multiple_file_name_layout(config_node,enclosing_scope):
 	return [[gui.Multiline(autoscroll=True,key=enclosing_scope),gui.FilesBrowse(enable_events=True,key=enclosing_scope+'_browse',target=enclosing_scope+'_browse',files_delimiter='\n')]]
 
-def multiple_file_name_update(window,event,value):
-	file_names=value.split('\n')
+def multiple_file_name_eval(config_string):
+	return config_string.split('\n')
+
+
+def multiple_file_name_browse_trigger(name,data_type,data):
+	return 'fn' in name.split('.')[-1] and name[-len('_browse'):]=='_browse'
+
+def multiple_file_name_browse_update(window,event,values):
+	file_names=values[event].split('\n')
 
 	if len(file_names)>0:
 		window[event[:-len('_browse')]].set_size((max([len(fn) for fn in file_names]),len(file_names)))
 		window[event[:-len('_browse')]].update('\n'.join(file_names))
-
-def multiple_file_name_eval(config_string):
-	return config_string.split('\n')
 ####################################################################################################
 
 
-class Hook(object):
-	__slots__=('trigger','configuration','layout','update','evaluation')
-
-	def __init__(self,trigger,configuration=None,layout=None,update=None,evaluation=None):
-		if trigger is None:
-			raise ValueError("a Hook object needs a trigger")
-
-		if configuration is None and layout is None and update is None and evaluation is None:
-			raise ValueError("a Hook object needs either a configuration, layout, update or evaluation function")
-
-		self.trigger=trigger
-		self.configuration=configuration
-		self.layout=layout
-		self.update=update
-		self.evaluation=evaluation
 
 
 
-def currently_supported(t):
-	return t in (int,float,bool,list,dict,str)
+
+
 
 
 
@@ -207,11 +253,7 @@ def check_for_type_error(config_node, enclosing_scope=''):
 		raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type dict,\nbut value {config_node.data}\nis of type {type(config_node.data)}")
 
 
-def retrieve(full_name,data_type,data,hooks):
-	for i,trigger in enumerate(hooks['triggers']):
-		if trigger(full_name,data_type,data):
-			return hooks['functions'][i]
-	return None
+
 
 
 def configuration_tree(underlying_dict,configuration_hooks=dict(triggers=[],functions=[]),enclosing_scope=''):
@@ -220,9 +262,9 @@ def configuration_tree(underlying_dict,configuration_hooks=dict(triggers=[],func
 	for k,v in underlying_dict.items():
 		
 
-		configure = retrieve(enclosing_scope+k,type(v),v,configuration_hooks)
+		configure = _retrieve(enclosing_scope+k,type(v),v,configuration_hooks)
 
-		if configure is None and not currently_supported(type(v)):
+		if configure is None and not currently_supported_types(type(v)):
 			print(f"the configuration GUI currently doesn't support parameters of type {type(v)} and therefore silently ignores {enclosing_scope+k}")
 			continue
 
@@ -247,7 +289,7 @@ def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing
 	layout=[]
 
 	for (child_name,child),f in zip(config_node.children,field_names):
-		layout_hook = retrieve(enclosing_scope+child_name,child.type,child.data,layout_hooks)
+		layout_hook = _retrieve(enclosing_scope+child_name,child.type,child.data,layout_hooks)
 		
 		if not layout_hook is None:
 			sub_layout=layout_hook(child,enclosing_scope+child_name)
@@ -328,8 +370,7 @@ def class_init_configurations_via_gui(
 	while True:
 		event, values = main_window.read()
 
-		# #TODO: Introduce an EventType?
-		update = retrieve(event,'event',values[event],hook_system['update']) if event in values.keys() else None
+		update = _retrieve(event,str,values,hook_system['update'])
 
 		if not update is None:
 			update(main_window,event,values[event])
@@ -345,32 +386,29 @@ def class_init_configurations_via_gui(
 				if len(result.children)>0:
 					raise ValueError(f"{k} was configured, but has children. That shouldn't be the case")
 
-				evaluate = retrieve(k,result.type,result.data,hook_system['evaluation'])
+				evaluate = _retrieve(k,result.type,result.data,hook_system['evaluation'])
 
 				if not evaluate is None:
 					result.data = evaluate(values[k])
 				elif result.type!=str:
-					try:
-						result.data=literal_eval(values[k])
-					except SyntaxError as e:
-						# print(k)
-						# print(result.type)
-						# print(values[k])
-						raise e
+					result.data=literal_eval(values[k])
 				else:
 					result.data=values[k]
 
-			try:
-				if type_checked:
+			if type_checked:
+				try:
 					check_for_type_error(config_tree)
-				config=config_tree.value()
-				main_window.close()
-				return config
-			except TypeError as e:
-				error_layout = [[gui.Text(str(e))]]
-				error_window = gui.Window('ERROR',error_layout)
-				error_window.read()
-				error_window.close()
+				except TypeError as e:
+					error_layout = [[gui.Text(str(e))]]
+					error_window = gui.Window('ERROR',error_layout)
+					error_window.read()
+					error_window.close()
+					continue
+			
+			config=config_tree.value()
+			main_window.close()
+			return config
+			
 
 
 
@@ -388,17 +426,23 @@ def accompanion_configurations_and_version_via_gui():
 
 	init_window.close()
 
+	if event == gui.WINDOW_CLOSED:
+		return None, None
+
 	
 	acc_version = load_class(_currently_supported_versions[event][0],_currently_supported_versions[event][1])
 	
+
+
 	configs = class_init_configurations_via_gui(
 		acc_version,
 		hooks=(
 			Hook(midi_router_kwargs_trigger,layout=midi_router_kwargs_layout,configuration=midi_router_kwargs_configuration),
 			Hook(tempo_model_trigger,layout=tempo_model_layout,configuration=tempo_model_configuration,evaluation=tempo_model_eval),
 			Hook(single_file_name_trigger,layout=single_file_name_layout),
-			Hook(multiple_file_name_trigger,layout=multiple_file_name_layout,update=multiple_file_name_update, evaluation=multiple_file_name_eval),
-			Hook(accompaniment_match_trigger,layout=single_file_name_layout)
+			Hook(multiple_file_name_trigger,layout=multiple_file_name_layout,evaluation=multiple_file_name_eval),
+			Hook(accompaniment_match_trigger,layout=single_file_name_layout),
+			Hook(multiple_file_name_browse_trigger,update=multiple_file_name_browse_update)
 		)
 	)
 
