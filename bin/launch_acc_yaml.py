@@ -82,13 +82,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not args.skip_gui:
-        y = config_gui.get_accompanion_arguments()
+        configurations, ACCompanion = config_gui.accompanion_configurations_and_version_via_gui()
 
-        if y is None:
+        if configurations is None:
             import sys
             sys.exit()
-
-        configurations, ACCompanion = y
 
         if 'midi_fn' in configurations.keys() and configurations['midi_fn'] is '':
             configurations['midi_fn']=None

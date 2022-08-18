@@ -1,23 +1,29 @@
-import inspect
-import ast
+from inspect import signature
+from ast import literal_eval
 
 import PySimpleGUI as gui
-import typing
+from typing import Union
 
-def load_class(module_name,clas_name):
-	module = __import__(module_name,fromlist=[clas_name])
 
-	return getattr(module,clas_name)
+
+
+
+
+
+def load_class(module_name,class_name):
+	module = __import__(module_name,fromlist=[class_name])
+
+	return getattr(module,class_name)
 
 def class_init_args(class_init):
-	s = inspect.signature(class_init)
+	s = signature(class_init)
 
 	return [p for p in s.parameters.values()][1:]
 
 
 
 
-currently_supported_versions = dict(
+_currently_supported_versions = dict(
 	HMM_based=('accompanion.hmm_accompanion','HMMACCompanion'),
 	OLTW_based=('accompanion.oltw_accompanion','OLTWACCompanion')
 )
@@ -27,33 +33,33 @@ currently_supported_versions = dict(
 
 
 #####################################################################
-def midi_ports_trigger(name,data_type,data):
+def midi_router_kwargs_trigger(name,data_type,data):
 	return name=='midi_router_kwargs'
 
-def midi_ports_configuration(value):
+def _in_out_port_distribution():
 	from mido import get_input_names, get_output_names
 
 	in_ports = get_input_names()
 	out_ports = get_output_names()
 
+	return (in_ports,out_ports,out_ports,out_ports,in_ports)
+
+def midi_router_kwargs_configuration(value):
+	
+
 	port_names = [p.name for p in class_init_args(load_class('accompanion.midi_handler.midi_routing','MidiRouter').__init__)]
 
-	distribution = [in_ports,out_ports,out_ports,in_ports,in_ports]
+	distribution = _in_out_port_distribution()
 
 	children = [(pn,ConfigurationNode(str,data=ports[0] if len(ports)>0 else '')) for pn,ports in zip(port_names,distribution)]
 
 	return ConfigurationNode(dict,children=children)
 
 
-def midi_ports_layout(config_node,enclosing_scope):
-	from mido import get_input_names, get_output_names
-
-	in_ports = get_input_names()
-	out_ports = get_output_names()
-
+def midi_router_kwargs_layout(config_node,enclosing_scope):
 	port_names = [p.name for p in class_init_args(load_class('accompanion.midi_handler.midi_routing','MidiRouter').__init__)]
 
-	distribution = [in_ports,out_ports,out_ports,in_ports,in_ports]
+	distribution = _in_out_port_distribution()
 
 	max_length = max([len(pn) for pn in port_names])
 
@@ -132,60 +138,21 @@ def multiple_file_name_eval(config_string):
 ####################################################################################################
 
 
+class Hook(object):
+	__slots__=('trigger','configuration','layout','update','evaluation')
 
+	def __init__(self,trigger,configuration=None,layout=None,update=None,evaluation=None):
+		if trigger is None:
+			raise ValueError("a Hook object needs a trigger")
 
+		if configuration is None and layout is None and update is None and evaluation is None:
+			raise ValueError("a Hook object needs either a configuration, layout, update or evaluation function")
 
-
-
-
-configuration_hooks = {
-	'triggers':[
-		midi_ports_trigger,
-		tempo_model_trigger
-	],
-	'functions':[
-		midi_ports_configuration,
-		tempo_model_configuration
-	]
-}
-
-layout_hooks = {
-	'triggers':[
-		midi_ports_trigger,
-		tempo_model_trigger,
-		single_file_name_trigger,
-		multiple_file_name_trigger,
-		accompaniment_match_trigger
-	],
-	'functions':[
-		midi_ports_layout,
-		tempo_model_layout,
-		single_file_name_layout,
-		multiple_file_name_layout,
-		single_file_name_layout
-	]
-}
-
-update_hooks = {
-	'triggers':[
-		multiple_file_name_trigger
-	],
-	'functions':[
-		multiple_file_name_update
-	]
-}
-
-evaluation_hooks = {
-	'triggers':[
-		tempo_model_trigger,
-		multiple_file_name_trigger
-	],
-	'functions':[
-		tempo_model_eval,
-		multiple_file_name_eval
-	]
-}
-
+		self.trigger=trigger
+		self.configuration=configuration
+		self.layout=layout
+		self.update=update
+		self.evaluation=evaluation
 
 
 
@@ -201,21 +168,6 @@ class ConfigurationNode(object):
 		self.type=node_type
 		self.children=children
 		self.data=data
-
-	def check_for_type_error(self, enclosing_scope=''):
-		if not self.type is dict:
-			if len(self.children)>0:
-				raise ValueError(f"Node error at {enclosing_scope[1:]}\nNode is not of type dict, but has children {self.children}")
-			elif type(self.data)!=self.type:
-				raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type {self.type},\nbut value {self.data}\nis of type {type(self.data)}")
-		elif len(self.children)>0:
-			if not self.data is None:
-				raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode has children {self.children}, but also data {self.data}")
-
-			for child_name, child in self.children:
-				child.check_for_type_error(enclosing_scope+'.'+child_name)
-		elif not type(self.data) is dict:
-			raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type dict,\nbut value {self.data}\nis of type {type(self.data)}")
 
 	def value(self):
 		if self.type is dict:
@@ -239,6 +191,21 @@ class ConfigurationNode(object):
 
 		return None
 
+def check_for_type_error(config_node, enclosing_scope=''):
+	if not config_node.type is dict:
+		if len(config_node.children)>0:
+			raise ValueError(f"Node error at {enclosing_scope[1:]}\nNode is not of type dict, but has children {config_node.children}")
+		elif type(config_node.data)!=config_node.type:
+			raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type {config_node.type},\nbut value {config_node.data}\nis of type {type(config_node.data)}")
+	elif len(config_node.children)>0:
+		if not config_node.data is None:
+			raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode has children {config_node.children}, but also data {config_node.data}")
+
+		for child_name, child in config_node.children:
+			check_for_type_error(child,enclosing_scope+'.'+child_name)
+	elif not type(config_node.data) is dict:
+		raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type dict,\nbut value {config_node.data}\nis of type {type(config_node.data)}")
+
 
 def retrieve(full_name,data_type,data,hooks):
 	for i,trigger in enumerate(hooks['triggers']):
@@ -247,7 +214,7 @@ def retrieve(full_name,data_type,data,hooks):
 	return None
 
 
-def configuration_tree(underlying_dict,enclosing_scope=''):
+def configuration_tree(underlying_dict,configuration_hooks=dict(triggers=[],functions=[]),enclosing_scope=''):
 	children = []
 
 	for k,v in underlying_dict.items():
@@ -262,7 +229,7 @@ def configuration_tree(underlying_dict,enclosing_scope=''):
 		if not configure is None:
 			child=configure(v)
 		elif type(v) is dict and len(v)>0:
-			child=configuration_tree(v,enclosing_scope+k+'.')
+			child=configuration_tree(v,configuration_hooks,enclosing_scope+k+'.')
 		else:
 			child = ConfigurationNode(type(v),data=v)
 
@@ -273,7 +240,7 @@ def configuration_tree(underlying_dict,enclosing_scope=''):
 
 
 
-def gui_layout(config_node,enclosing_scope=''):
+def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing_scope=''):
 	field_names = [f'{child_name} : {str(child.type)[len("<class x"):-2]}' for child_name,child in config_node.children]
 	max_length = max([len(f) for f in field_names])
 
@@ -290,7 +257,7 @@ def gui_layout(config_node,enclosing_scope=''):
 		elif child.type is dict and len(child.children)>0:
 			layout.append([gui.Text(f,size=(max_length,1))])
 
-			sub_layout = gui_layout(child,enclosing_scope+child_name+'.')
+			sub_layout = gui_layout(child,layout_hooks,enclosing_scope+child_name+'.')
 
 			
 
@@ -308,7 +275,7 @@ def default_instance(t):
 
 	if get_origin(t) is list:
 		return []
-	elif get_origin(t) is typing.Union and type(None) in get_args(t):
+	elif get_origin(t) is Union and type(None) in get_args(t):
 		a,b = get_args(t)
 
 		if not a is type(None):
@@ -321,50 +288,48 @@ def default_instance(t):
 		return t()
 
 
+def class_init_configurations_via_gui(
+	class_object,
+	window_title=None,
+	hooks=[],
+	type_checked=True,
+):
+	parameters = class_init_args(class_object.__init__)
+
+	underlying_dict = {p.name:(p.default if not p.default in [p.empty,None] else (default_instance(p.annotation) if p.annotation!=p.empty else '')) for p in parameters}
+
+	hook_init_args = class_init_args(Hook.__init__)
+
+	hook_system = {p.name:dict(triggers=[],functions=[]) for p in hook_init_args}
+
+	for hook in hooks:
+		for p in hook_init_args:
+			function = getattr(hook,p.name,None)
+
+			if not function is None:
+				hook_system[p.name]['triggers'].append(hook.trigger)
+				hook_system[p.name]['functions'].append(function)
 
 
-type_checked=True
-
-
-def get_accompanion_arguments():
-	window_title = 'ACCompanion configuration'
-
-	
-
-	version_layout = [[gui.Text('Please choose a version. Currently supported are:')]]
-
-	for csf in currently_supported_versions.keys():
-		version_layout.append([gui.Button(csf)])
-
-	init_window = gui.Window(window_title, version_layout)
-
-	event, values = init_window.read()
 
 
 
-	init_window.close()
+	config_tree = configuration_tree(underlying_dict,hook_system['configuration'])   
 
-	
-	acc_version = load_class(currently_supported_versions[event][0],currently_supported_versions[event][1])
-	
-
-	parameters = class_init_args(acc_version.__init__)
-
-	config_tree = configuration_tree({p.name:(p.default if not p.default in [p.empty,None] else (default_instance(p.annotation) if p.annotation!=p.empty else '')) for p in parameters})   
-
-	main_layout = gui_layout(config_tree)
+	main_layout = gui_layout(config_tree,hook_system['layout'])
 
 	main_layout.append([gui.Button('OK')])
+
+	if window_title is None:
+		window_title = class_object.__name__+' configuration'
 	
 	main_window = gui.Window(window_title,main_layout)
 
 	while True:
 		event, values = main_window.read()
 
-		#print(event, values)
-
 		# #TODO: Introduce an EventType?
-		update = retrieve(event,'event',values[event],update_hooks) if event in values.keys() else None
+		update = retrieve(event,'event',values[event],hook_system['update']) if event in values.keys() else None
 
 		if not update is None:
 			update(main_window,event,values[event])
@@ -380,13 +345,13 @@ def get_accompanion_arguments():
 				if len(result.children)>0:
 					raise ValueError(f"{k} was configured, but has children. That shouldn't be the case")
 
-				evaluate = retrieve(k,result.type,result.data,evaluation_hooks)
+				evaluate = retrieve(k,result.type,result.data,hook_system['evaluation'])
 
 				if not evaluate is None:
 					result.data = evaluate(values[k])
 				elif result.type!=str:
 					try:
-						result.data=ast.literal_eval(values[k])
+						result.data=literal_eval(values[k])
 					except SyntaxError as e:
 						# print(k)
 						# print(result.type)
@@ -397,12 +362,44 @@ def get_accompanion_arguments():
 
 			try:
 				if type_checked:
-					config_tree.check_for_type_error()
+					check_for_type_error(config_tree)
 				config=config_tree.value()
 				main_window.close()
-				return config, acc_version
+				return config
 			except TypeError as e:
 				error_layout = [[gui.Text(str(e))]]
 				error_window = gui.Window('ERROR',error_layout)
 				error_window.read()
 				error_window.close()
+
+
+
+def accompanion_configurations_and_version_via_gui():
+	version_layout = [[gui.Text('Please choose a version. Currently supported are:')]]
+
+	for csf in _currently_supported_versions.keys():
+		version_layout.append([gui.Button(csf)])
+
+	init_window = gui.Window('ACCompanion version', version_layout)
+
+	event, values = init_window.read()
+
+
+
+	init_window.close()
+
+	
+	acc_version = load_class(_currently_supported_versions[event][0],_currently_supported_versions[event][1])
+	
+	configs = class_init_configurations_via_gui(
+		acc_version,
+		hooks=(
+			Hook(midi_router_kwargs_trigger,layout=midi_router_kwargs_layout,configuration=midi_router_kwargs_configuration),
+			Hook(tempo_model_trigger,layout=tempo_model_layout,configuration=tempo_model_configuration,evaluation=tempo_model_eval),
+			Hook(single_file_name_trigger,layout=single_file_name_layout),
+			Hook(multiple_file_name_trigger,layout=multiple_file_name_layout,update=multiple_file_name_update, evaluation=multiple_file_name_eval),
+			Hook(accompaniment_match_trigger,layout=single_file_name_layout)
+		)
+	)
+
+	return configs,acc_version
