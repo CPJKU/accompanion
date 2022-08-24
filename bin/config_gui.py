@@ -30,6 +30,88 @@ _currently_supported_versions = dict(
 )
 
 
+
+
+class ConfigurationNode(object):
+	__slots__=['type','child_names_and_children','data']
+
+	'''
+	This class is for structuring the configuration process as
+		*	building a tree whose Nodes contain
+			-	the type of the parameter that can be configured
+			- 	the data that will be used for the end configuration (for example, an int for a 'size' parameter or a list of floats for a 'samples' parameter)
+			-	child-Nodes if the parameter is a composite object of configurable parameters (currently, only dicts are supported)
+		
+		*	transforming the tree into a PySimpleGUI layout via recursively transforming subtrees into sublayouts and integrating them into the overall layout
+
+		*	setting the 'data' attribute of a parameter via searching for it in the tree and evaluating the associated string gathered from PySimpleGUI
+
+		*	once the configuration is accepted by the user, the tree is evaluated by recursively transforming subtrees into primitive types and dicts
+			and then gathering those values along with their names in a dict
+			(only dicts are currently supported and the reason is that Python objects ultimately are dicts with syntactic sugar and dicts can be easily passed
+			to a function or init-method via **)
+			via the type_checked flag, users can set if before evaluation, the tree should be recursively checked if the type of 'data' aligns with 'type'
+
+	Attributes:
+		type:						Python type object (like, int, dict, type, etc.)
+		
+		child_names_and_children:	list[(child_name: str, child: ConfigurationNode)]
+			currently, names are not part of Nodes themselves, but are stored paired with the associated child since this way Nodes can have multiple names
+			however, this might change in the future
+
+		data:						Python object
+			currently, data and child_names_and_children are supposed to exclude each other from being set to a non-None value
+			meaning, if data is not None, then child_names_and_children is None, and vice versa
+	'''
+
+	def __init__(self,node_type,child_names_and_children=[],data=None):
+		self.type=node_type
+		self.child_names_and_children=child_names_and_children
+		self.data=data
+
+	def value(self):
+		if self.type is dict:
+			return {child_name:child.value() for child_name,child in self.child_names_and_children}
+		else:
+			return self.data
+
+	def search(self,search_name):
+		dot_loc = search_name.find('.')
+
+		outer_scope = search_name[:dot_loc] if dot_loc>=0 else search_name
+
+		for child_name,child in self.child_names_and_children:
+			if outer_scope==child_name:
+				if dot_loc<0:
+					return child
+				if child.type is dict:
+					return child.search(search_name[dot_loc+1:])
+				else:
+					return None
+
+		return None
+
+def check_for_type_error(config_node, enclosing_scope=''):
+	if not config_node.type is dict:
+		if len(config_node.child_names_and_children)>0:
+			raise TypeError(f"Node error at {enclosing_scope[1:]}\nNode is not of type dict, but has children {config_node.child_names_and_children}")
+		elif type(config_node.data)!=config_node.type:
+			raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type {config_node.type},\nbut value {config_node.data}\nis of type {type(config_node.data)}")
+	elif len(config_node.child_names_and_children)>0:
+		if not config_node.data is None:
+			raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode has children {config_node.child_names_and_children}, but also data {config_node.data}")
+
+		for child_name, child in config_node.child_names_and_children:
+			check_for_type_error(child,enclosing_scope+'.'+child_name)
+	elif not type(config_node.data) is dict:
+		raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type dict,\nbut value {config_node.data}\nis of type {type(config_node.data)}")
+
+
+
+
+
+
+
 class Hook(object):
 	__slots__=('trigger','configuration','layout','update','evaluation')
 	'''
@@ -39,6 +121,7 @@ class Hook(object):
 		configuration: object -> ConfigurationNode
 			this function is intended for transforming python objects into ConfigurationNodes which aren't currently supported (see currently_supported_types)
 			can also be used to override the default transformation of supported types
+			
 
 		layout: (ConfigurationNode, enclosing_scope: str) -> list[list[PySimpleGUI.Element]]
 			PySimpleGUI works by defining a grid of Elements
@@ -96,6 +179,71 @@ def _retrieve(full_name,data_type,data,hooks):
 		if trigger(full_name,data_type,data):
 			return hooks['functions'][i]
 	return None
+
+
+
+
+
+
+
+
+
+
+
+def configuration_tree(underlying_dict,configuration_hooks=dict(triggers=[],functions=[]),enclosing_scope=''):
+	child_names_and_children = []
+
+	for k,v in underlying_dict.items():
+		
+
+		configure = _retrieve(enclosing_scope+k,type(v),v,configuration_hooks)
+
+		if configure is None and not currently_supported_types(type(v)):
+			print(f"the configuration GUI currently doesn't support parameters of type {type(v)} and therefore silently ignores {enclosing_scope+k}")
+			continue
+
+		if not configure is None:
+			child=configure(v)
+		elif type(v) is dict and len(v)>0:
+			child=configuration_tree(v,configuration_hooks,enclosing_scope+k+'.')
+		else:
+			child = ConfigurationNode(type(v),data=v)
+
+		child_names_and_children.append((k,child))
+
+	return ConfigurationNode(dict,child_names_and_children=child_names_and_children)
+
+
+
+
+def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing_scope=''):
+	field_names = [f'{child_name} : {str(child.type)[len("<class ")+1:-2]}' for child_name,child in config_node.child_names_and_children]
+	max_length = max([len(f) for f in field_names])
+
+	layout=[]
+
+	for (child_name,child),f in zip(config_node.child_names_and_children,field_names):
+		layout_hook = _retrieve(enclosing_scope+child_name,child.type,child.data,layout_hooks)
+		
+		if not layout_hook is None:
+			sub_layout=layout_hook(child,enclosing_scope+child_name)
+			
+			layout.append([gui.Text(f,size=(max_length,1))])
+			layout.extend([[gui.Text(size=(max_length,1))]+row for row in sub_layout])
+		elif child.type is dict and len(child.child_names_and_children)>0:
+			layout.append([gui.Text(f,size=(max_length,1))])
+
+			sub_layout = gui_layout(child,layout_hooks,enclosing_scope+child_name+'.')
+
+			
+
+			layout.extend([[gui.Text(size=(max_length,1))]+row for row in sub_layout])
+		else:
+			layout.append([gui.Text(f,size=(max_length,1)),gui.InputText(str(child.data) if not child.type is dict else '{}',key=enclosing_scope+child_name)])
+
+	return layout
+
+
 
 
 #The following functions define additional functionality in order to make ACCompanion configuration more convenient and are used via the Hook system
@@ -217,137 +365,7 @@ def multiple_file_name_browse_update(window,event,values):
 
 
 
-
-class ConfigurationNode(object):
-	__slots__=['type','child_names_and_children','data']
-
-	'''
-	This class is for structuring the configuration process as
-		*	building a tree whose Nodes contain
-			-	the type of the parameter that can be configured
-			- 	the data that will be used for the end configuration (for example, an int for a 'size' parameter or a list of floats for a 'samples' parameter)
-			-	child-Nodes if the parameter is a composite object of configurable parameters (currently, only dicts are supported)
-		
-		*	transforming the tree into a PySimpleGUI layout via recursively transforming subtrees into sublayouts and integrating them into the overall layout
-
-		*	setting the 'data' attribute of a parameter via searching for it in the tree and evaluating the associated string gathered from PySimpleGUI
-
-		*	once the configuration is accepted by the user, the tree is evaluated by recursively transforming subtrees into primitive types and dicts
-			and then gathering those values along with their names in a dict
-			(only dicts are currently supported and the reason is that Python objects ultimately are dicts with syntactic sugar and dicts can be easily passed
-			to a function or init-method via **)
-			via the type_checked flag, users can set if before evaluation, the tree should be recursively checked if the type of 'data' aligns with 'type'
-
-	Attributes:
-		type:						Python type object (like, int, dict, type, etc.)
-		
-		child_names_and_children:	list[(child_name: str, child: ConfigurationNode)]
-			currently, names are not part of Nodes themselves, but are stored paired with the associated child since this way Nodes can have multiple names
-			however, this might change in the future
-
-		data:						Python object
-			currently, data and child_names_and_children are supposed to exclude each other from being set to a non-None value
-			meaning, if data is not None, then child_names_and_children is None, and vice versa
-	'''
-
-	def __init__(self,node_type,child_names_and_children=[],data=None):
-		self.type=node_type
-		self.child_names_and_children=child_names_and_children
-		self.data=data
-
-	def value(self):
-		if self.type is dict:
-			return {child_name:child.value() for child_name,child in self.child_names_and_children}
-		else:
-			return self.data
-
-	def search(self,search_name):
-		dot_loc = search_name.find('.')
-
-		outer_scope = search_name[:dot_loc] if dot_loc>=0 else search_name
-
-		for child_name,child in self.child_names_and_children:
-			if outer_scope==child_name:
-				if dot_loc<0:
-					return child
-				if child.type is dict:
-					return child.search(search_name[dot_loc+1:])
-				else:
-					return None
-
-		return None
-
-def check_for_type_error(config_node, enclosing_scope=''):
-	if not config_node.type is dict:
-		if len(config_node.child_names_and_children)>0:
-			raise TypeError(f"Node error at {enclosing_scope[1:]}\nNode is not of type dict, but has children {config_node.child_names_and_children}")
-		elif type(config_node.data)!=config_node.type:
-			raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type {config_node.type},\nbut value {config_node.data}\nis of type {type(config_node.data)}")
-	elif len(config_node.child_names_and_children)>0:
-		if not config_node.data is None:
-			raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode has children {config_node.child_names_and_children}, but also data {config_node.data}")
-
-		for child_name, child in config_node.child_names_and_children:
-			check_for_type_error(child,enclosing_scope+'.'+child_name)
-	elif not type(config_node.data) is dict:
-		raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type dict,\nbut value {config_node.data}\nis of type {type(config_node.data)}")
-
-
-
-
-
-def configuration_tree(underlying_dict,configuration_hooks=dict(triggers=[],functions=[]),enclosing_scope=''):
-	child_names_and_children = []
-
-	for k,v in underlying_dict.items():
-		
-
-		configure = _retrieve(enclosing_scope+k,type(v),v,configuration_hooks)
-
-		if configure is None and not currently_supported_types(type(v)):
-			print(f"the configuration GUI currently doesn't support parameters of type {type(v)} and therefore silently ignores {enclosing_scope+k}")
-			continue
-
-		if not configure is None:
-			child=configure(v)
-		elif type(v) is dict and len(v)>0:
-			child=configuration_tree(v,configuration_hooks,enclosing_scope+k+'.')
-		else:
-			child = ConfigurationNode(type(v),data=v)
-
-		child_names_and_children.append((k,child))
-
-	return ConfigurationNode(dict,child_names_and_children=child_names_and_children)
-
-
-
-
-def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing_scope=''):
-	field_names = [f'{child_name} : {str(child.type)[len("<class ")+1:-2]}' for child_name,child in config_node.child_names_and_children]
-	max_length = max([len(f) for f in field_names])
-
-	layout=[]
-
-	for (child_name,child),f in zip(config_node.child_names_and_children,field_names):
-		layout_hook = _retrieve(enclosing_scope+child_name,child.type,child.data,layout_hooks)
-		
-		if not layout_hook is None:
-			sub_layout=layout_hook(child,enclosing_scope+child_name)
-			
-			layout.append([gui.Text(f,size=(max_length,1))])
-			layout.extend([[gui.Text(size=(max_length,1))]+row for row in sub_layout])
-		elif child.type is dict and len(child.child_names_and_children)>0:
-			layout.append([gui.Text(f,size=(max_length,1))])
-
-			sub_layout = gui_layout(child,layout_hooks,enclosing_scope+child_name+'.')
-
-			
-
-			layout.extend([[gui.Text(size=(max_length,1))]+row for row in sub_layout])
-		else:
-			layout.append([gui.Text(f,size=(max_length,1)),gui.InputText(str(child.data) if not child.type is dict else '{}',key=enclosing_scope+child_name)])
-
-	return layout
+	
 
 def default_instance(t):
 	def get_origin(t):
