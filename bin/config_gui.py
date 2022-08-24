@@ -280,7 +280,7 @@ class ConfigurationNode(object):
 def check_for_type_error(config_node, enclosing_scope=''):
 	if not config_node.type is dict:
 		if len(config_node.child_names_and_children)>0:
-			raise ValueError(f"Node error at {enclosing_scope[1:]}\nNode is not of type dict, but has children {config_node.child_names_and_children}")
+			raise TypeError(f"Node error at {enclosing_scope[1:]}\nNode is not of type dict, but has children {config_node.child_names_and_children}")
 		elif type(config_node.data)!=config_node.type:
 			raise TypeError(f"Type error at {enclosing_scope[1:]}\nNode is of type {config_node.type},\nbut value {config_node.data}\nis of type {type(config_node.data)}")
 	elif len(config_node.child_names_and_children)>0:
