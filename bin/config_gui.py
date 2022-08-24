@@ -246,8 +246,8 @@ class ConfigurationNode(object):
 			however, this might change in the future
 
 		data:						Python object
-			currently, data and children are supposed to exclude each other from being set to a non-None value
-			meaning, if data is not None, then children is None, and vice versa
+			currently, data and child_names_and_children are supposed to exclude each other from being set to a non-None value
+			meaning, if data is not None, then child_names_and_children is None, and vice versa
 	'''
 
 	def __init__(self,node_type,child_names_and_children=[],data=None):
