@@ -5,6 +5,7 @@ import platform
 import os
 
 from config_files.brahms_config import accompaniment_match
+from config_files.mozart_config import accompaniment_match
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 import accompanion.accompanist.tempo_models as tempo_models
@@ -28,6 +29,7 @@ overridable_args = [
 
 
 if __name__ == "__main__":
+    
     # This creates a RuntimeError: context has already been set.
     if PLATFORM == "Darwin" or PLATFORM == "Linux":
         multiprocessing.set_start_method("spawn")
