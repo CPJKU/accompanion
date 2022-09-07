@@ -22,7 +22,6 @@ overridable_args=['use_mediator','delay','instrument_port','out_instrument_port'
 
 
 if __name__ == "__main__":
-
 	if PLATFORM == "Darwin" or PLATFORM == "Linux":
 	    multiprocessing.set_start_method("spawn")
 
