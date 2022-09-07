@@ -1,10 +1,10 @@
-# Accompanion config for brahms piece.
+# Accompanion config for Four Hand Mozart Sonata piece.
 config:
     follower : oltw
     score_follower_kwargs :
         score_follower: OnlineTimeWarping
-        window_size: 100
-        step_size: 10
+        window_size: 80
+        step_size: 8
         input_processor:
             processor: PianoRollProcessor
             processor_kwargs:
@@ -18,21 +18,22 @@ config:
         velocity_solo_scale: 0.85
         timing_scale: 0.001
         log_articulation_scale: 0.1
-        mechanical_delay: 0.0
+        mechanical_delay: 0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Silent Piano
-        acc_output_to_sound_port_name: Silent Piano
+        solo_input_to_accompaniment_port_name: Clavinova
+        acc_output_to_sound_port_name: Clavinova
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
-    adjust_following_rate: 0.2
+    adjust_following_rate: 0.22
     bypass_audio: False
     tempo_model_kwargs:
         tempo_model: LTESM
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm : 120
+    init_bpm : 112
     init_velocity : 60
 piece_dir : mozart_demo
+#solo_fn : musicxml/Sonata-k381-a123_Primo.musicxml
 acc_fn : musicxml/Sonata-k381-a123_Secondo.musicxml
 accompaniment_match : basismixer/mozart_sonata_secondo.match
