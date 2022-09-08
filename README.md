@@ -39,7 +39,7 @@ cd Path\to\accompanion
 The default for the advanced mode runs the Hungarian Dance No. 5 by Johannes Brahms (piano arrangement for four hands):
 ```shell
 cd Path/to/accompanion/bin
-python BrahmsDemo --live
+python launch_acc.py 
 ```
 
 # Adding new pieces
@@ -60,7 +60,7 @@ Finally, to play your piece, run:
 
 ```shell
 cd Path/to/accompanion/bin
-python SimplePiecesDemo --piece new_piece
+python launch_acc.py -f simple_pieces --piece new_piece
 ```
 
 ***The Python wrapper for the Nakamura Alignment Tool provides a a scrpt for this (see Additional Resources below). 

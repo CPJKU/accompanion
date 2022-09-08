@@ -14,10 +14,10 @@ config:
         articulation_ma_alpha: 0.4
         velocity_dev_scale: 70
         velocity_min: 20
-        velocity_max: 100
-        velocity_solo_scale: 0.85
+        velocity_max: 85
+        velocity_solo_scale: 0.83
         timing_scale: 0.001
-        log_articulation_scale: 0.1
+        log_articulation_scale: 0.12
         mechanical_delay: 0.0
     midi_router_kwargs :
         solo_input_to_accompaniment_port_name: Silent Piano
@@ -25,7 +25,7 @@ config:
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
-    adjust_following_rate: 0.2
+    adjust_following_rate: 0.2 # How much the SF is adjusted if solo stops playing.
     bypass_audio: False
     tempo_model_kwargs:
         tempo_model: LTESM

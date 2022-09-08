@@ -82,8 +82,8 @@ pip install -e .
 
 ## Run Accompanion
 
-To run the accompanion:
+To run the ACCompanion:
 ```shell
 cd /home/ubuntu/accompanion
-./bin/ACCompanion
+python ./bin/launch_acc.py
 ```

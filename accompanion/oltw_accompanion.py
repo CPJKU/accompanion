@@ -246,12 +246,7 @@ class OLTWACCompanion(ACCompanion):
             ref_to_state_time_maps.append(ref_to_state_time_map)
             ref_features = np.array(ref_frames).astype(float)
 
-            # if self.reference_features is None:
-            #     self.reference_features = ref_features
-
             # setup score follower
-            # print(self.score_follower_kwargs)
-            # print(self.score_follower_kwargs["score_follower"])
             score_follower = OnlineTimeWarping(
                 reference_features=ref_features, **self.score_follower_kwargs
             )

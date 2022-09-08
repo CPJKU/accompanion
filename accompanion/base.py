@@ -300,21 +300,17 @@ class ACCompanion(ACC_PARENT):
             solo_starts = False
             start_time = self.seq.init_time
 
-        # intialize beat period
-        # perf_start = False
-
         if self.onset_tracker_type == "discrete":
             onset_tracker = DiscreteOnsetTracker(self.solo_score.unique_onsets)
         else:
             onset_tracker = OnsetTracker(self.solo_score.unique_onsets)
 
-        # Initialize on-line Basis Mixer here
+        # TODO Initialize on-line Basis Mixer here
         # expression_model = BasisMixer()
         self.midi_input_process.start()
         print("Start listening")
 
         self.perf_frame = None
-        # self.score_idx = 0
 
         if self.midi_fn is not None:
             print("Start playing MIDI file")
@@ -374,19 +370,10 @@ class ACCompanion(ACC_PARENT):
 
                             decay[msg.note - 21] = 1.0
 
-                    # output *= decay
-
                     if self.check_empty_frames(output):
                         empty_loops += 1
                     else:
                         empty_loops = 0
-                    # if output is not None:
-                    #     if sum(output) == 0:
-                    #         empty_loops += 1
-                    #     else:
-                    #         empty_loops == 0
-                    # else:
-                    #     empty_loops += 1
 
                     # if perf_start:
                     score_position = self.score_follower(output)
