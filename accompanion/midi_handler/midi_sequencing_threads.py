@@ -48,7 +48,7 @@ def perf_score_map_from_match(match_path):
 
 
 class MODIFIEDMidiFilePlayer(threading.Thread):
-    def __init__(self, out_port, filename, match_filename, virtual=False):
+    def __init__(self, out_port, filename, match_filename):
         threading.Thread.__init__(self)
 
         self.mid = mido.MidiFile(filename)
@@ -71,7 +71,7 @@ class MODIFIEDMidiFilePlayer(threading.Thread):
 
 
 class MidiInputPlayer(threading.Thread):
-    def __init__(self, in_port, out_port, chords, virtual=False):
+    def __init__(self, in_port, out_port, chords):
         threading.Thread.__init__(self)
 
         self.chords = chords

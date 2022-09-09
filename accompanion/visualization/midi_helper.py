@@ -58,7 +58,7 @@ def group_chords_exactly(frame, remainder=[]):
 
     return frames, []
 
-
+# NOTE: Why is this r and why is it skipped?
 def default_preprocess(f, r):
     return [f], []
 

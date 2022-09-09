@@ -1,17 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import multiprocessing
-import platform
 import os
-
-from config_files.brahms_config import accompaniment_match
-from config_files.mozart_config import accompaniment_match
-
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
-import accompanion.accompanist.tempo_models as tempo_models
-from accompanion.accompanist import ACCompanion
-from accompanion.midi_handler.fluid import FluidsynthPlayer
-import mido
 import os
 import argparse
 import glob
@@ -186,20 +177,4 @@ if __name__ == "__main__":
     accompanion = ACCompanion(**configurations)
 
     accompanion.run()
-    
-    
 
-    # try:
-    #     accompanion.start()
-    # except KeyboardInterrupt:
-    #     print("stop_playing")
-    #     accompanion.stop_playing()
-    #     accompanion.seq.panic_button()
-    # finally:
-    # try:
-    #     accompanion.join()
-    # except KeyboardInterrupt:
-    #     print("stop_playing")
-    #     accompanion.terminate()
-    #     # accompanion.stop_playing()
-    #     # accompanion.seq.panic_button()
