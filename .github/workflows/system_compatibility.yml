@@ -36,7 +36,7 @@ jobs:
       - name: Run Accompanion
         run: |
           cd bin
-          python launch_acc_yaml.py --test
+          python launch_acc_yaml.py --test --skip_gui
 
   ubuntu_testing:
     runs-on: ubuntu-20.04
@@ -78,7 +78,7 @@ jobs:
       - name: Run Accompanion
         run: |
           cd bin
-          python launch_acc_yaml.py --test
+          python launch_acc_yaml.py --test --skip_gui
           
   macOS_testing:
     runs-on: macos-latest
@@ -109,5 +109,5 @@ jobs:
       - name: Run Accompanion
         run: |
           cd bin
-          python launch_acc_yaml.py --test
+          python launch_acc_yaml.py --test --skip_gui
 
