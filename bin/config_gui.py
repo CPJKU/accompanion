@@ -495,7 +495,7 @@ def class_init_configurations_via_gui(
 
 		gui_config_file_dir = "../gui_config_files"
 
-		main_layout.append([gui.Button('Configuration finished',key='config done'), gui.Button('Save Configuration to File', key='save config'), gui.FileBrowse('Load Configuration from File', key='load config', target='load config', enable_events=True, initial_folder = gui_config_file_dir)])
+		main_layout = [[gui.Button('Configuration finished',key='config done'), gui.Button('Save Configuration to File', key='save config'), gui.FileBrowse('Load Configuration from File', key='load config', target='load config', enable_events=True, initial_folder = gui_config_file_dir)]] + main_layout
 
 		
 		dispose_window = main_window
