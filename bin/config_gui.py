@@ -215,6 +215,9 @@ def configuration_tree(underlying_dict,configuration_hooks=dict(triggers=[],func
 
 
 
+def Collapsable(layout, key):
+	return gui.pin(gui.Column(layout, key=key+'collapsable'))
+
 
 def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing_scope=''):
 	field_names = [f'{child_name} : {str(child.type)[len("<class ")+1:-2]}' for child_name,child in config_node.child_names_and_children]
@@ -225,21 +228,23 @@ def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing
 	for (child_name,child),f in zip(config_node.child_names_and_children,field_names):
 		layout_hook = _retrieve(enclosing_scope+child_name,child.type,child.data,layout_hooks)
 		
+		def integrate_sub_layout(layout, sub_layout):
+			layout.append([gui.pin(gui.Button(f,key=enclosing_scope+child_name+'toggle', target=enclosing_scope+child_name+'toggle'))])
+			sub_layout = [[gui.Text(size=(max_length,1))] + row for row in sub_layout]
+
+			layout.append([Collapsable(sub_layout, enclosing_scope+child_name)])
+
 		if not layout_hook is None:
 			sub_layout=layout_hook(child,enclosing_scope+child_name)
-			
-			layout.append([gui.Text(f,size=(max_length,1))])
-			layout.extend([[gui.Text(size=(max_length,1))]+row for row in sub_layout])
-		elif child.type is dict and len(child.child_names_and_children)>0:
-			layout.append([gui.Text(f,size=(max_length,1))])
 
+			integrate_sub_layout(layout, sub_layout)
+		elif child.type is dict and len(child.child_names_and_children)>0:
 			sub_layout = gui_layout(child,layout_hooks,enclosing_scope+child_name+'.')
 
 			
-
-			layout.extend([[gui.Text(size=(max_length,1))]+row for row in sub_layout])
+			integrate_sub_layout(layout, sub_layout)
 		else:
-			layout.append([gui.Text(f,size=(max_length,1)),gui.InputText(str(child.data) if not child.type is dict else '{}',key=enclosing_scope+child_name)])
+			layout.append([Collapsable([[gui.Text(f,size=(max_length,1)),gui.InputText(str(child.data) if not child.type is dict else '{}',key=enclosing_scope+child_name)]], enclosing_scope+child_name)])
 
 	return layout
 
@@ -300,7 +305,7 @@ def midi_router_kwargs_layout(config_node,enclosing_scope):
 
 		
 
-		layout.append([gui.Text(port_name, size=(max_length,1)), gui.Combo(combo_list, default_value = combo_list[0], key=enclosing_scope+'.'+port_name)])
+		layout.append([gui.Text(port_name, size=(max_length,1), key=enclosing_scope+'.'+port_name+'name'), gui.Combo(combo_list, default_value = combo_list[0], key=enclosing_scope+'.'+port_name)])
 
 
 	return layout
@@ -339,7 +344,7 @@ def tempo_model_layout(config_node,enclosing_scope):
 
 	layout=[
 		[
-			gui.Text(name,size=(len(name),1)),
+			gui.Text(name,size=(len(name),1), key=enclosing_scope+'name'),
 			gui.Combo(sync_model_names,default_value=sync_model_names[0],key=enclosing_scope)
 		]
 	]
@@ -364,7 +369,7 @@ def accompaniment_match_trigger(name,data_type,data):
 	return name=='accompaniment_match'
 
 def single_file_name_layout(config_node,enclosing_scope):
-	return [[gui.InputText(config_node.data,key=enclosing_scope),gui.FileBrowse(target=enclosing_scope)]]
+	return [[gui.InputText(config_node.data,key=enclosing_scope),gui.FileBrowse(target=enclosing_scope, key=enclosing_scope+'_browse')]]
 #############################################################################################
 
 
@@ -495,14 +500,20 @@ def class_init_configurations_via_gui(
 
 		gui_config_file_dir = "../gui_config_files"
 
-		main_layout = [[gui.Button('Configuration finished',key='config done'), gui.Button('Save Configuration to File', key='save config'), gui.FileBrowse('Load Configuration from File', key='load config', target='load config', enable_events=True, initial_folder = gui_config_file_dir)]] + main_layout
+
+		header = gui.Frame('Menu',[[gui.Button('Configuration finished',key='config done'), gui.Button('Save Configuration to File', key='save config'), gui.FileBrowse('Load Configuration from File', key='load config', target='load config', enable_events=True, initial_folder = gui_config_file_dir)]])
+
+		main_layout = [[header]] + main_layout
 
 		
 		dispose_window = main_window
 		main_window = gui.Window(window_title,main_layout)
 
+		print('finalize window')
 		main_window.finalize()
+		print('dispose of window')
 		dispose_window.close()
+		print('done')
 
 		while True:
 			event, values = main_window.read()
@@ -513,6 +524,19 @@ def class_init_configurations_via_gui(
 				update(main_window,event,values)
 			elif event == gui.WINDOW_CLOSED:
 				return None
+			elif event[-len('toggle'):]=='toggle':
+				target = event[:-len('toggle')]
+
+
+				main_window[event].metadata = object() if main_window[event].metadata is None else None
+
+				for element in main_window.key_dict.keys():
+					if element[:len(target)]==target and element[-len('collapsable'):]=='collapsable':
+						# print(element)
+
+						main_window[element].update(visible=(main_window[event].metadata is None))
+
+				# print('-----------------------------------------------------')
 			elif event == 'load config':
 				with open(values[event],'r') as config_file:
 					import yaml
