@@ -243,9 +243,6 @@ def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing
 
 	return layout
 
-
-
-
 #The following functions define additional functionality in order to make ACCompanion configuration more convenient and are used via the Hook system
 
 #####################################################################
@@ -261,23 +258,50 @@ def _in_out_port_distribution():
 	return (in_ports,out_ports,out_ports,out_ports,in_ports)
 
 def midi_router_kwargs_configuration(value):
+	assert type(value) is dict, "midi_router_kwargs_configuration was expected to be a dict"
+
 	port_names = [p.name for p in class_init_args(load_class('accompanion.midi_handler.midi_routing','MidiRouter').__init__)]
 
 	distribution = _in_out_port_distribution()
 
-	child_names_and_children = [(pn,ConfigurationNode(str,data=ports[0] if len(ports)>0 else '')) for pn,ports in zip(port_names,distribution)]
+	child_names_and_children = []
+
+	for port_name, ports in zip(port_names, distribution):
+		data = ''
+		if port_name in value.keys() and len(value[port_name])>0:
+			data = value[port_name]
+		elif len(ports)>0:
+			data = ports[0]
+
+		child_names_and_children.append((port_name, ConfigurationNode(str, data=data)))
+
 
 	return ConfigurationNode(dict,child_names_and_children=child_names_and_children)
 
 
 def midi_router_kwargs_layout(config_node,enclosing_scope):
-	port_names = [p.name for p in class_init_args(load_class('accompanion.midi_handler.midi_routing','MidiRouter').__init__)]
+	# port_names = [p.name for p in class_init_args(load_class('accompanion.midi_handler.midi_routing','MidiRouter').__init__)]
 
-	distribution = _in_out_port_distribution()
+	# distribution = _in_out_port_distribution()
 
-	max_length = max([len(pn) for pn in port_names])
+	# max_length = max([len(pn) for pn in port_names])
 
-	layout=[[gui.Text(pn,size=(max_length,1)),gui.Combo(ports,default_value=ports[0] if len(ports)>0 else '',key=enclosing_scope+'.'+pn)] for pn,ports in zip(port_names,distribution)]
+	# layout=[[gui.Text(pn,size=(max_length,1)),gui.Combo(ports,default_value=ports[0] if len(ports)>0 else '',key=enclosing_scope+'.'+pn)] for pn,ports in zip(port_names,distribution)]
+
+	max_length = max([len(port_name) for port_name,_ in config_node.child_names_and_children])
+
+	layout = []
+
+	for (port_name, child), ports in zip(config_node.child_names_and_children, _in_out_port_distribution()):
+		combo_list = ports
+
+		if len(child.data)>0 and not child.data in combo_list:
+			combo_list = [child.data]+combo_list
+
+		
+
+		layout.append([gui.Text(port_name, size=(max_length,1)), gui.Combo(combo_list, default_value = combo_list[0], key=enclosing_scope+'.'+port_name)])
+
 
 	return layout
 ####################################################################################
@@ -290,23 +314,35 @@ def tempo_model_trigger(name,data_type,data):
 def tempo_model_configuration(value):
 	import accompanion.accompanist.tempo_models as tempo_models
 
-	sync_models = [a for a in dir(tempo_models) if 'SyncModel' in a]
+	sync_model_names = [a for a in dir(tempo_models) if 'SyncModel' in a]
 
-	assert len(sync_models)>0, "can't load SyncModels if there are none in accompanion.accompanist.tempo_models"
 
-	return ConfigurationNode(type,data=sync_models[0])
+	if type(value) is type and not value.__name__ in sync_model_names:
+		sync_model_names = [value.__name__]+sync_model_names
+
+	assert len(sync_model_names)>0, "can't load SyncModels if there are none in accompanion.accompanist.tempo_models or if input value isn't a type"
+
+	return ConfigurationNode(type,data=sync_model_names[0])
 
 def tempo_model_layout(config_node,enclosing_scope):
 	import accompanion.accompanist.tempo_models as tempo_models
 
-	sync_models = [a for a in dir(tempo_models) if 'SyncModel' in a]
+	sync_model_names = [a for a in dir(tempo_models) if 'SyncModel' in a]
 
-	if len(sync_models)==0:
+	if len(config_node.data)>0 and not config_node.data in sync_model_names:
+		sync_model_names = [config_node.data] + sync_model_names
+
+	if len(sync_model_names)==0:
 		return []
 
 	name = enclosing_scope.split('.')[-1]
 
-	layout=[[gui.Text(name,size=(len(name),1)),gui.Combo(sync_models,default_value=sync_models[0],key=enclosing_scope)]]
+	layout=[
+		[
+			gui.Text(name,size=(len(name),1)),
+			gui.Combo(sync_model_names,default_value=sync_model_names[0],key=enclosing_scope)
+		]
+	]
 
 	return layout
 
@@ -328,7 +364,7 @@ def accompaniment_match_trigger(name,data_type,data):
 	return name=='accompaniment_match'
 
 def single_file_name_layout(config_node,enclosing_scope):
-	return [[gui.InputText(key=enclosing_scope),gui.FileBrowse(target=enclosing_scope)]]
+	return [[gui.InputText(config_node.data,key=enclosing_scope),gui.FileBrowse(target=enclosing_scope)]]
 #############################################################################################
 
 
@@ -340,10 +376,12 @@ def multiple_file_name_trigger(name,data_type,data):
 	return 'fn' in name.split('.')[-1] and data_type in (list,)
 
 def multiple_file_name_layout(config_node,enclosing_scope):
-	return [[gui.Multiline(autoscroll=True,key=enclosing_scope),gui.FilesBrowse(enable_events=True,key=enclosing_scope+'_browse',target=enclosing_scope+'_browse',files_delimiter='\n')]]
+	width = max([len(x) for x in config_node.data]) if len(config_node.data)>0 else None
+	height = len(config_node.data) if len(config_node.data)>0 else None
+	return [[gui.Multiline('\n'.join(config_node.data),autoscroll=True,key=enclosing_scope, enable_events=True, size=(width, height)),gui.FilesBrowse(enable_events=True,key=enclosing_scope+'_browse',target=enclosing_scope+'_browse',files_delimiter='\n')]]
 
 def multiple_file_name_eval(config_string):
-	return config_string.split('\n')
+	return config_string.split('\n') if len(config_string)>0 else []
 
 
 def multiple_file_name_browse_trigger(name,data_type,data):
@@ -388,6 +426,39 @@ def default_instance(t):
 		return t()
 
 
+def _create_config(values, config_tree, evaluation_hooks, type_checked):
+	for k in values.keys():
+		result=config_tree.search(k)
+
+		if result is None:
+			continue
+
+		if len(result.child_names_and_children)>0:
+			raise ValueError(f"{k} was configured, but has children. That shouldn't be the case")
+
+		evaluate = _retrieve(k,result.type,result.data,evaluation_hooks)
+
+		if not evaluate is None:
+			result.data = evaluate(values[k])
+		elif result.type!=str:
+			result.data=literal_eval(values[k])
+		else:
+			result.data=values[k]
+
+		
+
+	if type_checked:
+		try:
+			check_for_type_error(config_tree)
+		except TypeError as e:
+			error_layout = [[gui.Text(str(e))]]
+			error_window = gui.Window('ERROR',error_layout)
+			error_window.read()
+			error_window.close()
+			return None
+	
+	return config_tree.value()
+
 def class_init_configurations_via_gui(
 	class_object,
 	window_title=None,
@@ -411,61 +482,66 @@ def class_init_configurations_via_gui(
 				hook_system[name]['functions'].append(function)
 
 	
-
-
-
-	config_tree = configuration_tree(underlying_dict,hook_system['configuration'])   
-
-	main_layout = gui_layout(config_tree,hook_system['layout'])
-
-	main_layout.append([gui.Button('OK')])
-
 	if window_title is None:
 		window_title = class_object.__name__+' configuration'
-	
-	main_window = gui.Window(window_title,main_layout)
+
+	main_window = gui.Window('')
 
 	while True:
-		event, values = main_window.read()
+		config_tree = configuration_tree(underlying_dict,hook_system['configuration'])   
 
-		update = _retrieve(event,str,values,hook_system['update'])
+		main_layout = gui_layout(config_tree,hook_system['layout'])
 
-		if not update is None:
-			update(main_window,event,values[event])
-		elif event == gui.WINDOW_CLOSED:
-			return None
-		elif event == 'OK':
-			for k in values.keys():
-				result=config_tree.search(k)
 
-				if result is None:
+		gui_config_file_dir = "../gui_config_files"
+
+		main_layout.append([gui.Button('Configuration finished',key='config done'), gui.Button('Save Configuration to File', key='save config'), gui.FileBrowse('Load Configuration from File', key='load config', target='load config', enable_events=True, initial_folder = gui_config_file_dir)])
+
+		
+		dispose_window = main_window
+		main_window = gui.Window(window_title,main_layout)
+
+		main_window.finalize()
+		dispose_window.close()
+
+		while True:
+			event, values = main_window.read()
+
+			update = _retrieve(event,str,values,hook_system['update'])
+
+			if not update is None:
+				update(main_window,event,values)
+			elif event == gui.WINDOW_CLOSED:
+				return None
+			elif event == 'load config':
+				with open(values[event],'r') as config_file:
+					import yaml
+
+					underlying_dict = yaml.unsafe_load(config_file)
+
+					break
+			elif event == 'save config':
+				config = _create_config(values, config_tree, hook_system['evaluation'], type_checked)
+
+				if config is None:
 					continue
 
-				if len(result.child_names_and_children)>0:
-					raise ValueError(f"{k} was configured, but has children. That shouldn't be the case")
+				import os
 
-				evaluate = _retrieve(k,result.type,result.data,hook_system['evaluation'])
+				file_id = len(os.listdir('../gui_config_files'))
 
-				if not evaluate is None:
-					result.data = evaluate(values[k])
-				elif result.type!=str:
-					result.data=literal_eval(values[k])
-				else:
-					result.data=values[k]
+				with open(f"{gui_config_file_dir}/{class_object.__name__}_configuration{file_id}.yaml",'w') as dest:
+					import yaml
+					yaml.dump(config, dest)
+			elif event == 'config done':
+				config = _create_config(values, config_tree, hook_system['evaluation'], type_checked)
 
-			if type_checked:
-				try:
-					check_for_type_error(config_tree)
-				except TypeError as e:
-					error_layout = [[gui.Text(str(e))]]
-					error_window = gui.Window('ERROR',error_layout)
-					error_window.read()
-					error_window.close()
+				if config is None:
 					continue
+
+				main_window.close()
+				return config
 			
-			config=config_tree.value()
-			main_window.close()
-			return config
 			
 
 

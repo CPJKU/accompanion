@@ -11,7 +11,7 @@ import accompanion.accompanist.tempo_models as tempo_models
 
 
 # TODO: is this still valid?
-from accompanion.accompanist import ACCompanion
+#from accompanion.accompanist import ACCompanion
 
 
 
@@ -34,6 +34,8 @@ overridable_args = [
 
 
 import config_gui
+
+
 
 
 
@@ -88,7 +90,7 @@ if __name__ == "__main__":
             import sys
             sys.exit()
 
-        if 'midi_fn' in configurations.keys() and configurations['midi_fn'] is '':
+        if 'midi_fn' in configurations.keys() and configurations['midi_fn']=='':
             configurations['midi_fn']=None
     elif args.config_file:
         import yaml
