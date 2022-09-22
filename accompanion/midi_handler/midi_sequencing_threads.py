@@ -37,9 +37,6 @@ def perf_score_map_from_match(match_path):
             score_times.append(part_by_id[line["score_id"]])
 
     times = np.array(sorted(zip(perf_times, score_times), key=lambda x: x[0]))
-    # import pdb; pdb.set_trace()
-    # for x,y in zip(perf_times, score_times):
-    #     print(x,y)
     perf_score_map = interp1d(
         times[:, 0], times[:, 1], fill_value="extrapolate", kind="previous"
     )
