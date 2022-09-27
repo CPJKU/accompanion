@@ -28,6 +28,44 @@ from accompanion.mtchmkr import score_hmm
 
 
 class HMMACCompanion(ACCompanion):
+    """
+    The HiddenMarkovModel Accompanion Follower Class.
+    It inherits from the Base ACCompanion Class. It adds the methods setup_scores, setup_score_follower,
+    and check_empty_frames.
+
+    Parameters
+    ----------
+    solo_fn : str
+        The path to the solo score.
+    acc_fn : str
+        The path to the accompaniment score.
+    midi_router_kwargs : dict
+        The keyword arguments for the MIDI Router.
+    accompaniment_match : str, optional
+        The path to the accompaniment match file, by default None.
+    midi_fn : str, optional
+        The path to the MIDI file, by default None.
+    score_follower_kwargs : dict, optional
+        The keyword arguments for the score follower, by default {"score_follower": "PitchIOIHMM", "score_follower_kwargs": {}, "input_processor": {"processor": "PitchIOIProcessor", "processor_kwargs": {}}}.
+    tempo_model_kwargs : dict, optional
+        The keyword arguments for the tempo model, by default {"tempo_model": tempo_models.LSM}.
+    performance_codec_kwargs : dict, optional
+        The keyword arguments for the performance codec, by default {"velocity_trend_ma_alpha": 0.6, "articulation_ma_alpha": 0.4, "velocity_dev_scale": 70, "velocity_min": 20, "velocity_max": 100, "velocity_solo_scale": 0.85, "timing_scale": 0.001, "log_articulation_scale": 0.1, "mechanical_delay": 0.0}.
+    init_bpm : float, optional
+        The initial BPM, by default 60.
+    init_velocity : int, optional
+        The initial velocity, by default 60.
+    polling_period : float, optional
+        The polling period, by default POLLING_PERIOD.
+    use_ceus_mediator : bool, optional
+        Whether to use the CEUS Mediator, by default False.
+    adjust_following_rate : float, optional
+        The adjustment rate for the following rate, by default 0.1.
+    bypass_audio : bool, optional
+        Whether to bypass the audio, by default False.
+    test : bool, optional
+        Whether to bypass the MIDI Router, by default False.
+    """
     def __init__(
         self,
         solo_fn,
@@ -91,7 +129,12 @@ class HMMACCompanion(ACCompanion):
         )
 
     def setup_scores(self):
+        """
+        Setup the score objects.
 
+        This method initializes arguments used in the accompanion Base Class.
+        This is called in the constructor.
+        """
         tempo_model_type = self.tempo_model_kwargs.pop("tempo_model")
 
         if isinstance(tempo_model_type, str):
@@ -198,7 +241,13 @@ class HMMACCompanion(ACCompanion):
         )
 
     def setup_score_follower(self):
+        """
+        Setup the score follower object.
 
+        This method initializes arguments used in the accompanion Base Class.
+        """
+
+        # TODO store all parameters in a separate script or yaml file.
         # These parameters should go in the score follower kwargs
         # but for now are here since there are no other alternatives
         piano_range = False
@@ -212,10 +261,7 @@ class HMMACCompanion(ACCompanion):
         except KeyError:
             score_follower_kwargs = {}
 
-        # try:
         chord_pitches = [chord.pitch for chord in self.solo_score.chords]
-        # except:
-        #     print(self.solo_score.chords)
         pitch_profiles = score_hmm.compute_pitch_profiles(
             chord_pitches, piano_range=piano_range, inserted_states=inserted_states,
         )
@@ -224,6 +270,8 @@ class HMMACCompanion(ACCompanion):
         )
         state_space = ioi_matrix[0]
         n_states = len(state_space)
+
+        # NOTE: Why is scale set to 0.5???
         transition_matrix = score_hmm.gumbel_transition_matrix(
             n_states=n_states,
             inserted_states=inserted_states,
@@ -260,6 +308,17 @@ class HMMACCompanion(ACCompanion):
         self.input_pipeline = SequentialOutputProcessor([PitchIOIProcessor()])
 
     def check_empty_frames(self, frame):
+        """
+        Check if the frame is empty.
+
+        Parameters
+        ----------
+        frame : np.ndarray
+            The frame to check.
+        Returns
+        -------
+        bool
+        """
         if frame is None:
             return True
         else:
