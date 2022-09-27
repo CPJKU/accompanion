@@ -44,6 +44,20 @@ class PitchIOIProcessor(object):
 
 
 class PianoRollProcessor(object):
+    """
+    A class to convert a MIDI file time slice to a piano roll representation.
+
+    Parameters
+    ----------
+    use_velocity : bool
+        If True, the velocity of the note is used as the value in the piano
+        roll. Otherwise, the value is 1.
+    piano_range : bool
+        If True, the piano roll will only contain the notes in the piano.
+        Otherwise, the piano roll will contain all 128 MIDI notes.
+    dtype : type
+        The data type of the piano roll. Default is float.
+    """
     def __init__(self, use_velocity=False, piano_range=False, dtype=float):
         self.active_notes = dict()
         self.piano_roll_slices = []
