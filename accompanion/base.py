@@ -40,30 +40,48 @@ from accompanion.score_follower.trackers import AccompanimentScoreFollower
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 
 
+# TODO - make this a config file or make it standard.
 ACC_PROCESS = True
+# NOTE: Shouldn't the ACC_PARENT be a Thread?
 ACC_PARENT = multiprocessing.Process if ACC_PROCESS else threading.Thread
 USE_THREADS = True
 
 
 class ACCompanion(ACC_PARENT):
     """
-    Main class for running the accompanion.
+    Main class for running the ACCompanion.
+
+    Both the HMMACCompanion and the OLTWACCompanion inherit from this class.
+    Arguments of this class are initialized on methods of the child classes.
 
     Parameters
     ----------
     solo_score: Score
+        Score object for the solo part.
     accompaniment_score: AccompanimentScore
+        Score object for the accompaniment part.
     score_follower: AccompanimentScoreFollower
+        Score follower object for the accompaniment part.
     tempo_model: SyncModel
+        Tempo model object for the accompaniment part.
     performance_codec: OnlinePerformanceCodec
+        Performance codec object for the accompaniment part.
     input_pipeline: SequentialOutputProcessor
+        Input pipeline object for the accompaniment part.
     midi_router: MidiRouter
+        Midi router object for handling MIDI messages.
     midi_fn: str (optional)
+        Path to the MIDI file to be played.
     init_bpm: float = 60
+        Initial tempo in beats per minute.
     init_velocity: int = 60
+        Initial velocity for the MIDI messages.
     polling_period: float
+        Period of the polling loop in seconds.
     use_ceus_mediator: bool
+        Whether to use the CEUS mediator.
     adjust_following_rate: float
+        A float between 0 and 1. The rate at which the score follower ...
     bypass_audio: bool = False
         Bypass fluidsynth audio
     test: bool = False
@@ -112,52 +130,50 @@ class ACCompanion(ACC_PARENT):
 
         # Parameters for following
         self.polling_period: float = polling_period
-
         self.score_follower: Optional[AccompanimentScoreFollower] = None
-
         self.tempo_model = None
-
         self.bypass_audio: bool = True if test else bypass_audio
-
         self.play_accompanion: bool = False
-
+        # NOTE is first_score_onset important.
         # self.first_score_onset: Optional[float] = None
         self.adjust_following_rate: float = adjust_following_rate
         # Rate in "loops_without_update"  for adjusting the score
-        # follower with expected position at the
-        # current tempo
+        # follower with expected position at the current tempo.
         self.afr: float = np.round(1 / self.polling_period * self.adjust_following_rate)
-
-        # self.input_pipeline = input_pipeline
+        # NOTE: Should the input pipeline be set to the init arg pipeline?
         self.input_pipeline = None
-
         self.seq = None
         self.note_tracker = None
         self.pipe_out = None
         self.queue = None
         self.midi_input_process = None
         self.router = None
-
         self.dummy_solo = None
-
         self.test = test
-
         self.onset_tracker_type = onset_tracker_type
 
     def setup_scores(self) -> None:
+        """Method to be overwritten by the child classes."""
         raise NotImplementedError
 
     def setup_accompanist(self) -> None:
+        """Method to be overwritten by the child classes."""
+        # NOTE: This function is not set on HMMACCompanion or OLTWACCompanion is it necessary or should it be deleted?
         raise NotImplementedError
 
     def setup_score_follower(self) -> None:
+        """Method to be overwritten by the child classes."""
         raise NotImplementedError
 
     def check_empty_frames(self, frame) -> bool:
+        """Method to be overwritten by the child classes."""
         raise NotImplementedError
 
     def setup_process(self):
-
+        """
+        Setup the process for the ACCompanion.
+        """
+        """"""
         if self.router_kwargs.get("acc_output_to_sound_port_name", None) is not None:
             try:
                 # For SynthPorts
@@ -305,7 +321,7 @@ class ACCompanion(ACC_PARENT):
         else:
             onset_tracker = OnsetTracker(self.solo_score.unique_onsets)
 
-        # TODO Initialize on-line Basis Mixer here
+        # TODO: Initialize on-line Basis Mixer here
         # expression_model = BasisMixer()
         self.midi_input_process.start()
         print("Start listening")
