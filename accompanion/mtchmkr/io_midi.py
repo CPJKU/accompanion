@@ -1,31 +1,38 @@
 # -*- coding: utf-8 -*-
 """
 This module provides basic functionality to process MIDI inputs in
-real time. This is a copy from matchmaker/io/midi.py, so that it can
-be updated without requiring to re-install matchmaker
+real time. 
+
+# Changes to old implementation
+- platform specifics: streamlined process of finding the current system's OS 
+
+# TODOS (tbd, @carlos)
+# 1. Virtual midi ports: for sending MIDI message between programs on same system
+Relevant for:
+- open_input_port()
+# 2. Additional MIDI Streams: Saving/exporting MIDI files, playback from MIDI
+Relevant for:
+- MIDIStream (atm never instantiated)
+- PlayMidiProcess (atm never instantiated)
+# 3. Bugs in class FramedMidiInputProcess
+
+# ADDITIONAL MARKINGS
+# CARLOSREVIEW : is this still relevant?
+# same, never ... : functions/classes never used
+
 """
-import multiprocessing
 
-# import platform
-# import sys
 import time
-
-# import threading
 import warnings
-
+import multiprocessing
 from multiprocessing import Pipe
-
 import mido
-import rtmidi
-
-# import madmom
-
 from mido import Message
+import rtmidi
 from rtmidi.midiutil import open_midiinput, open_midioutput
 from rtmidi.midiutil import get_api_from_environment
 
-from accompanion import PLATFORM
-
+from accompanion import PLATFORM # find the OS of the current system
 
 BACKEND = "mido"
 if PLATFORM == "Windows":
@@ -38,7 +45,22 @@ if PLATFORM not in ("Darwin", "Linux", "Windows"):
 POLLING_PERIOD = 0.02
 
 
-def ensure_port_info(port_id):
+def ensure_port_info(port_id): # same
+    """
+    Ensure a valid (open) MIDI port
+    
+    Parameters
+    ----------
+    port_id : int or str
+        Name or index of the input MIDI device
+    
+    Returns
+    -------
+    port_idx : int
+        Index of the port
+    port_name : str
+        Name of the MIDI device
+    """
 
     port_names = get_port_names()
 
@@ -59,14 +81,14 @@ def ensure_port_info(port_id):
     return port_idx, port_name
 
 
-def get_port_names(backend=BACKEND):
+def get_port_names(backend=BACKEND): # same
     """
-    Get MIDI port names, depending on the platform
+    Get MIDI port names, depending on the platform.
 
-    Inputs
+    Parameters
     ------
     backend : {"rtmidi", "mido"}
-        MIDI backend
+        platform-specific package for MIDI backend
 
     Returns
     -------
@@ -75,8 +97,7 @@ def get_port_names(backend=BACKEND):
     """
 
     if backend not in ("rtmidi", "mido"):
-        raise ValueError(
-            "`backend` must be in {'rtmidi', 'mido'} " f"but given {backend}"
+        raise ValueError("`backend` must be in {'rtmidi', 'mido'} " f"but given {backend}"
         )
 
     if backend == "rtmidi":
@@ -89,7 +110,7 @@ def get_port_names(backend=BACKEND):
     return list(port_names)
 
 
-def get_port_id():
+def get_port_id(): # same, never called
     """
     Ask user to select a MIDI port.
 
@@ -118,14 +139,12 @@ def get_port_id():
 
     if port_idx < 0 or port_idx >= len(port_names):
 
-        raise ValueError(
-            "The port index must be in the range of 0 " f"to {len(port_names)-1}"
-        )
+        raise ValueError("The port index must be in the range of 0 " f"to {len(port_names)-1}")
 
     return port_idx, port_names[port_idx]
 
 
-def open_input_port(port_id, backend=BACKEND):
+def open_input_port(port_id, backend=BACKEND): # same
     """
     Open MIDI input port
 
@@ -134,26 +153,24 @@ def open_input_port(port_id, backend=BACKEND):
     port_id : int or str
         Name or index of the input MIDI device
 
-    TODO
-    ----
-    * Allow for virtual ports?
-
+    Returns
+    -------
+    port : mido/rtmidi supported MidiIn instance
+        Created input port
     """
     # Get correct port_id depending on the platform
     port_idx, port_name = ensure_port_info(port_id)
 
-    if backend == "rtmidi":
-        # Use RTMIDI
+    if backend == "rtmidi": # windows
         port, _ = open_midiinput(port_idx)
 
     elif backend == "mido":
-        # Use Mido
         port = mido.open_input(port_name)
 
     return port
 
 
-def open_output_port(port_id, backend=BACKEND):
+def open_output_port(port_id, backend=BACKEND): # same
     """
     Open MIDI output port
 
@@ -162,7 +179,12 @@ def open_output_port(port_id, backend=BACKEND):
     port_id : int or str
         Name or index of the input MIDI device
 
-    TODO
+    Returns
+    -------
+    port : mido/rtmidi supported MidiOut instance
+        Created output port
+        
+    TODO #CARLOSREVIEW 
     ----
     * verify rtmidi code
 
@@ -170,12 +192,9 @@ def open_output_port(port_id, backend=BACKEND):
     # Get correct port_id depending on the platform
     port_idx, port_name = ensure_port_info(port_id)
 
-    if backend == "rtmidi":
-        # Use RTMIDI
+    if backend == "rtmidi": # windows
         port, _ = open_midioutput(port_idx)
-
     elif backend == "mido":
-        # Use Mido
         port = mido.open_output(port_name)
 
     else:
@@ -184,14 +203,9 @@ def open_output_port(port_id, backend=BACKEND):
     return port
 
 
-class MIDIStream(object):
+class MIDIStream(object): # same, never instantiated
     """
-    A Stream handles live (i.e., online, real-time midi)
-
-    TODO
-    ----
-    * Add option to save messages/export MIDI file?
-    * Add option to playback midi?
+    Base class for creating MIDI Stream objects
     """
 
     def __init__(self, port_id, backend=BACKEND):
@@ -210,11 +224,6 @@ class MIDIStream(object):
     def poll_rtmidi(self):
         """
         Poll MIDI messages with RTMIDI
-
-        Notes
-        -----
-        Using RTMIDI seems to be more computationally intensive than
-        using mido!
         """
         if self.init_time is None:
             self.init_time = time.time()
@@ -222,7 +231,7 @@ class MIDIStream(object):
         try:
             while True:
                 msg = self.midi_in.get_message()
-                time.sleep(1e-6)
+                time.sleep(1e-6) # suspend execution b/c rtmidi seems more computationally expensive
                 if msg:
                     msg_bytes, _ = msg
                     # creat mido Message so that both polling methods
@@ -253,11 +262,11 @@ class MIDIStream(object):
             self.midi_in.close()
 
 
-def dummy_pipeline(inputs):
+def dummy_pipeline(inputs): # same, never called
     return inputs
 
 
-class MidiInputProcess(multiprocessing.Process):
+class MidiInputProcess(multiprocessing.Process): # same, never instantiated
     def __init__(
         self,
         port_id,
@@ -265,14 +274,11 @@ class MidiInputProcess(multiprocessing.Process):
         backend=BACKEND,
         init_time=None,
         pipeline=None,
-        return_midi_messages=False,
-    ):
+        return_midi_messages=False):
         multiprocessing.Process.__init__(self)
 
         if backend not in ("rtmidi", "mido"):
-            raise ValueError(
-                "`backend` must be in {'rtmidi', 'mido'} " f"but given {backend}"
-            )
+            raise ValueError("`backend` must be in {'rtmidi', 'mido'} " f"but given {backend}")
 
         self.backend = backend
         self.port_idx, self.port_name = ensure_port_info(port_id)
@@ -363,7 +369,7 @@ class MidiInputProcess(multiprocessing.Process):
         self.join()
 
 
-class PlayMidiProcess(multiprocessing.Process):
+class PlayMidiProcess(multiprocessing.Process): # same, never instantiated
     def __init__(self, port_id, filename, backend=BACKEND):
         multiprocessing.Process.__init__(self)
 
@@ -418,7 +424,10 @@ class PlayMidiProcess(multiprocessing.Process):
         print("Closing output port")
 
 
-class Buffer(object):
+class Buffer(object): # same, only called by FrameMidiInputProcess
+    """
+    Base class for creating MIDI buffers to separately handle MIDI Messages
+    """
     def __init__(self, polling_period):
         self.polling_period = polling_period
         self.frame = []
@@ -452,7 +461,10 @@ class Buffer(object):
         return str(self.frame)
 
 
-class FramedMidiInputProcess(MidiInputProcess):
+class FramedMidiInputProcess(MidiInputProcess): # same, only called by create_poll_process_midi() which is never called itself
+    """
+    Base class for creating MIDI Messages with frame data
+    """
     def __init__(
         self,
         port_id,
@@ -505,9 +517,7 @@ class FramedMidiInputProcess(MidiInputProcess):
                 frame.reset(c_time)
 
 
-def create_poll_process_midi(
-    port_id, polling_period, pipeline, return_midi_messages=False, backend=BACKEND
-):
+def create_poll_process_midi(port_id, polling_period, pipeline, return_midi_messages=False, backend=BACKEND): # same, never called
     """
     Helper to create a FramedMidiInputProcess and its respective pipe.
     """
