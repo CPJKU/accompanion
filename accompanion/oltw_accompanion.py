@@ -33,6 +33,44 @@ from accompanion.accompanist import tempo_models
 
 
 class OLTWACCompanion(ACCompanion):
+    """
+    The On-Line Time Wrapping Accompanion Follower Class.
+    It inherits from the Base ACCompanion Class. It updates the methods setup_scores, setup_score_follower,
+    and check_empty_frames.
+
+    Parameters
+    ----------
+    solo_fn : str
+        The path to the solo score.
+    acc_fn : str
+        The path to the accompaniment score.
+    midi_router_kwargs : dict
+        The keyword arguments for the MIDI Router.
+    accompaniment_match : str, optional
+        The path to the accompaniment match file, by default None.
+    midi_fn : str, optional
+        The path to the MIDI file, by default None.
+    score_follower_kwargs : dict, optional
+        The keyword arguments for the score follower, by default {"score_follower": "PitchIOIHMM", "score_follower_kwargs": {}, "input_processor": {"processor": "PitchIOIProcessor", "processor_kwargs": {}}}.
+    tempo_model_kwargs : dict, optional
+        The keyword arguments for the tempo model, by default {"tempo_model": tempo_models.LSM}.
+    performance_codec_kwargs : dict, optional
+        The keyword arguments for the performance codec, by default {"velocity_trend_ma_alpha": 0.6, "articulation_ma_alpha": 0.4, "velocity_dev_scale": 70, "velocity_min": 20, "velocity_max": 100, "velocity_solo_scale": 0.85, "timing_scale": 0.001, "log_articulation_scale": 0.1, "mechanical_delay": 0.0}.
+    init_bpm : float, optional
+        The initial BPM, by default 60.
+    init_velocity : int, optional
+        The initial velocity, by default 60.
+    polling_period : float, optional
+        The polling period, by default POLLING_PERIOD.
+    use_ceus_mediator : bool, optional
+        Whether to use the CEUS Mediator, by default False.
+    adjust_following_rate : float, optional
+        The adjustment rate for the following rate, by default 0.1.
+    bypass_audio : bool, optional
+        Whether to bypass the audio, by default False.
+    test : bool, optional
+        Whether to bypass the MIDI Router, by default False.
+    """
     def __init__(
         self,
         solo_fn,
@@ -94,7 +132,12 @@ class OLTWACCompanion(ACCompanion):
         self.solo_parts = None
 
     def setup_scores(self):
+        """
+        Setup the score objects.
 
+        This method initializes arguments used in the accompanion Base Class.
+        This is called in the constructor.
+        """
         tempo_model_type = self.tempo_model_kwargs.pop("tempo_model")
 
         if isinstance(tempo_model_type, str):
@@ -217,7 +260,12 @@ class OLTWACCompanion(ACCompanion):
         )
 
     def setup_score_follower(self):
+        """
+        Setup the score follower object.
 
+        This method initializes arguments used in the accompanion Base Class.
+        """
+        # NOTE: pipeline_kwargs and score_follower_type are not used.
         pipeline_kwargs = self.score_follower_kwargs.pop("input_processor")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
         pipeline = SequentialOutputProcessor([PianoRollProcessor(piano_range=True)])
@@ -225,9 +273,6 @@ class OLTWACCompanion(ACCompanion):
         state_to_ref_time_maps = []
         ref_to_state_time_maps = []
         score_followers = []
-
-        # # reference score for visualization
-        # self.reference_features = None
 
         for part, state_to_ref_time_map, ref_to_state_time_map in self.solo_parts:
 
@@ -265,6 +310,17 @@ class OLTWACCompanion(ACCompanion):
         )
 
     def check_empty_frames(self, frame):
+        """
+        Check if the frames are empty.
+
+        Parameters
+        ----------
+        frame : np.ndarray
+            The frame to check.
+        Returns
+        -------
+        bool
+        """
         if sum(frame) > 0:
             return False
         else:
