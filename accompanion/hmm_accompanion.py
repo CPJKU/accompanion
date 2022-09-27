@@ -30,7 +30,7 @@ from accompanion.mtchmkr import score_hmm
 class HMMACCompanion(ACCompanion):
     """
     The HiddenMarkovModel Accompanion Follower Class.
-    It inherits from the Base ACCompanion Class. It adds the methods setup_scores, setup_score_follower,
+    It inherits from the Base ACCompanion Class. It updates the methods setup_scores, setup_score_follower,
     and check_empty_frames.
 
     Parameters
