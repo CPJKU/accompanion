@@ -8,12 +8,18 @@ TODO
 ----
 * Use a madmom like format 
 """
+from platform import processor
 import partitura
 
 
 class SequentialOutputProcessor(object):
     """
     Abstract base class for sequential processing of data
+
+    Parameters
+    ----------
+    processors: list
+        List of processors to be applied sequentially.
     """
 
     def __init__(self, processors):
