@@ -160,6 +160,8 @@ class LinearSyncModel(SyncModel):
     """
     Linear synchronization model.
 
+    The Default Tempo Model.
+
     Parameters
     ----------
     init_beat_period : float
@@ -439,7 +441,7 @@ class LinearTempoExpectationsSyncModel(SyncModel):
 # Alias
 LTESM = LinearTempoExpectationsSyncModel
 
-
+# NOTE: This Class is not used in this project.
 class KalmanTempoSyncModel(SyncModel):
     """
     A Tempo model using a linear Kalman filter.
