@@ -10,6 +10,11 @@ git clone https://github.com/CPJKU/accompanion.git
 cd .\accompanion
 conda env create -f environment.yml
 ```
+Also, init the submodules if this step is not done automatically on cloning:
+```shell
+git submodule init
+git submodule update
+```
 
 After the download and install are complete:
 ```shell
