@@ -64,7 +64,8 @@ class HMMACCompanion(ACCompanion):
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
-        test: bool = False # bypass MIDIRouter
+        test: bool = False, # bypass MIDIRouter
+        record_midi_path : str = None,
     ) -> None:
 
         score_kwargs = dict(
@@ -88,6 +89,7 @@ class HMMACCompanion(ACCompanion):
             tempo_model_kwargs=tempo_model_kwargs,
             test=test,
             onset_tracker_type="continuous",
+            record_midi_path=record_midi_path,
         )
 
     def setup_scores(self):

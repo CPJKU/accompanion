@@ -67,7 +67,8 @@ class OLTWACCompanion(ACCompanion):
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
-        test: bool = False  # bypass MIDIRouter
+        test: bool = False,  # bypass MIDIRouter
+        record_midi_path : str = None,
     ) -> None:
 
         score_kwargs = dict(
@@ -88,7 +89,8 @@ class OLTWACCompanion(ACCompanion):
             adjust_following_rate=adjust_following_rate,
             bypass_audio=bypass_audio,
             tempo_model_kwargs=tempo_model_kwargs,
-            test=test
+            test=test,
+            record_midi_path=record_midi_path
         )
 
         self.solo_parts = None

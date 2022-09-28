@@ -9,6 +9,7 @@ import time
 import mido
 
 from accompanion.midi_handler.fluid import FluidsynthPlayer
+from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg
 
 
 class MidiRouter(object):
@@ -90,6 +91,7 @@ class MidiRouter(object):
         simple_button_input_port_name=None,
     ):
         self.available_input_ports = mido.get_input_names()
+        print("Available inputs MIDI for mido", self.available_input_ports)
         self.available_output_ports = mido.get_output_names()
         print("Available outputs MIDI for mido", self.available_output_ports)
         # try:
@@ -334,7 +336,6 @@ class MidiFilePlayerInterceptPort(object):
             except queue.Empty:
                 pass
 
-
 class DummyRouter(object):
     """
     
@@ -371,7 +372,7 @@ class DummyRouter(object):
         # the MIDI port name (if any) the solo is sent for the accompanion
         # to listen, if a MIDI Player is used (port name, None)
 
-        self.MIDIPlayer_to_accompaniment_port_name = (DummyPort(),self.solo_input_to_accompaniment_port)
+        self.MIDIPlayer_to_accompaniment_port_name = None
         # the MIDI port name (if any) a single button MIDI Player is listening
         # at (port name, None)
         self.simple_button_input_port_name = None
@@ -386,9 +387,7 @@ class DummyRouter(object):
         self.MIDIPlayer_to_sound_port = self.assign_ports_by_name(
             self.MIDIPlayer_to_sound_port_name, input=False
         )
-        self.MIDIPlayer_to_accompaniment_port = self.assign_ports_by_name(
-            self.MIDIPlayer_to_accompaniment_port_name, input=False
-        )
+        self.MIDIPlayer_to_accompaniment_port = self.solo_input_to_accompaniment_port
         self.simple_button_input_port = self.assign_ports_by_name(
             self.simple_button_input_port_name
         )
@@ -415,3 +414,46 @@ class DummyRouter(object):
 
     def assign_midi_player_out(self):
         return None
+
+
+class RecordingRouter(MidiRouter):
+    def __init__(self, 
+            router_kwargs,
+            record_midi_path = None):
+            super(RecordingRouter, self).__init__(**router_kwargs
+            )
+            self.record_midi_path = record_midi_path
+            self.solo_input_to_accompaniment_port = RecordingPort(self.solo_input_to_accompaniment_port)
+            self.acc_output_to_sound_port = RecordingPort(self.acc_output_to_sound_port)
+    def close_ports(self):
+        super(RecordingRouter, self).close_ports()
+        self.save_midi()
+
+    def save_midi(self):
+        all_msg = list(self.solo_input_to_accompaniment_port.all_msg.queue)
+        #save
+        midi_file_from_midi_msg(all_msg, self.record_midi_path)
+
+
+class RecordingPort(object):
+    def __init__(self, real_port ):
+        self.active = True
+        self.port = real_port
+        self.all_msg = queue.Queue()
+
+    def send(self, msg):
+        if msg is not None:
+            self.all_msg.put(msg)
+        self.port.send(msg)
+
+    # def panic(self):
+    #     self.active=False
+
+    def poll(self):
+        msg = self.port.poll()
+        if msg is not None:
+            self.all_msg.put(msg)
+        return msg
+
+    def panic(self):
+        self.port.panic()

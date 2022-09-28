@@ -8,6 +8,7 @@ import numpy as np
 # from matchmaker.io.symbolic import load_score
 from partitura import load_score
 from mido import Message
+import partitura
 from partitura.score import Part
 from partitura.performance import PerformedPart
 
@@ -408,6 +409,8 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
         part = load_score(fn_spart_or_ppart)
     elif isinstance(fn_spart_or_ppart, (Part, PerformedPart)):
         part = fn_spart_or_ppart
+    elif isinstance(fn_spart_or_ppart, partitura.score.Score):
+        part = fn_spart_or_ppart.parts[0]
 
     s_note_array = part.note_array()
     if isinstance(part, Part):
