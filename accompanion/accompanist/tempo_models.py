@@ -92,7 +92,7 @@ class SyncModel(object):
         """
         raise NotImplementedError
 
-
+# NOTE : This class is not used in this project.
 class ReactiveSyncModel(SyncModel):
     def __init__(self, init_beat_period=0.5, init_score_onset=0):
         super().__init__(
@@ -115,7 +115,7 @@ class ReactiveSyncModel(SyncModel):
 # Alias
 RSM = ReactiveSyncModel
 
-
+# NOTE : This class is not used in this project.
 class MovingAverageSyncModel(SyncModel):
     def __init__(
         self,
@@ -157,6 +157,21 @@ MASM = MovingAverageSyncModel
 
 
 class LinearSyncModel(SyncModel):
+    """
+    Linear synchronization model.
+
+    Parameters
+    ----------
+    init_beat_period : float
+        Initial beat period in seconds
+    init_score_onset : float
+        Initial score onset in beats (can be negative)
+    eta_t : float
+        Learning rate for the tempo
+    eta_o : float
+        Learning rate for the onset
+
+    """
     def __init__(
         self,
         init_beat_period=0.5,
@@ -202,7 +217,7 @@ class LinearSyncModel(SyncModel):
 # Alias
 LSM = LinearSyncModel
 
-
+# NOTE : This class is not used in this project.
 class JointAdaptationAnticipationSyncModel(SyncModel):
     def __init__(
         self,
@@ -318,7 +333,7 @@ class JointAdaptationAnticipationSyncModel(SyncModel):
 # Alias
 JADAMSM = JointAdaptationAnticipationSyncModel
 
-
+# NOTE : This class is used for Mozart and Brahms but not implemented on the accompanion launch.
 class LinearTempoExpectationsSyncModel(SyncModel):
     def __init__(
         self,
