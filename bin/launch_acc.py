@@ -77,6 +77,7 @@ if __name__ == "__main__":
         configurations = info_file["config"]
         # TODO : add a configuration for the default loaded file and directories.
         if args.config_file in ["brahms", "mozart", "schubert", "fourhands", "FH"]:
+            args.follower = "oltw"
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "accompanion_pieces",

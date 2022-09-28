@@ -443,7 +443,7 @@ class RecordingPort(object):
 
     def send(self, msg):
         if msg is not None:
-            self.all_msg.put(msg)
+            self.all_msg.put((msg,time.time()))
         self.port.send(msg)
 
     # def panic(self):
@@ -452,7 +452,7 @@ class RecordingPort(object):
     def poll(self):
         msg = self.port.poll()
         if msg is not None:
-            self.all_msg.put(msg)
+            self.all_msg.put((msg,time.time()))
         return msg
 
     def panic(self):
