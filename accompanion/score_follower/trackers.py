@@ -15,6 +15,9 @@ from scipy import interpolate
 
 
 class AccompanimentScoreFollower(object):
+    """
+    Parent Class for all Accompaniment Score Followers.
+    """
     def __init__(self):
         super().__init__()
 
@@ -23,6 +26,14 @@ class AccompanimentScoreFollower(object):
 
 
 class HMMScoreFollower(AccompanimentScoreFollower):
+    """
+    An HiddenMarkov Model based Score Follower.
+
+    Parameters
+    ----------
+    score : partitura.score.Part
+        The score to be followed.
+    """
     def __init__(self, score_follower, update_sf_positions=False):
         super().__init__()
         self.score_follower = score_follower
@@ -42,11 +53,29 @@ class HMMScoreFollower(AccompanimentScoreFollower):
         return None
         # return self.score_follower.current_state, self.score_position
 
+    # NOTE: Should it update any positions or is it there to match MultiDTWScoreFollower??
+    # if yes put it on AccompanimentScoreFollower.
     def update_position(self, ref_time):
         pass
 
 
 class MultiDTWScoreFollower(AccompanimentScoreFollower):
+    """
+    A Multi Dynamic Time Warping based Score Follower.
+
+    Parameters
+    ----------
+    score_followers: list
+        A list of Score Followers to be used.
+    state_to_ref_time_maps: list
+        A list of State to Reference Time Maps to be used.
+    ref_to_state_time_maps: list
+        A list of Reference Time to State Maps to be used.
+    polling_period: float
+        The polling period of the Score Followers. Polling period (in seconds) used to convert the MIDI messages
+    update_sf_positions: bool
+        Whether to update the Score Follower positions or not.
+    """
     def __init__(
         self,
         score_followers,
