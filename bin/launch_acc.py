@@ -75,36 +75,34 @@ if __name__ == "__main__":
         ) as f:
             info_file = yaml.safe_load(f)
         configurations = info_file["config"]
-        file_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "sample_pieces",
-            info_file["piece_dir"],
-        )
-        if args.config_file == "simple_pieces":
-            configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
-            configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
-
-        else:
+        # TODO : add a configuration for the default loaded file and directories.
+        if args.config_file in ["brahms", "mozart", "schubert", "fourhands", "FH"]:
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "sample_pieces",
+                "accompanion_pieces",
+                "complex_pieces",
                 info_file["piece_dir"],
             )
-            configurations["acc_fn"] = os.path.join(
-                file_dir, os.path.normpath(info_file["acc_fn"])
-            )
-
+            configurations["acc_fn"] = os.path.join(file_dir, os.path.normpath(info_file["acc_fn"]))
             configurations["accompaniment_match"] = os.path.join(
                 file_dir, os.path.normpath(info_file["accompaniment_match"])
             ) if "accompaniment_match" in info_file.keys() else None
-
             configurations["solo_fn"] = glob.glob(
                 os.path.join(file_dir, "match", "cc_solo", "*.match")
             )[-5:] if "solo_fn" not in info_file.keys() else os.path.join(
                 file_dir, os.path.normpath(info_file["solo_fn"])
             )
-
-            configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(info_file["midi_fn"])) if "midi_fn" in info_file.keys() else None
+            configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(
+                info_file["midi_fn"])) if "midi_fn" in info_file.keys() else None
+        else:
+            file_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "accompanion_pieces",
+                "simple_pieces",
+                info_file["piece_dir"],
+            )
+            configurations["acc_fn"] = os.path.join(file_dir, "simple_pieces", "secondo.musicxml")
+            configurations["solo_fn"] = os.path.join(file_dir, "simple_pieces", "primo.musicxml")
 
     else:
         configurations = dict()

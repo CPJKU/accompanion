@@ -42,6 +42,24 @@ def dummy_pipeline(inputs):
 
 
 def midi_messages_to_framed_midi(midi_msgs, msg_times, polling_period, pipeline):
+    """
+    Convert a list of MIDI messages to a framed MIDI representation
+    Parameters
+    ----------
+    midi_msgs: list of mido.Message
+        List of MIDI messages
+    msg_times: list of float
+        List of times (in seconds) at which the MIDI messages were received
+    polling_period:
+        Polling period (in seconds) used to convert the MIDI messages
+    pipeline: function
+        Function to be applied to the MIDI messages before converting them to a MIDI frame.
+
+    Returns
+    -------
+    frames: list
+        List of MIDI frames.
+    """
     n_frames = int(np.ceil(msg_times.max() / polling_period))
     frame_times = (np.arange(n_frames) + 0.5) * polling_period
 

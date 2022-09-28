@@ -1,3 +1,7 @@
+"""
+NOTE: Is this script used somewhere? I can't find it.
+"""
+
 import multiprocessing
 import threading
 import multiprocessing.sharedctypes as mtypes

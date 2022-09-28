@@ -91,8 +91,6 @@ class OnlineTimeWarping(OnlineAlignment):
         self.current_position = 0
         self.positions = []
         self.warping_path = []
-        # For debugging
-
         self.global_cost_matrix = (
             np.ones((reference_features.shape[0] + 1, 2)) * np.infty
         )
@@ -109,8 +107,8 @@ class OnlineTimeWarping(OnlineAlignment):
         self.step(input)
         return self.current_position
 
+    #NOTE: This method is different from mtchmakr
     def get_window(self):
-
         w_size = self.window_size
         if self.window_index < START_WINDOW_SIZE:
             w_size = START_WINDOW_SIZE
@@ -124,7 +122,7 @@ class OnlineTimeWarping(OnlineAlignment):
 
     def step(self, input_features):
         """
-        Step
+        Update the current position and the warping path.
         """
         min_costs = np.infty
         min_index = max(self.window_index - self.step_size, 0)
@@ -133,12 +131,13 @@ class OnlineTimeWarping(OnlineAlignment):
         # window_start = max(self.window_index - self.window_size, 0)
         # window_end = min(self.window_index + self.window_size, self.N_ref)
         # compute local cost beforehand as it is much faster (~twice as fast)
+        # NOTE: this used to be a range, it's changed to slice, review for mistakes.
         window_cost = self.vdist(
             self.reference_features[window_start:window_end],
             input_features,
             self.local_cost_fun,
         )
-
+        # NOTE: If old version is not using Cython then we have to check the cython scripts for errors.
         if self.restart:
             self.global_cost_matrix = reset_cost_matrix(
                 global_cost_matrix=self.global_cost_matrix,
@@ -168,36 +167,37 @@ class OnlineTimeWarping(OnlineAlignment):
         # update input index
         self.input_index += 1
 
-    # def update_position(self, position):
-    #     """
-    #     Restart following from a new position.
-    #     This method "forgets" the pasts and starts from
-    #     scratch form a new position.
-    #     """
-    #     self.current_position = int(position)
-    #     window_start, window_end = self.get_window()
-    #     window_cost = self.vdist(
-    #         self.reference_features[window_start:window_end],
-    #         input_features,
-    #         self.local_cost_fun
-    #     )
+    # TODO review that update_position method is not needed.
+    def update_position(self, input_features, position):
+        """
+        Restart following from a new position.
+        This method "forgets" the pasts and starts from
+        scratch form a new position.
+        """
+        self.current_position = int(position)
+        window_start, window_end = self.get_window()
+        window_cost = self.vdist(
+            self.reference_features[window_start:window_end],
+            input_features,
+            self.local_cost_fun
+        )
 
+# TODO: review that TempoControlledOnlineTimeWarping class is not needed.
+class TempoControlledOnlineTimeWarping(OnlineTimeWarping):
+    def __init__(self, reference_features,
+                 window_size=WINDOW_SIZE,
+                 step_size=STEP_SIZE,
+                 local_cost_fun=DEFAULT_LOCAL_COST):
+        super().__init__(reference_features=reference_features,
+                         window_size=window_size,
+                         step_size=step_size,
+                         local_cost_fun=local_cost_fun)
+        self.window_center = 0
+        self.update_window_index = True
 
-# class TempoControlledOnlineTimeWarping(OnlineTimeWarping):
-#     def __init__(self, reference_features,
-#                  window_size=WINDOW_SIZE,
-#                  step_size=STEP_SIZE,
-#                  local_cost_fun=DEFAULT_LOCAL_COST):
-#         super().__init__(reference_features=reference_features,
-#                          window_size=window_size,
-#                          step_size=step_size,
-#                          local_cost_fun=local_cost_fun)
-#         self.window_center = 0
-#         self.update_window_index = True
-
-#     @property
-#     def window_index(self):
-#         return self.window_center
+    @property
+    def window_index(self):
+        return self.window_center
 
 
 if __name__ == "__main__":
