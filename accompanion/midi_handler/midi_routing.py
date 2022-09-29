@@ -9,7 +9,8 @@ import time
 import mido
 
 from accompanion.midi_handler.fluid import FluidsynthPlayer
-from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg
+from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg, OUTPUT_MIDI_FOLDER
+import os
 
 
 class MidiRouter(object):
@@ -417,12 +418,15 @@ class DummyRouter(object):
 
 
 class RecordingRouter(MidiRouter):
+    """This class works like a standard MIDI router and in addition ot the MIDI input from 
+    the soloist and the MIDI output of the accompaniment.
+    """
     def __init__(self, 
             router_kwargs,
-            record_midi_path = None):
+            piece_name):
             super(RecordingRouter, self).__init__(**router_kwargs
             )
-            self.record_midi_path = record_midi_path
+            self.piece_name = piece_name
             self.solo_input_to_accompaniment_port = RecordingPort(self.solo_input_to_accompaniment_port)
             self.acc_output_to_sound_port = RecordingPort(self.acc_output_to_sound_port)
     def close_ports(self):
@@ -430,12 +434,22 @@ class RecordingRouter(MidiRouter):
         self.save_midi()
 
     def save_midi(self):
-        all_msg = list(self.solo_input_to_accompaniment_port.all_msg.queue)
-        #save
-        midi_file_from_midi_msg(all_msg, self.record_midi_path)
+        all_msg_soloits = list(self.solo_input_to_accompaniment_port.all_msg.queue)
+        all_msg_acc = list(self.acc_output_to_sound_port.all_msg.queue)
+        time_str = time.asctime(time.localtime()).replace(":","_")
+        #save input soloist
+        soloist_out_path = os.path.join(OUTPUT_MIDI_FOLDER,f"{self.piece_name}_soloist_{time_str}.mid")
+        midi_file_from_midi_msg(all_msg_soloits, soloist_out_path)
+        # save generated accompaniment 
+        accompaniment_out_path = os.path.join(OUTPUT_MIDI_FOLDER,f"{self.piece_name}_accompaniment_{time_str}.mid")
+        midi_file_from_midi_msg(all_msg_acc, accompaniment_out_path)
+        print(f"MIDI files saved in {soloist_out_path} and {accompaniment_out_path}")
 
 
 class RecordingPort(object):
+    """This class acts a middleman MIDI port for recording MIDI msgs. 
+    It captures messages sent and received and forward them to the wanted port
+    """
     def __init__(self, real_port ):
         self.active = True
         self.port = real_port

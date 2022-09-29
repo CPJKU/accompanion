@@ -10,6 +10,7 @@ import multiprocessing
 import threading
 import time
 import numpy as np
+import os
 
 from typing import Optional
 
@@ -106,7 +107,7 @@ class ACCompanion(ACC_PARENT):
         onset_tracker_type: str = "continuous",
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # switch to Dummy MIDI ROuter for test environment
-        record_midi_path : str = None,
+        record_midi : bool = False,
     ) -> None:
         super(ACCompanion, self).__init__()
 
@@ -130,7 +131,7 @@ class ACCompanion(ACC_PARENT):
         self.init_velocity: int = init_velocity
         self.beat_period = self.init_bp
         self.velocity = self.init_velocity
-        self.record_midi_path = record_midi_path
+        self.record_midi = record_midi
 
         # Parameters for following
         self.polling_period: float = polling_period
@@ -215,8 +216,8 @@ class ACCompanion(ACC_PARENT):
 
         if self.test:
             self.router = DummyRouter(**self.router_kwargs)
-        elif self.record_midi_path is not None:
-            self.router = RecordingRouter(self.router_kwargs,self.record_midi_path)
+        elif self.record_midi:
+            self.router = RecordingRouter(self.router_kwargs,self.score_kwargs["solo_fn"].split(os.path.sep)[-2])
         else:
             self.router = MidiRouter(**self.router_kwargs)
         # self.router = (
@@ -364,7 +365,6 @@ class ACCompanion(ACC_PARENT):
         pioi = self.polling_period
 
         test_counter = 0
-        all_midi_msg = []
 
         try:
             while (
@@ -396,8 +396,6 @@ class ACCompanion(ACC_PARENT):
                             self.note_tracker.track_note(midi_msg)
 
                             decay[msg.note - 21] = 1.0
-                        if self.record_midi_path is not None:
-                            all_midi_msg.append((msg, msg_time))
 
                     if self.check_empty_frames(output):
                         empty_loops += 1

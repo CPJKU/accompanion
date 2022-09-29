@@ -6,6 +6,14 @@ import threading
 import mido
 import time
 
+import os
+from os.path import dirname, realpath
+
+filepath = realpath(__file__)
+dir_of_file = dirname(filepath)
+acc_pack_dir = dirname(dir_of_file)
+accdir = dirname(acc_pack_dir)
+
 
 class VirtualMidiThroughPort(threading.Thread):
     def __init__(self):
@@ -13,6 +21,11 @@ class VirtualMidiThroughPort(threading.Thread):
 
     def send(self, msg):
         self.outport.send(msg)
+
+
+OUTPUT_MIDI_FOLDER = os.path.join(accdir,"recorded_midi")
+if not os.path.exists(OUTPUT_MIDI_FOLDER):
+    os.makedirs(OUTPUT_MIDI_FOLDER)
 
 def midi_file_from_midi_msg(midi_msg_list, output_path):
     """Save a midi file, given a sequence of midi messages with a absolute time stamp.
@@ -33,6 +46,4 @@ def midi_file_from_midi_msg(midi_msg_list, output_path):
         last_message_time = abs_time
         ticks = int(mido.second2tick(delta_time, mid.ticks_per_beat, 500000))
         track.append(mido.Message(msg.type, note=msg.note, velocity=msg.velocity, time=ticks))
-
-    output_path = f"{output_path}_{time.asctime(time.localtime())}.mid".replace(":","_")
     mid.save(output_path)

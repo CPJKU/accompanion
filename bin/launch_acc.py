@@ -58,7 +58,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
-    parser.add_argument("--record-midi-path", required = False, help="The Path of the recorded MIDI file from the input instrument.")
+    parser.add_argument("--record-midi", action="store_true", help="Record Midi input and Output.")
 
     args = parser.parse_args()
 
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     configurations["test"] = True if args.test else False
 
-    configurations["record_midi_path"] = args.record_midi_path if args.record_midi_path is not None else None
+    configurations["record_midi"] = args.record_midi if args.record_midi else False
 
     accompanion = ACCompanion(**configurations)
 
