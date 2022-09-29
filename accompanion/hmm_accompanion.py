@@ -65,6 +65,8 @@ class HMMACCompanion(ACCompanion):
         Whether to bypass the audio, by default False.
     test : bool, optional
         Whether to bypass the MIDI Router, by default False.
+    record_midi : bool, optional
+        Whether to record the MIDI, by default False.
     """
     def __init__(
         self,
@@ -102,7 +104,8 @@ class HMMACCompanion(ACCompanion):
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
-        test: bool = False # bypass MIDIRouter
+        test: bool = False, # bypass MIDIRouter
+        record_midi : str = None,
     ) -> None:
 
         score_kwargs = dict(
@@ -126,6 +129,7 @@ class HMMACCompanion(ACCompanion):
             tempo_model_kwargs=tempo_model_kwargs,
             test=test,
             onset_tracker_type="continuous",
+            record_midi=record_midi,
         )
 
     def setup_scores(self):

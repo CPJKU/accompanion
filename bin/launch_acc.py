@@ -8,6 +8,9 @@ import argparse
 import glob
 from accompanion import PLATFORM
 
+import sys
+sys.path.append("..")
+
 overridable_args = [
     "use_mediator",
     "delay",
@@ -49,12 +52,13 @@ if __name__ == "__main__":
         "--use_mediator", default=False, help="use ceus mediator", action="store_true"
     )
     parser.add_argument("--piece")
-    parser.add_argument("--follower")
+    parser.add_argument("--follower", default="hmm")
     parser.add_argument(
         "-f", "--config_file", default="test", help="config file to load."
     )
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
+    parser.add_argument("--record-midi", action="store_true", help="Record Midi input and Output.")
 
     args = parser.parse_args()
 
@@ -73,6 +77,7 @@ if __name__ == "__main__":
         configurations = info_file["config"]
         # TODO : add a configuration for the default loaded file and directories.
         if args.config_file in ["brahms", "mozart", "schubert", "fourhands", "FH"]:
+            args.follower = "oltw"
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "accompanion_pieces",
@@ -171,6 +176,8 @@ if __name__ == "__main__":
         configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
 
     configurations["test"] = True if args.test else False
+
+    configurations["record_midi"] = args.record_midi if args.record_midi else False
 
     accompanion = ACCompanion(**configurations)
 

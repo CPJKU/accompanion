@@ -140,3 +140,9 @@ cython_debug/
 *~
 
 *.mscbackup
+
+# recorded midi folder
+/recorded_midi/
+
+# vscode
+.vscode/

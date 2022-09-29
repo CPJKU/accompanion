@@ -70,6 +70,8 @@ class OLTWACCompanion(ACCompanion):
         Whether to bypass the audio, by default False.
     test : bool, optional
         Whether to bypass the MIDI Router, by default False.
+    record_midi : bool, optional
+        Whether to record the MIDI, by default False.
     """
     def __init__(
         self,
@@ -105,7 +107,8 @@ class OLTWACCompanion(ACCompanion):
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
-        test: bool = False  # bypass MIDIRouter
+        test: bool = False,  # bypass MIDIRouter
+        record_midi : bool = False,
     ) -> None:
 
         score_kwargs = dict(
@@ -126,7 +129,8 @@ class OLTWACCompanion(ACCompanion):
             adjust_following_rate=adjust_following_rate,
             bypass_audio=bypass_audio,
             tempo_model_kwargs=tempo_model_kwargs,
-            test=test
+            test=test,
+            record_midi=record_midi
         )
 
         self.solo_parts = None
