@@ -70,7 +70,7 @@ class ConfigurationNode(object):
 		self.data=data
 
 	def value(self):
-		if self.type is dict:
+		if self.type is dict and len(self.child_names_and_children)>0:
 			return {child_name:child.value() for child_name,child in self.child_names_and_children}
 		else:
 			return self.data
@@ -226,23 +226,23 @@ def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing
 	layout=[]
 
 	for (child_name,child),f in zip(config_node.child_names_and_children,field_names):
-		layout_hook = _retrieve(enclosing_scope+child_name,child.type,child.data,layout_hooks)
-		
-		def integrate_sub_layout(layout, sub_layout):
+		def integrate_sub_layout(sub_layout):
 			layout.append([gui.pin(gui.Button(f,key=enclosing_scope+child_name+'toggle', target=enclosing_scope+child_name+'toggle'))])
 			sub_layout = [[gui.Text(size=(max_length,1))] + row for row in sub_layout]
 
 			layout.append([Collapsable(sub_layout, enclosing_scope+child_name)])
 
+		layout_hook = _retrieve(enclosing_scope+child_name,child.type,child.data,layout_hooks)
+
 		if not layout_hook is None:
 			sub_layout=layout_hook(child,enclosing_scope+child_name)
 
-			integrate_sub_layout(layout, sub_layout)
+			integrate_sub_layout(sub_layout)
 		elif child.type is dict and len(child.child_names_and_children)>0:
 			sub_layout = gui_layout(child,layout_hooks,enclosing_scope+child_name+'.')
 
 			
-			integrate_sub_layout(layout, sub_layout)
+			integrate_sub_layout(sub_layout)
 		else:
 			layout.append([Collapsable([[gui.Text(f,size=(max_length,1)),gui.InputText(str(child.data) if not child.type is dict else '{}',key=enclosing_scope+child_name)]], enclosing_scope+child_name)])
 
@@ -509,21 +509,24 @@ def class_init_configurations_via_gui(
 		dispose_window = main_window
 		main_window = gui.Window(window_title,main_layout)
 
-		print('finalize window')
+		# print('finalize window')
 		main_window.finalize()
-		print('dispose of window')
+		# print('dispose of window')
 		dispose_window.close()
-		print('done')
+		# print('done')
 
 		while True:
 			event, values = main_window.read()
 
-			update = _retrieve(event,str,values,hook_system['update'])
+			if event == gui.WINDOW_CLOSED:
+				print("Configuration aborted")
+				main_window.close()
+				return None
 
+			update = _retrieve(event,str,values,hook_system['update'])
+			
 			if not update is None:
 				update(main_window,event,values)
-			elif event == gui.WINDOW_CLOSED:
-				return None
 			elif event[-len('toggle'):]=='toggle':
 				target = event[:-len('toggle')]
 
@@ -585,6 +588,7 @@ def accompanion_configurations_and_version_via_gui():
 	init_window.close()
 
 	if event == gui.WINDOW_CLOSED:
+		print("Configuration aborted")
 		return None, None
 
 	
