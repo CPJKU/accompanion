@@ -3,6 +3,7 @@
 import multiprocessing
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 import os
 import argparse
 import glob
