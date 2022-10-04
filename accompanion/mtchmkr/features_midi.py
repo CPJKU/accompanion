@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Features from symbolic files
-
-TODO
-----
-* Set a more usable format for `mido.Message` objects from input
 """
 import numpy as np
 
@@ -76,9 +72,10 @@ class PianoRollProcessor(object):
     def __call__(self, frame, kwargs={}):
         # initialize piano roll
         piano_roll_slice = np.zeros(128, dtype=self.dtype)
-        data, f_time = frame
-        is_empty = False
+        data, f_time = frame # NOTE f_time variable is never accessed
+        is_empty = False # NOTE variable is never accessed
         for msg, m_time in data:
+            # CC is this still relevant?
             # TODO: update with new format, if Mido Messages
             # messages are substituted for something else
             if msg.type in ("note_on", "note_off"):
