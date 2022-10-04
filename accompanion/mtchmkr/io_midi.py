@@ -6,7 +6,7 @@ real time.
 # Changes to old implementation
 - platform specifics: streamlined process of finding the current system's OS 
 
-# TODOS (tbd, @carlos)
+# TODO (CC tbd)
 # 1. Virtual midi ports: for sending MIDI message between programs on same system
 Relevant for:
 - open_input_port()
@@ -15,10 +15,6 @@ Relevant for:
 - MIDIStream (atm never instantiated)
 - PlayMidiProcess (atm never instantiated)
 # 3. Bugs in class FramedMidiInputProcess
-
-# ADDITIONAL MARKINGS
-# CARLOSREVIEW : is this still relevant?
-# same, never ... : functions/classes never used
 
 """
 
@@ -143,7 +139,7 @@ def get_port_id(): # same, never called
 
     return port_idx, port_names[port_idx]
 
-
+ 
 def open_input_port(port_id, backend=BACKEND): # same
     """
     Open MIDI input port
@@ -184,7 +180,7 @@ def open_output_port(port_id, backend=BACKEND): # same
     port : mido/rtmidi supported MidiOut instance
         Created output port
         
-    TODO #CARLOSREVIEW 
+    TODO CC
     ----
     * verify rtmidi code
 
