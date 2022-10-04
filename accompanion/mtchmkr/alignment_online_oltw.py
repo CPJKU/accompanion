@@ -107,7 +107,6 @@ class OnlineTimeWarping(OnlineAlignment):
         self.step(input)
         return self.current_position
 
-    #NOTE: This method is different from mtchmkr alignment_online_oltw.py
     def get_window(self):
         w_size = self.window_size
         if self.window_index < START_WINDOW_SIZE:
@@ -131,13 +130,11 @@ class OnlineTimeWarping(OnlineAlignment):
         # window_start = max(self.window_index - self.window_size, 0)
         # window_end = min(self.window_index + self.window_size, self.N_ref)
         # compute local cost beforehand as it is much faster (~twice as fast)
-        # NOTE: this used to be a range (in mtchmkr alignment_online_oltw.py), it's changed to slice, review for mistakes.
         window_cost = self.vdist(
             self.reference_features[window_start:window_end],
             input_features,
             self.local_cost_fun,
         )
-        # NOTE: If old version (mtchmkr alignment_online_oltw.py) is not using Cython then we have to check the cython scripts for errors.
         if self.restart:
             self.global_cost_matrix = reset_cost_matrix(
                 global_cost_matrix=self.global_cost_matrix,
