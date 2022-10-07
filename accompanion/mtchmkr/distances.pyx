@@ -19,6 +19,7 @@ cdef class Metric:
     cdef double distance(self, double[:] X, double[:] Y) except? 0.0:
         raise NotImplementedError()
 
+# CC This is never used, just delete it?
 # cdef void nogil_max(args):
 #     with nogil:
 #         max(args)

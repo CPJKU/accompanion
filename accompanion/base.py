@@ -1,18 +1,24 @@
 # -*- coding: utf-8 -*-
 """
 ACCompanion!
+
+TODO
+----
+* Add visualization stuff!
 """
 import multiprocessing
 import threading
 import time
 import numpy as np
+import os
 from accompanion.config import CONFIG
 from typing import Optional
 
 from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
 from accompanion.midi_handler.midi_file_player import get_midi_file_player
 from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
-from accompanion.midi_handler.midi_routing import MidiRouter, DummyRouter
+from accompanion.midi_handler.midi_routing import MidiRouter, DummyRouter, RecordingRouter
+from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg
 
 from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
@@ -77,6 +83,7 @@ class ACCompanion(ACC_PARENT):
         Bypass fluidsynth audio
     test: bool = False
         switch to Dummy MIDI ROuter for test environment
+    record_midi_path : str
     """
 
     def __init__(
@@ -95,6 +102,7 @@ class ACCompanion(ACC_PARENT):
         onset_tracker_type: str = "continuous",
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # switch to Dummy MIDI ROuter for test environment
+        record_midi : bool = False,
     ) -> None:
         super(ACCompanion, self).__init__()
 
@@ -118,6 +126,7 @@ class ACCompanion(ACC_PARENT):
         self.init_velocity: int = init_velocity
         self.beat_period = self.init_bp
         self.velocity = self.init_velocity
+        self.record_midi = record_midi
 
         # Parameters for following
         self.polling_period: float = polling_period
@@ -200,11 +209,17 @@ class ACCompanion(ACC_PARENT):
         if self.use_mediator:
             self.mediator = CeusMediator()
 
-        self.router = (
-            MidiRouter(**self.router_kwargs)
-            if not self.test
-            else DummyRouter(**self.router_kwargs)
-        )
+        if self.test:
+            self.router = DummyRouter(**self.router_kwargs)
+        elif self.record_midi:
+            self.router = RecordingRouter(self.router_kwargs,self.score_kwargs["solo_fn"].split(os.path.sep)[-2])
+        else:
+            self.router = MidiRouter(**self.router_kwargs)
+        # self.router = (
+        #     MidiRouter(**self.router_kwargs)
+        #     if not self.test
+        #     else DummyRouter(**self.router_kwargs)
+        # )
 
         self.seq: ScoreSequencer = ScoreSequencer(
             score_or_notes=self.acc_score,
@@ -322,7 +337,7 @@ class ACCompanion(ACC_PARENT):
         if self.midi_fn is not None:
             print("Start playing MIDI file")
             self.dummy_solo = get_midi_file_player(
-                port=self.router.MIDIPlayer_to_accompaniment_port_name[1],
+                port=self.router.MIDIPlayer_to_accompaniment_port,
                 file_name=self.midi_fn,
                 player_class=FluidsynthPlayer,
                 thread=CONFIG["USE_THREADS"],

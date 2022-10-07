@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import Any
 
-
 class OnlineAlignment(object):
     """
     Base class for online alignment methods.

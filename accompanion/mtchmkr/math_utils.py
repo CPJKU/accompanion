@@ -2,10 +2,8 @@
 """
 Module for all utility math for the transition parts of the HMM.
 """
-# Native Python Library:
-import logging
 
-# Third Party Packages:
+import logging
 import numpy as np
 from scipy.stats import gumbel_l
 
@@ -75,6 +73,7 @@ def gumbel_transition_model(
     return transition_matrix
 
 
+# TODO CC function is different than in the implementation in CPJKU/matchmaker/main/matchmaker/utils/math
 def gumbel_init_dist(config, n_states):
     """
     Compute the initial probabilites for all states in the Hidden Markov Model
