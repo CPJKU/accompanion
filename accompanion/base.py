@@ -212,7 +212,21 @@ class ACCompanion(ACC_PARENT):
         if self.test:
             self.router = DummyRouter(**self.router_kwargs)
         elif self.record_midi:
-            self.router = RecordingRouter(self.router_kwargs,self.score_kwargs["solo_fn"].split(os.path.sep)[-2])
+
+            if isinstance(self.score_kwargs["solo_fn"], (list, tuple)):
+                piece_name = self.score_kwargs["solo_fn"][0].split(os.path.sep)[-2]
+            elif isinstance(self.score_kwargs["solo_fn"], str):
+                piece_name = self.score_kwargs["solo_fn"].split(os.path.sep)[-2]
+            else:
+                raise ValueError(
+                    f"{self.score_kwargs['solo_fn']} should be a string or a list"
+                )
+            # print(self.score_kwargs["solo_fn"])
+            self.router = RecordingRouter(
+                self.router_kwargs,
+                # self.score_kwargs["solo_fn"].split(os.path.sep)[-2]
+                piece_name
+            )
         else:
             self.router = MidiRouter(**self.router_kwargs)
         # self.router = (
