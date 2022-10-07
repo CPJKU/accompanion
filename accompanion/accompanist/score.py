@@ -4,6 +4,7 @@ Objects for representing score information
 """
 from typing import Iterable
 import numpy as np
+import warnings
 
 # from matchmaker.io.symbolic import load_score
 from partitura import load_score
@@ -386,12 +387,12 @@ class AccompanimentScore(Score):
 
 def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     """
-    Get a `Score` instance from a partitura `Part` or `PerformedPart`
+    Get a accompanion `Score` instance from a partitura `Part`, `Score` or `PerformedPart`
 
     Parameters
     ----------
-    fn_spart_or_ppart : filename, Part of PerformedPart
-        Filename or partitura Part
+    fn_spart_or_ppart : str, partitura.Part, partitura.Score, partitura.PerformedPart
+        The object containing the musical information for the accompanion Score.
     bpm : float
         Beats per minute to generate the performance (this is ignored if
         the input is a `PerformedPart`
@@ -402,7 +403,7 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     Returns
     -------
     score : Score
-        A `Score` object.
+        An accompanion `Score` object.
     """
 
     if isinstance(fn_spart_or_ppart, str):
@@ -410,6 +411,8 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     elif isinstance(fn_spart_or_ppart, (Part, PerformedPart)):
         part = fn_spart_or_ppart
     elif isinstance(fn_spart_or_ppart, partitura.score.Score):
+        if len(fn_spart_or_ppart.parts) != 1:
+            warnings.warn("More than one part in the input score. Using the first one.")
         part = fn_spart_or_ppart.parts[0]
 
     s_note_array = part.note_array()
