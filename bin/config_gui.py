@@ -4,7 +4,7 @@ from ast import literal_eval
 import PySimpleGUI as gui
 from typing import Union
 
-
+import os
 
 
 
@@ -248,6 +248,12 @@ def gui_layout(config_node,layout_hooks=dict(triggers=[],functions=[]),enclosing
 
 	return layout
 
+
+
+
+
+
+
 #The following functions define additional functionality in order to make ACCompanion configuration more convenient and are used via the Hook system
 
 #####################################################################
@@ -273,8 +279,10 @@ def midi_router_kwargs_configuration(value):
 
 	for port_name, ports in zip(port_names, distribution):
 		data = ''
-		if port_name in value.keys() and len(value[port_name])>0:
+		if port_name in value.keys():
 			data = value[port_name]
+
+			assert len(data)==0 or data in ports, f"{data} is not a port that is found among viable ports {ports}"
 		elif len(ports)>0:
 			data = ports[0]
 
@@ -298,14 +306,17 @@ def midi_router_kwargs_layout(config_node,enclosing_scope):
 	layout = []
 
 	for (port_name, child), ports in zip(config_node.child_names_and_children, _in_out_port_distribution()):
+		if len(child.data)>0:
+			try:
+				pos = ports.index(child.data)
+				ports[pos], ports[0] = ports[0], ports[pos]
+			except ValueError:
+				raise ValueError(f"{child.data} is not a port that is found among viable ports {ports}")
+		
 		combo_list = ports
-
-		if len(child.data)>0 and not child.data in combo_list:
-			combo_list = [child.data]+combo_list
-
 		
 
-		layout.append([gui.Text(port_name, size=(max_length,1), key=enclosing_scope+'.'+port_name+'name'), gui.Combo(combo_list, default_value = combo_list[0], key=enclosing_scope+'.'+port_name)])
+		layout.append([gui.Text(port_name, size=(max_length,1), key=enclosing_scope+'.'+port_name+'name'), gui.Combo(combo_list, default_value = combo_list[0] if len(child.data)>0 else '', key=enclosing_scope+'.'+port_name)])
 
 
 	return layout
@@ -321,31 +332,46 @@ def tempo_model_configuration(value):
 
 	sync_model_names = [a for a in dir(tempo_models) if 'SyncModel' in a]
 
+	assert len(sync_model_names)>0, "can't load SyncModels if there are none in accompanion.accompanist.tempo_models"
 
-	if type(value) is type and not value.__name__ in sync_model_names:
-		sync_model_names = [value.__name__]+sync_model_names
 
-	assert len(sync_model_names)>0, "can't load SyncModels if there are none in accompanion.accompanist.tempo_models or if input value isn't a type"
+	if type(value) is type:
+		data = value.__name__
+	else:
+		data = value
 
-	return ConfigurationNode(type,data=sync_model_names[0])
+	assert data in sync_model_names or len(data)==0, f"default value {value} is neither an empty string nor something that can be found among the SyncModels"
+
+	
+	
+
+
+	return ConfigurationNode(type,data=data)
 
 def tempo_model_layout(config_node,enclosing_scope):
 	import accompanion.accompanist.tempo_models as tempo_models
 
 	sync_model_names = [a for a in dir(tempo_models) if 'SyncModel' in a]
 
-	if len(config_node.data)>0 and not config_node.data in sync_model_names:
-		sync_model_names = [config_node.data] + sync_model_names
+	input_name = config_node.data if type(config_node.data) is str else config_node.data.__name__
+
+	assert len(input_name)==0 or input_name in sync_model_names, f"at config_node {enclosing_scope} default value {config_node.data} is neither an empty string nor something that can be found among the SyncModels"
+
 
 	if len(sync_model_names)==0:
 		return []
+
+	if len(input_name)>0:
+		pos = sync_model_names.index(input_name)
+
+		sync_model_names[0], sync_model_names[pos] = sync_model_names[pos], sync_model_names[0]
 
 	name = enclosing_scope.split('.')[-1]
 
 	layout=[
 		[
 			gui.Text(name,size=(len(name),1), key=enclosing_scope+'name'),
-			gui.Combo(sync_model_names,default_value=sync_model_names[0],key=enclosing_scope)
+			gui.Combo(sync_model_names,default_value=sync_model_names[0] if len(input_name)>0 else '',key=enclosing_scope)
 		]
 	]
 
@@ -474,6 +500,8 @@ def class_init_configurations_via_gui(
 
 	underlying_dict = {p.name:(p.default if not p.default in [p.empty,None] else (default_instance(p.annotation) if p.annotation!=p.empty else '')) for p in parameters}
 
+	
+
 	hook_init_args = [p.name for p in class_init_args(Hook.__init__) if p.name!='trigger']
 
 	hook_system = {name:dict(triggers=[],functions=[]) for name in hook_init_args}
@@ -498,7 +526,10 @@ def class_init_configurations_via_gui(
 		main_layout = gui_layout(config_tree,hook_system['layout'])
 
 
-		gui_config_file_dir = "../gui_config_files"
+		if 'gui_config_files' in os.listdir(os.getcwd()):
+			gui_config_file_dir = "./gui_config_files"
+		else:
+			gui_config_file_dir = "../gui_config_files"
 
 
 		header = gui.Frame('Menu',[[gui.Button('Configuration finished',key='config done'), gui.Button('Save Configuration to File', key='save config'), gui.FileBrowse('Load Configuration from File', key='load config', target='load config', enable_events=True, initial_folder = gui_config_file_dir)]])
@@ -546,6 +577,8 @@ def class_init_configurations_via_gui(
 
 					underlying_dict = yaml.unsafe_load(config_file)
 
+					
+
 					break
 			elif event == 'save config':
 				config = _create_config(values, config_tree, hook_system['evaluation'], type_checked)
@@ -553,9 +586,9 @@ def class_init_configurations_via_gui(
 				if config is None:
 					continue
 
-				import os
+				
 
-				file_id = len(os.listdir('../gui_config_files'))
+				file_id = len(os.listdir(gui_config_file_dir))
 
 				with open(f"{gui_config_file_dir}/{class_object.__name__}_configuration{file_id}.yaml",'w') as dest:
 					import yaml
