@@ -4,9 +4,9 @@ Decode the performance from the accompaniment
 """
 import numpy as np
 from accompanion.utils.expression_tools import friberg_sundberg_rit
+from accompanion.config import *
 
-# NOTE: This global variable should be moved to a config file.
-RIT_LEN = 24
+
 
 
 class Accompanist(object):
@@ -30,8 +30,7 @@ class Accompanist(object):
         )
         self.step_counter = 0
         self.bp_prev = None
-        # NOTE: r_w is initialized to some value. this should be either explained or moved to a config file.
-        self.rit_curve = friberg_sundberg_rit(RIT_LEN, r_w=0.75)
+        self.rit_curve = friberg_sundberg_rit(CONFIG["RIT_LEN"], CONFIG["RIT_W"])
         self.rit_counter = 0
         # self.num_acc_onsets = len(self.acc_score.ssc.unique_onsets)
 
@@ -44,7 +43,7 @@ class Accompanist(object):
         self.num_chords = len(all_chords)
         for i, so in enumerate(all_chords):
             self.tempo_change_curve[so] = 1.0
-            if self.num_chords - i <= RIT_LEN:
+            if self.num_chords - i <= CONFIG["RIT_LEN"]:
                 self.tempo_change_curve[so] = self.rit_curve[j]
                 j += 1
 
