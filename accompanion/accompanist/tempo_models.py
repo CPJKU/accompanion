@@ -92,7 +92,7 @@ class SyncModel(object):
         """
         raise NotImplementedError
 
-# NOTE : This class is not used in this project.
+
 class ReactiveSyncModel(SyncModel):
     def __init__(self, init_beat_period=0.5, init_score_onset=0):
         super().__init__(
@@ -115,7 +115,7 @@ class ReactiveSyncModel(SyncModel):
 # Alias
 RSM = ReactiveSyncModel
 
-# NOTE : This class is not used in this project.
+
 class MovingAverageSyncModel(SyncModel):
     def __init__(
         self,
@@ -219,8 +219,10 @@ class LinearSyncModel(SyncModel):
 # Alias
 LSM = LinearSyncModel
 
-# NOTE : This class is not used in this project.
 class JointAdaptationAnticipationSyncModel(SyncModel):
+    """
+    Tempo Model with Joint Adaptation and Anticipation.
+    """
     def __init__(
         self,
         init_beat_period=0.5,
@@ -335,7 +337,7 @@ class JointAdaptationAnticipationSyncModel(SyncModel):
 # Alias
 JADAMSM = JointAdaptationAnticipationSyncModel
 
-# NOTE : This class is used for Mozart and Brahms but not implemented on the accompanion launch.
+
 class LinearTempoExpectationsSyncModel(SyncModel):
     def __init__(
         self,
@@ -441,7 +443,7 @@ class LinearTempoExpectationsSyncModel(SyncModel):
 # Alias
 LTESM = LinearTempoExpectationsSyncModel
 
-# NOTE: This Class is not used in this project.
+
 class KalmanTempoSyncModel(SyncModel):
     """
     A Tempo model using a linear Kalman filter.
