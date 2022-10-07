@@ -24,6 +24,9 @@ class AccompanimentScoreFollower(object):
     def __call__(self, frame):
         raise NotImplementedError
 
+    def update_position(self, ref_time):
+        pass
+
 
 class HMMScoreFollower(AccompanimentScoreFollower):
     """
@@ -51,12 +54,6 @@ class HMMScoreFollower(AccompanimentScoreFollower):
                 self.current_position = current_position
                 return self.current_position
         return None
-        # return self.score_follower.current_state, self.score_position
-
-    # NOTE: Should it update any positions or is it there to match MultiDTWScoreFollower??
-    # if yes put it on AccompanimentScoreFollower.
-    def update_position(self, ref_time):
-        pass
 
 
 class MultiDTWScoreFollower(AccompanimentScoreFollower):
