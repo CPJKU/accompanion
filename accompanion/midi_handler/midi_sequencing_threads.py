@@ -64,7 +64,6 @@ class MODIFIEDMidiFilePlayer(threading.Thread):
             if msg.type == "note_on" and msg.velocity > 0:
                 self.current_s_time = self.perf_score_map(time.time() - start_time)
                 self.current_vel = msg.velocity
-                # print("MIDI Player timing score / perf: ", self.current_s_time,time.time()-start_time)
 
 
 class MidiInputPlayer(threading.Thread):
@@ -168,10 +167,8 @@ class ScoreSequencer(threading.Thread):
 
             # Send note offs
             for n_off in note_offs:
-                # print('note offs')
                 if c_time >= n_off.p_offset:
                     # send note off message
-                    # print('note off', note_offs[0].note_off)
                     self.outport.send(n_off.note_off)
                     # Remove note from sounding notes dict
                     del sounding_notes[n_off.pitch]
@@ -179,14 +176,12 @@ class ScoreSequencer(threading.Thread):
 
             # If there are notes to send
             for n_on in next_notes:
-                # print('note ons')
                 # Send note on messages is the note has not been
                 # performed already
                 if c_time >= n_on.p_onset and not n_on.already_performed:
 
                     if n_on.pitch in sounding_notes:
                         # send note off if the pitch is the same as an already sounding note
-                        # print('silence sounding note', sounding_notes[n_on.pitch].note_off)
                         self.outport.send(sounding_notes[n_on.pitch].note_off)
 
                     else:
@@ -195,9 +190,7 @@ class ScoreSequencer(threading.Thread):
                         self.curr_frame[n_on.pitch - 21] = n_on.velocity
 
                     # send note on
-                    # print('note on', n_on.note_on)
                     self.outport.send(n_on.note_on)
-                    # print(n_on.pitch, n_on.onset, n_on.p_onset)
                     self.last_performed_note = n_on
                     if n_on.onset not in self.performed_score_onsets:
                         self.performed_score_onsets.append(n_on.onset)
@@ -282,13 +275,6 @@ class MODIFIEDScoreSequencer(threading.Thread):
             self.last_s_onset_update = c_time
             self.last_s_onset = current_score_time
 
-            # print("______")
-            # print("tempo", self.tempo)
-            # print("tempo up", p_time_since_update)
-            # print("tempo down", s_time_since_update)
-            # print("last_s_onset_update", self.last_s_onset_update)
-            # print("last_s_onset", self.last_s_onset)
-            # print("______")
 
     def _next_notes(self, t):
         # eps = 1e-4
