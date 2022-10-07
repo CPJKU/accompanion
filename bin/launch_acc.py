@@ -3,14 +3,17 @@
 import multiprocessing
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+
+# this environment variable disables an Intel Fortan Runtime Library on Windows (which is internally used by numpy probably)
+# to add a handler to the Console interrupts
+# this is necessary because this handler tends to crash the program when ctrl+c is pressed, not executing ACCompanion shutdown code
 os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
-import os
+
 import argparse
 import glob
 from accompanion import PLATFORM
 
-import sys
-sys.path.append("..")
+
 
 overridable_args = [
     "use_mediator",
