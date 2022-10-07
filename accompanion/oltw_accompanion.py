@@ -31,12 +31,13 @@ from accompanion.utils.partitura_utils import (
 from accompanion.score_follower.trackers import MultiDTWScoreFollower
 from accompanion.accompanist import tempo_models
 
+from typing import List
 
 class OLTWACCompanion(ACCompanion):
     def __init__(
         self,
-        solo_fn,
-        acc_fn,
+        solo_fn : List[str],
+        acc_fn:str,
         midi_router_kwargs: dict,  # this is just a workaround for now
         accompaniment_match: Optional[str] = None,
         midi_fn: Optional[str] = None,
