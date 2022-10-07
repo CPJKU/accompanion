@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 ACCompanion!
-
-TODO
-----
-* Add visualization stuff!
 """
 import multiprocessing
 import threading
 import time
 import numpy as np
-
+from accompanion.config import CONFIG
 from typing import Optional
 
 from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
@@ -40,12 +36,7 @@ from accompanion.score_follower.trackers import AccompanimentScoreFollower
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 
 
-# TODO - make this a config file or make it standard.
-ACC_PROCESS = True
-# NOTE: Shouldn't the ACC_PARENT be a Thread?
-ACC_PARENT = multiprocessing.Process if ACC_PROCESS else threading.Thread
-USE_THREADS = True
-
+ACC_PARENT = multiprocessing.Process if CONFIG["ACC_PROCESS"] else threading.Thread
 
 class ACCompanion(ACC_PARENT):
     """
@@ -238,7 +229,7 @@ class ACCompanion(ACC_PARENT):
             # velocities only for visualization purposes
             pipeline=self.input_pipeline,
             return_midi_messages=True,
-            thread=USE_THREADS,
+            thread=CONFIG["USE_THREADS"],
             mediator=self.mediator,
         )
 
@@ -334,7 +325,7 @@ class ACCompanion(ACC_PARENT):
                 port=self.router.MIDIPlayer_to_accompaniment_port_name[1],
                 file_name=self.midi_fn,
                 player_class=FluidsynthPlayer,
-                thread=USE_THREADS,
+                thread=CONFIG["USE_THREADS"],
                 bypass_audio=self.bypass_audio,
             )
             self.dummy_solo.start()
