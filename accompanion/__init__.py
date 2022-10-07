@@ -5,6 +5,7 @@ Top level of the package
 import platform
 import pkg_resources
 import importlib.util
+import config
 
 # from . import accompanist
 # from . import misc
