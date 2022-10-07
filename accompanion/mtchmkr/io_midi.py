@@ -27,19 +27,15 @@ from mido import Message
 import rtmidi
 from rtmidi.midiutil import open_midiinput, open_midioutput
 from rtmidi.midiutil import get_api_from_environment
-
+from accompanion.config import CONFIG
 from accompanion import PLATFORM # find the OS of the current system
 
-BACKEND = "mido"
+
 if PLATFORM == "Windows":
-    BACKEND = "rtmidi"
+    CONFIG["BACKEND"] = "rtmidi"
 
 if PLATFORM not in ("Darwin", "Linux", "Windows"):
     warnings.warn(f"{PLATFORM} is not supported!")
-
-# Default polling period (in seconds)
-POLLING_PERIOD = 0.02
-
 
 def ensure_port_info(port_id): # same
     """
@@ -77,7 +73,7 @@ def ensure_port_info(port_id): # same
     return port_idx, port_name
 
 
-def get_port_names(backend=BACKEND): # same
+def get_port_names(backend=CONFIG["BACKEND"]): # same
     """
     Get MIDI port names, depending on the platform.
 
@@ -140,7 +136,7 @@ def get_port_id(): # same, never called
     return port_idx, port_names[port_idx]
 
  
-def open_input_port(port_id, backend=BACKEND): # same
+def open_input_port(port_id, backend=CONFIG["BACKEND"]): # same
     """
     Open MIDI input port
 
@@ -166,7 +162,7 @@ def open_input_port(port_id, backend=BACKEND): # same
     return port
 
 
-def open_output_port(port_id, backend=BACKEND): # same
+def open_output_port(port_id, backend=CONFIG["BACKEND"]): # same
     """
     Open MIDI output port
 
@@ -204,7 +200,7 @@ class MIDIStream(object): # same, never instantiated
     Base class for creating MIDI Stream objects
     """
 
-    def __init__(self, port_id, backend=BACKEND):
+    def __init__(self, port_id, backend=CONFIG["BACKEND"]):
 
         self.backend = backend
         self.port_idx, self.port_name = ensure_port_info(port_id)
@@ -267,7 +263,7 @@ class MidiInputProcess(multiprocessing.Process): # same, never instantiated
         self,
         port_id,
         pipe,
-        backend=BACKEND,
+        backend=CONFIG["BACKEND"],
         init_time=None,
         pipeline=None,
         return_midi_messages=False):
@@ -366,7 +362,7 @@ class MidiInputProcess(multiprocessing.Process): # same, never instantiated
 
 
 class PlayMidiProcess(multiprocessing.Process): # same, never instantiated
-    def __init__(self, port_id, filename, backend=BACKEND):
+    def __init__(self, port_id, filename, backend=CONFIG["BACKEND"]):
         multiprocessing.Process.__init__(self)
 
         if backend not in ("rtmidi", "mido"):
@@ -465,8 +461,8 @@ class FramedMidiInputProcess(MidiInputProcess): # same, only called by create_po
         self,
         port_id,
         pipe,
-        polling_period=POLLING_PERIOD,
-        backend=BACKEND,
+        polling_period=CONFIG["POLLING_PERIOD"],
+        backend=CONFIG["BACKEND"],
         init_time=None,
         pipeline=None,
         return_midi_messages=False,
@@ -513,7 +509,7 @@ class FramedMidiInputProcess(MidiInputProcess): # same, only called by create_po
                 frame.reset(c_time)
 
 
-def create_poll_process_midi(port_id, polling_period, pipeline, return_midi_messages=False, backend=BACKEND): # same, never called
+def create_poll_process_midi(port_id, polling_period, pipeline, return_midi_messages=False, backend=CONFIG["BACKEND"]): # same, never called
     """
     Helper to create a FramedMidiInputProcess and its respective pipe.
     """
