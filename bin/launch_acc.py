@@ -102,8 +102,8 @@ if __name__ == "__main__":
                 "simple_pieces",
                 info_file["piece_dir"],
             )
-            configurations["acc_fn"] = os.path.join(file_dir, "simple_pieces", "secondo.musicxml")
-            configurations["solo_fn"] = os.path.join(file_dir, "simple_pieces", "primo.musicxml")
+            configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
+            configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
 
     else:
         configurations = dict()
