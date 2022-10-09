@@ -139,13 +139,10 @@ class ACCompanion(ACC_PARENT):
         self.tempo_model = None
         self.bypass_audio: bool = True if test else bypass_audio
         self.play_accompanion: bool = False
-        # NOTE is first_score_onset important.
-        # self.first_score_onset: Optional[float] = None
         self.adjust_following_rate: float = adjust_following_rate
         # Rate in "loops_without_update"  for adjusting the score
         # follower with expected position at the current tempo.
         self.afr: float = np.round(1 / self.polling_period * self.adjust_following_rate)
-        # NOTE: Should the input pipeline be set to the init arg pipeline?
         self.input_pipeline = None
         self.seq = None
         self.note_tracker = None
@@ -163,7 +160,6 @@ class ACCompanion(ACC_PARENT):
 
     def setup_accompanist(self) -> None:
         """Method to be overwritten by the child classes."""
-        # NOTE: This function is not set on HMMACCompanion or OLTWACCompanion is it necessary or should it be deleted?
         raise NotImplementedError
 
     def setup_score_follower(self) -> None:
