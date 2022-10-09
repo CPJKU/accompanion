@@ -6,6 +6,8 @@ be updated without requiring to re-install matchmaker
 """
 import time
 import datetime
+import queue
+# import sys
 
 import mido
 
@@ -319,10 +321,6 @@ class DummyPort(object):
 
     def reset(self):
         pass
-
-
-import queue
-import sys
 
 
 class MidiFilePlayerInterceptPort(object):
