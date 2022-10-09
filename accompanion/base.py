@@ -17,7 +17,11 @@ from typing import Optional
 from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
 from accompanion.midi_handler.midi_file_player import get_midi_file_player
 from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
-from accompanion.midi_handler.midi_routing import MidiRouter, DummyRouter, RecordingRouter
+from accompanion.midi_handler.midi_routing import (
+    MidiRouter,
+    DummyRouter,
+    RecordingRouter,
+)
 from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg
 
 from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
@@ -43,6 +47,7 @@ from accompanion.midi_handler.fluid import FluidsynthPlayer
 
 
 ACC_PARENT = multiprocessing.Process if CONFIG["ACC_PROCESS"] else threading.Thread
+
 
 class ACCompanion(ACC_PARENT):
     """
@@ -102,7 +107,7 @@ class ACCompanion(ACC_PARENT):
         onset_tracker_type: str = "continuous",
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # switch to Dummy MIDI ROuter for test environment
-        record_midi : bool = False,
+        record_midi: bool = False,
     ) -> None:
         super(ACCompanion, self).__init__()
 
@@ -221,12 +226,7 @@ class ACCompanion(ACC_PARENT):
                 raise ValueError(
                     f"{self.score_kwargs['solo_fn']} should be a string or a list"
                 )
-            # print(self.score_kwargs["solo_fn"])
-            self.router = RecordingRouter(
-                self.router_kwargs,
-                # self.score_kwargs["solo_fn"].split(os.path.sep)[-2]
-                piece_name
-            )
+            self.router = RecordingRouter(self.router_kwargs, piece_name)
         else:
             self.router = MidiRouter(**self.router_kwargs)
         # self.router = (
