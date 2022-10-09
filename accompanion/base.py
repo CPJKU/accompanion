@@ -372,16 +372,12 @@ class ACCompanion(ACC_PARENT):
         test_counter = 0
 
         try:
-            while (
-                not self.seq.end_of_piece
-            ):  # self.play_accompanion and not self.seq.end_of_piece:
+            while not self.seq.end_of_piece:
+                # TODO GH Issue 22: "if not self.queue.poll()"
+                # vs. "self.queue.poll() is not None"
                 if self.queue.poll() is not None:
                     output = self.queue.recv()
-                    # CC: moved solo_p_onset here because of the delays...
-                    # perhaps it would be good to take the time from
-                    # the MIDI messages?
                     solo_p_onset = time.time() - start_time
-                    # print(output)
                     input_midi_messages, output = output
                     # Use these onset times?
                     onset_times = [

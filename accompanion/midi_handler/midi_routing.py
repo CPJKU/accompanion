@@ -5,11 +5,15 @@ real time. This is a copy from matchmaker/io/midi.py, so that it can
 be updated without requiring to re-install matchmaker
 """
 import time
+import datetime
 
 import mido
 
 from accompanion.midi_handler.fluid import FluidsynthPlayer
-from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg, OUTPUT_MIDI_FOLDER
+from accompanion.midi_handler.midi_utils import (
+    midi_file_from_midi_msg,
+    OUTPUT_MIDI_FOLDER,
+)
 import os
 
 
@@ -18,21 +22,21 @@ class MidiRouter(object):
     This is the main class handling MIDI I/O.
     It takes (partial) strings for port names as inputs
     and searches for a fitting port.
-    The reason this is set up in this way is that 
+    The reason this is set up in this way is that
     different OS tend to name/index MIDI ports differently.
-    
+
     Use an instance if this class (and *only* this instance)
     to handle everything related to port opening, closing,
     finding, and panic. Expecially Windows is very finicky
     about MIDI ports and it'll likely break if ports are
     handled separately.
-    
+
     This class can be used to:
     - create a midirouter = MidiRouter(**kwargs) with
     a number of (partial) port names or fluidsynths
-    - poll a specific port: e.g. 
+    - poll a specific port: e.g.
     midirouter.solo_input_to_accompaniment_port.poll()
-    - send on a specific port: e.g. 
+    - send on a specific port: e.g.
     midirouter.acc_output_to_sound_port.send(msg)
     - open all set ports: midirouter.open_ports()
     - close all set ports: midirouter.close_ports()
@@ -41,48 +45,49 @@ class MidiRouter(object):
     midirouter.solo_input_to_accompaniment_port_name
     (DON'T use this name to open, close, etc with it,
     use the midirouter functions instead)
-    
+
     Args:
-        solo_input_to_accompaniment_port_name (string): 
+        solo_input_to_accompaniment_port_name (string):
             a (partial) string for the input name at which the
             score follower is listening for soloist MIDI messages
-        acc_output_to_sound_port_name (string): 
+        acc_output_to_sound_port_name (string):
             a (partial) string for the output name where the
             accompanist sends MIDI messages
             alternatively, it takes a FluidSynthPlayer object,
             any out messages are then sent to a fludisynth for
             audio rendering.
-            
+
     It is possible to use a built-in MIDIPlayer instead of a soloist.
     The MIDIPlayer sends midi messages to MIDI and/or sound ports.
     Note that a virtual MIDI connection is necessary to send messages
     froom the MIDIPlayer to the Score Follower. Virtual MIDI connections
     are available on MacOSX (via IAC Driver) and Windows (
     https://www.tobias-erichsen.de/software/loopmidi.html
-    ). 
-    
-    MIDIPlayer_to_sound_port_name (string): 
+    ).
+
+    MIDIPlayer_to_sound_port_name (string):
         a (partial) string for the output name where the
         MIDIPlayer sends MIDI messages
         alternatively, it takes a FluidSynthPlayer object,
         any out messages are then sent to a fludisynth for
         audio rendering.
-    MIDIPlayer_to_accompaniment_port_name (string): 
+    MIDIPlayer_to_accompaniment_port_name (string):
         a (partial) string for the output name where the
         MIDIPlayer sends MIDI messages. Most likely virtual
         port that loops back to the accompanion input.
-        
-    
-    It is possible to use a built-in controllable MIDIPlayer 
+
+
+    It is possible to use a built-in controllable MIDIPlayer
     (which plays a midi file based in a single button)
     to play as a soloist.
     Use any midi controller as input to this Player.
-    
-    simple_button_input_port_name (string): 
+
+    simple_button_input_port_name (string):
         a (partial) string for the input name at which the
         MIDIPlayer is listening for
         "single button player" MIDI messages.
     """
+
     def __init__(
         self,
         solo_input_to_accompaniment_port_name=None,
@@ -249,7 +254,7 @@ class MidiRouter(object):
         for port in self.open_ports_list:
             port.close()
         self.open_ports_list = []
-        
+
         for port_name in self.output_port_names.keys():
             self.output_port_names[port_name] = None
         for port_name in self.input_port_names.keys():
@@ -258,7 +263,7 @@ class MidiRouter(object):
     def panic(self):
         for port in self.open_ports_list:
             port.panic()
-        
+
     def assign_ports_by_name(self, try_name, input=True):
         if isinstance(try_name, FluidsynthPlayer):
             return try_name
@@ -315,8 +320,10 @@ class DummyPort(object):
     def reset(self):
         pass
 
+
 import queue
 import sys
+
 
 class MidiFilePlayerInterceptPort(object):
     def __init__(self, *args, **kwargs):
@@ -327,20 +334,20 @@ class MidiFilePlayerInterceptPort(object):
         self.queue.put(msg)
 
     def panic(self):
-        self.active=False
+        self.active = False
 
     def poll(self):
         while self.active:
             try:
-                msg = self.queue.get(True,1)
+                msg = self.queue.get(True, 1)
                 return msg
             except queue.Empty:
                 pass
 
+
 class DummyRouter(object):
-    """
-    
-    """
+    """"""
+
     def __init__(
         self,
         solo_input_to_accompaniment_port_name=None,
@@ -359,9 +366,7 @@ class DummyRouter(object):
         # the MIDI port name the accompanion listens at (port name)
         self.solo_input_to_accompaniment_port_name = None
 
-
         self.solo_input_to_accompaniment_port = MidiFilePlayerInterceptPort()
-
 
         # the MIDI port name / Instrument the accompanion is sent
         # to (Fluidsynth, port name)
@@ -380,7 +385,6 @@ class DummyRouter(object):
 
         self.open_ports()
 
-        
         self.acc_output_to_sound_port = self.assign_ports_by_name(
             self.acc_output_to_sound_port_name, input=False
         )
@@ -405,11 +409,11 @@ class DummyRouter(object):
         pass
 
     def close_ports(self):
-        self.solo_input_to_accompaniment_port.active=False
+        self.solo_input_to_accompaniment_port.active = False
 
     def panic(self):
         pass
-        
+
     def assign_ports_by_name(self, try_name, input=True):
         return DummyPort()
 
@@ -418,17 +422,18 @@ class DummyRouter(object):
 
 
 class RecordingRouter(MidiRouter):
-    """This class works like a standard MIDI router and in addition ot the MIDI input from 
+    """This class works like a standard MIDI router and in addition ot the MIDI input from
     the soloist and the MIDI output of the accompaniment.
     """
-    def __init__(self, 
-            router_kwargs,
-            piece_name):
-            super(RecordingRouter, self).__init__(**router_kwargs
-            )
-            self.piece_name = piece_name
-            self.solo_input_to_accompaniment_port = RecordingPort(self.solo_input_to_accompaniment_port)
-            self.acc_output_to_sound_port = RecordingPort(self.acc_output_to_sound_port)
+
+    def __init__(self, router_kwargs, piece_name):
+        super(RecordingRouter, self).__init__(**router_kwargs)
+        self.piece_name = piece_name
+        self.solo_input_to_accompaniment_port = RecordingPort(
+            self.solo_input_to_accompaniment_port
+        )
+        self.acc_output_to_sound_port = RecordingPort(self.acc_output_to_sound_port)
+
     def close_ports(self):
         super(RecordingRouter, self).close_ports()
         self.save_midi()
@@ -436,28 +441,34 @@ class RecordingRouter(MidiRouter):
     def save_midi(self):
         all_msg_soloits = list(self.solo_input_to_accompaniment_port.all_msg.queue)
         all_msg_acc = list(self.acc_output_to_sound_port.all_msg.queue)
-        time_str = time.asctime(time.localtime()).replace(":","_")
-        #save input soloist
-        soloist_out_path = os.path.join(OUTPUT_MIDI_FOLDER,f"{self.piece_name}_soloist_{time_str}.mid")
+        # The date format is {Year}-{Month}-{Day}_{Hours}-{Minutes}-{Seconds}
+        time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        # save input soloist
+        soloist_out_path = os.path.join(
+            OUTPUT_MIDI_FOLDER, f"{self.piece_name}_soloist_{time_str}.mid"
+        )
         midi_file_from_midi_msg(all_msg_soloits, soloist_out_path)
-        # save generated accompaniment 
-        accompaniment_out_path = os.path.join(OUTPUT_MIDI_FOLDER,f"{self.piece_name}_accompaniment_{time_str}.mid")
+        # save generated accompaniment
+        accompaniment_out_path = os.path.join(
+            OUTPUT_MIDI_FOLDER, f"{self.piece_name}_accompaniment_{time_str}.mid"
+        )
         midi_file_from_midi_msg(all_msg_acc, accompaniment_out_path)
         print(f"MIDI files saved in {soloist_out_path} and {accompaniment_out_path}")
 
 
 class RecordingPort(object):
-    """This class acts a middleman MIDI port for recording MIDI msgs. 
+    """This class acts a middleman MIDI port for recording MIDI msgs.
     It captures messages sent and received and forward them to the wanted port
     """
-    def __init__(self, real_port ):
+
+    def __init__(self, real_port):
         self.active = True
         self.port = real_port
         self.all_msg = queue.Queue()
 
     def send(self, msg):
         if msg is not None:
-            self.all_msg.put((msg,time.time()))
+            self.all_msg.put((msg, time.time()))
         self.port.send(msg)
 
     # def panic(self):
@@ -466,7 +477,7 @@ class RecordingPort(object):
     def poll(self):
         msg = self.port.poll()
         if msg is not None:
-            self.all_msg.put((msg,time.time()))
+            self.all_msg.put((msg, time.time()))
         return msg
 
     def panic(self):
