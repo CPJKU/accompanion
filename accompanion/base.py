@@ -139,8 +139,8 @@ class ACCompanion(ACC_PARENT):
         self.tempo_model = None
         self.bypass_audio: bool = True if test else bypass_audio
         self.play_accompanion: bool = False
-        self.adjust_following_rate: float = adjust_following_rate
         # Rate in "loops_without_update"  for adjusting the score
+        self.adjust_following_rate: float = adjust_following_rate
         # follower with expected position at the current tempo.
         self.afr: float = np.round(1 / self.polling_period * self.adjust_following_rate)
         self.input_pipeline = None
@@ -174,7 +174,6 @@ class ACCompanion(ACC_PARENT):
         """
         Setup the process for the ACCompanion.
         """
-        """"""
         if self.router_kwargs.get("acc_output_to_sound_port_name", None) is not None:
             try:
                 # For SynthPorts
@@ -225,11 +224,6 @@ class ACCompanion(ACC_PARENT):
             self.router = RecordingRouter(self.router_kwargs, piece_name)
         else:
             self.router = MidiRouter(**self.router_kwargs)
-        # self.router = (
-        #     MidiRouter(**self.router_kwargs)
-        #     if not self.test
-        #     else DummyRouter(**self.router_kwargs)
-        # )
 
         self.seq: ScoreSequencer = ScoreSequencer(
             score_or_notes=self.acc_score,
@@ -308,9 +302,6 @@ class ACCompanion(ACC_PARENT):
         """
         Terminate process of the ACCompanion
         """
-        # if hasattr(super(ACCompanion, self), "terminate"):
-        #     super(ACCompanion, self).terminate()
-        # else:
         self.stop_playing()
 
     def run(self):
