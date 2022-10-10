@@ -104,7 +104,6 @@ class PianoRollProcessor(object):
         self.active_notes = dict()
 
 
-# NOTE: This is not used anywhere in this project.
 class CumSumPianoRollProcessor(object):
     """
     A class to convert a MIDI file time slice to a piano roll representation.
