@@ -2,11 +2,7 @@
 """
 Generic utilities
 
-This module contains all processor related functionality. 
-
-TODO tbd CC
-----
-* Use a madmom like format
+This module contains all processor related functionality.
 """
 from platform import processor
 import partitura
