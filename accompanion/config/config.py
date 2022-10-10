@@ -12,5 +12,6 @@ CONFIG = {
     "BACKEND": "mido",
     "POLLING_PERIOD": 0.02,
     # Used in HMMACCompanion
-    "gumbel_transition_matrix_scale" : 0.5,
+    "gumbel_transition_matrix_scale": 0.5,
+    "DECAY_VALUE": 1.0,
 }

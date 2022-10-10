@@ -5,23 +5,16 @@ New utilities to be added to partitura!
 
 import mido
 import partitura
-
 import numpy as np
-
 from basismixer.performance_codec import get_performance_codec
 from basismixer.utils import get_unique_onset_idxs, notewise_to_onsetwise
-
 from partitura import load_score, load_performance
 from partitura.utils.music import performance_from_part
-
-# from matchmaker.io.symbolic import load_score, load_performance
-# from matchmaker.evaluation.midi_score_following import midi_messages_to_framed_midi
-
+from accompanion.config import CONFIG
 from partitura.score import Part
 from partitura.performance import PerformedPart
 from scipy.interpolate import interp1d
 
-DECAY_VALUE = 1.0
 
 PPART_FIELDS = [
     ("onset_sec", "f4"),
@@ -32,9 +25,6 @@ PPART_FIELDS = [
     ("channel", "i4"),
     ("id", "U256"),
 ]
-
-# Default polling period (in seconds)
-POLLING_PERIOD = 0.02
 
 
 def dummy_pipeline(inputs):
@@ -173,7 +163,7 @@ def get_matched_notes(spart_note_array, ppart_note_array, gt_alignment):
 
 def partitura_to_framed_midi_custom(
     part_or_notearray_or_filename,
-    polling_period=POLLING_PERIOD,
+    polling_period=CONFIG["POLLING_PERIOD"],
     pipeline=dummy_pipeline,
     is_performance=False,
     tempo_curve=None,
@@ -308,7 +298,7 @@ def decay_midi(frames, onsets):
 
     for i in range(frames.shape[1]):
 
-        decay *= DECAY_VALUE
+        decay *= CONFIG["DECAY_VALUE"]
         if i in onsets:
 
             for o in onsets[i]:
