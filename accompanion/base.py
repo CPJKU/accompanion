@@ -30,11 +30,6 @@ from accompanion.accompanist.accompaniment_decoder import (
 )
 
 from accompanion.accompanist.tempo_models import SyncModel
-
-from accompanion.utils.partitura_utils import (
-    DECAY_VALUE,
-)
-
 from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.score_follower.note_tracker import NoteTracker
 from accompanion.score_follower.onset_tracker import OnsetTracker, DiscreteOnsetTracker
@@ -374,7 +369,7 @@ class ACCompanion(ACC_PARENT):
                     ]
                     onset_time = np.mean(onset_times) if len(onset_times) > 0 else 0
                     new_midi_messages = False
-                    decay *= DECAY_VALUE
+                    decay *= CONFIG["DECAY_VALUE"]
                     for msg, msg_time in input_midi_messages:
                         if msg.type in ("note_on", "note_off"):
 
