@@ -4,7 +4,7 @@ Decode the performance from the accompaniment
 """
 import numpy as np
 from accompanion.utils.expression_tools import friberg_sundberg_rit
-from accompanion.config import *
+from accompanion.config import CONFIG
 
 
 

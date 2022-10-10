@@ -6,11 +6,6 @@ import platform
 import pkg_resources
 import importlib.util
 
-# from . import accompanist
-# from . import misc
-# from . import mtchmkr
-# from . import visualization
-
 # OS: Linux, Mac or Windows
 PLATFORM = platform.system()
 

@@ -4,12 +4,9 @@ import mido
 import partitura
 import threading
 import time
-
 import numpy as np
-
-from accompanion.visualization.midi_helper import MIDI_KEYS
 from scipy.interpolate import interp1d
-
+from accompanion.config import CONFIG
 
 def perf_score_map_from_match(match_path):
     """
@@ -111,7 +108,7 @@ class ScoreSequencer(threading.Thread):
         self.init_time = None
         # initialize performed score onsets
         self.performed_score_onsets = [-np.inf]
-        self.curr_frame = np.zeros(MIDI_KEYS, dtype=np.uint8)
+        self.curr_frame = np.zeros(CONFIG["MIDI_KEYS"], dtype=np.uint8)
         self.end_of_piece = False
         self.last_performed_note = None
 
@@ -152,7 +149,7 @@ class ScoreSequencer(threading.Thread):
         # set playing to true
         self.play = True
 
-        self.curr_frame = np.zeros(MIDI_KEYS, dtype=np.uint8)
+        self.curr_frame = np.zeros(CONFIG["MIDI_KEYS"], dtype=np.uint8)
         next_notes = self.notes
 
         while self.play:
@@ -242,7 +239,7 @@ class MODIFIEDScoreSequencer(threading.Thread):
         # Initial time is set to None
         self.init_time = None
         self.performed_score_onsets = []
-        self.curr_frame = np.zeros(MIDI_KEYS, dtype=np.uint8)
+        self.curr_frame = np.zeros(CONFIG["MIDI_KEYS"], dtype=np.uint8)
         self.tempo = 0.5
         self.last_s_onset = -10
         self.last_s_onset_update = 0
@@ -304,7 +301,7 @@ class MODIFIEDScoreSequencer(threading.Thread):
         # set playing to true
         self.play = True
 
-        self.curr_frame = np.zeros(MIDI_KEYS, dtype=np.uint8)
+        self.curr_frame = np.zeros(CONFIG["MIDI_KEYS"], dtype=np.uint8)
         next_notes = self.notes
         while self.play:
 

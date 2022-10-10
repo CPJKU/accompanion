@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 CONFIG = {
     # Found in base.py
     "ACC_PROCESS": True,
@@ -11,4 +11,8 @@ CONFIG = {
     # I/O MIDI
     "BACKEND": "mido",
     "POLLING_PERIOD": 0.02,
+    # Used in HMMACCompanion
+    "gumbel_transition_matrix_scale": 0.5,
+    "DECAY_VALUE": 1.0,
+    "MIDI_KEYS": 88
 }
