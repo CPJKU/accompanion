@@ -356,7 +356,7 @@ class ACCompanion(ACC_PARENT):
         empty_loops = 0
         prev_solo_p_onset = None
         adjusted_sf = False
-        decay = np.ones(88)
+        # decay = np.ones(88)
 
         pioi = self.polling_period
 
@@ -371,23 +371,24 @@ class ACCompanion(ACC_PARENT):
                     solo_p_onset = time.time() - start_time
                     input_midi_messages, output = output
                     # Use these onset times?
-                    onset_times = [
-                        msg[1]
-                        for msg in input_midi_messages
-                        if msg[0].type in ("note_on", "note_off")
-                    ]
-                    onset_time = np.mean(onset_times) if len(onset_times) > 0 else 0
+                    # onset_times = [
+                    #     msg[1]
+                    #     for msg in input_midi_messages
+                    #     if msg[0].type in ("note_on", "note_off")
+                    # ]
+                    # onset_time = np.mean(onset_times) if len(onset_times) > 0 else 0
                     new_midi_messages = False
-                    decay *= DECAY_VALUE
+                    # decay *= DECAY_VALUE
                     for msg, msg_time in input_midi_messages:
                         if msg.type in ("note_on", "note_off"):
 
                             if msg.type == "note_on" and msg.velocity > 0:
                                 new_midi_messages = True
-                            midi_msg = (msg.type, msg.note, msg.velocity, onset_time)
+                            # midi_msg = (msg.type, msg.note, msg.velocity, onset_time)
+                            midi_msg = (msg.type, msg.note, msg.velocity, solo_p_onset)
                             self.note_tracker.track_note(midi_msg)
 
-                            decay[msg.note - 21] = 1.0
+                            # decay[msg.note - 21] = 1.0
 
                     if self.check_empty_frames(output):
                         empty_loops += 1
