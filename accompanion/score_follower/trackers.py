@@ -4,21 +4,14 @@ TODO
 ----
 * Update the MultiDTWScoreFollower for HMM?
 """
-import partitura
-
 import numpy as np
-
-from accompanion.utils.partitura_utils import (
-    get_matched_notes,
-    partitura_to_framed_midi_custom,
-)
-from scipy import interpolate
 
 
 class AccompanimentScoreFollower(object):
     """
     Parent Class for all Accompaniment Score Followers.
     """
+
     def __init__(self):
         super().__init__()
 
@@ -38,6 +31,7 @@ class HMMScoreFollower(AccompanimentScoreFollower):
     score : partitura.score.Part
         The score to be followed.
     """
+
     def __init__(self, score_follower, update_sf_positions=False):
         super().__init__()
         self.score_follower = score_follower
@@ -70,10 +64,12 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
     ref_to_state_time_maps: list
         A list of Reference Time to State Maps to be used.
     polling_period: float
-        The polling period of the Score Followers. Polling period (in seconds) used to convert the MIDI messages
+        The polling period of the Score Followers.
+        Polling period (in seconds) used to convert the MIDI messages
     update_sf_positions: bool
         Whether to update the Score Follower positions or not.
     """
+
     def __init__(
         self,
         score_followers,
@@ -92,7 +88,10 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
         self.current_position = 0
 
     def __call__(self, frame):
-
+        """
+        Get score position by aggregating the predicted position of all
+        followers in the ensemble
+        """
         score_positions = []
         indices = []
         for sf, strm in zip(self.score_followers, self.state_to_ref_time_maps):
@@ -104,12 +103,20 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
         self.current_position = score_position
 
         if self.update_sf_positions:
+            # Update the position in the individual score followers
             self.update_position(score_position)
 
         return score_position
 
     def update_position(self, ref_time):
+        """
+        Update the current position in each of the score followers
+
+        Parameters
+        ----------
+        ref_time : float
+            Current time in the score follower
+        """
         for sf, rtsm in zip(self.score_followers, self.ref_to_state_time_maps):
             st = rtsm(ref_time) * self.inv_polling_period
             sf.current_position = int(np.round(st))
-
