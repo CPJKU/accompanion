@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 ACCompanion!
-
-TODO
-----
-* Add visualization stuff!
 """
 import multiprocessing
 import threading

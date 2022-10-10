@@ -14,4 +14,5 @@ CONFIG = {
     # Used in HMMACCompanion
     "gumbel_transition_matrix_scale": 0.5,
     "DECAY_VALUE": 1.0,
+    "MIDI_KEYS": 88
 }
