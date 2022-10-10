@@ -7,7 +7,7 @@ cimport numpy as np
 import numpy as np
 cimport cython
 from libc.math cimport sqrt, abs
-# from cython.parallel import prange
+
 
 
 cdef class Metric:
@@ -18,11 +18,6 @@ cdef class Metric:
         return self.distance(X, Y)
     cdef double distance(self, double[:] X, double[:] Y) except? 0.0:
         raise NotImplementedError()
-
-# CC This is never used, just delete it?
-# cdef void nogil_max(args):
-#     with nogil:
-#         max(args)
 
 
 @cython.boundscheck(False)
