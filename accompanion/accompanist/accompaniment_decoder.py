@@ -7,11 +7,10 @@ from accompanion.utils.expression_tools import friberg_sundberg_rit
 from accompanion.config import CONFIG
 
 
-
-
 class Accompanist(object):
     """
-    The Accompanist class is responsible for decoding the performance from the accompaniment.
+    The Accompanist class is responsible for decoding the performance
+    from the accompaniment.
 
     Parameters
     ----------
@@ -20,6 +19,7 @@ class Accompanist(object):
     performance_codec : PerformanceCodec
         The performance codec.
     """
+
     def __init__(self, accompaniment_score, performance_codec):
 
         self.acc_score = accompaniment_score
@@ -152,6 +152,7 @@ class OnlinePerformanceCodec(object):
     articulation_ma_alpha: float (optional)
         The alpha parameter for the moving average of the articulation.
     """
+
     def __init__(
         self,
         part=None,
@@ -192,7 +193,7 @@ class OnlinePerformanceCodec(object):
                 self.vel_prev,
                 self.velocity_ma_alpha,
             )
-        except:
+        except Exception:
             self.vel_prev = self.velocity_ave
 
         articulation_list = []
