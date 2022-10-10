@@ -93,10 +93,8 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
         followers in the ensemble
         """
         score_positions = []
-        indices = []
         for sf, strm in zip(self.score_followers, self.state_to_ref_time_maps):
             st = sf(frame)
-            indices.append(st)
             sp = float(strm(st * self.polling_period))
             score_positions.append(sp)
         score_position = np.median(score_positions)
