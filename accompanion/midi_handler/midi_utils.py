@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-CC: Is this class used anywhere? Otherwise delete!
+MIDI utilities
 """
 import threading
-import mido
-import time
-
 import os
+
+import mido
+
 from os.path import dirname, realpath
 
 filepath = realpath(__file__)

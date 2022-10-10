@@ -93,11 +93,6 @@ class OnlineTimeWarping(OnlineAlignment):
         self.global_cost_matrix = (
             np.ones((reference_features.shape[0] + 1, 2)) * np.infty
         )
-        # CC should all versions for initializing the cost matrix be kept for debugging?
-        # self.global_cost_matrix = initialize_cost_matrix(self.N_ref)
-        # For fast reinitializing the cost matrix
-        # self.global_cost_matrix_reset = initialize_cost_matrix(self.N_ref)
-        # self.inf_step = inf_vector(self.N_ref)
         self.input_index = 0
         self.go_backwards = False
         self.update_window_index = False
@@ -164,37 +159,20 @@ class OnlineTimeWarping(OnlineAlignment):
         # update input index
         self.input_index += 1
 
-    # TODO review that update_position method is not needed.
-    def update_position(self, input_features, position):
-        """
-        Restart following from a new position.
-        This method "forgets" the pasts and starts from
-        scratch form a new position.
-        """
-        self.current_position = int(position)
-        window_start, window_end = self.get_window()
-        window_cost = self.vdist(
-            self.reference_features[window_start:window_end],
-            input_features,
-            self.local_cost_fun
-        )
-
-# TODO: review that TempoControlledOnlineTimeWarping class is not needed.
-class TempoControlledOnlineTimeWarping(OnlineTimeWarping):
-    def __init__(self, reference_features,
-                 window_size=WINDOW_SIZE,
-                 step_size=STEP_SIZE,
-                 local_cost_fun=DEFAULT_LOCAL_COST):
-        super().__init__(reference_features=reference_features,
-                         window_size=window_size,
-                         step_size=step_size,
-                         local_cost_fun=local_cost_fun)
-        self.window_center = 0
-        self.update_window_index = True
-
-    @property
-    def window_index(self):
-        return self.window_center
+    # # TODO review that update_position method is not needed.
+    # def update_position(self, input_features, position):
+    #     """
+    #     Restart following from a new position.
+    #     This method "forgets" the pasts and starts from
+    #     scratch form a new position.
+    #     """
+    #     self.current_position = int(position)
+    #     window_start, window_end = self.get_window()
+    #     window_cost = self.vdist(
+    #         self.reference_features[window_start:window_end],
+    #         input_features,
+    #         self.local_cost_fun
+    #     )
 
 
 if __name__ == "__main__":
