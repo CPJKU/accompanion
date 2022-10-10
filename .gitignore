@@ -146,6 +146,7 @@ cython_debug/
 
 # vscode
 .vscode/
+
 /accompanion/mtchmkr/distances.c
 /accompanion/mtchmkr/distances.html
 /accompanion/mtchmkr/dtw_loop.c
