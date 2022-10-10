@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-from typing import Optional, Iterable
+"""
+Online Time Warping ACCompanion.
 
+This module contains the main class for the Online Time Warping ACCompanion.
+It works as a follower for complicated pieces usually for four hands.
+"""
+from typing import Optional, Iterable
 import numpy as np
 import partitura
-
 from basismixer.performance_codec import get_performance_codec
 from partitura.utils.music import get_time_maps_from_alignment
 from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 from scipy.interpolate import interp1d
-
 from accompanion.mtchmkr.alignment_online_oltw import (
     OnlineTimeWarping,
 )

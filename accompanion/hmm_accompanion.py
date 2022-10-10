@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+Hidden Markov Model Accompanion.
+
+This module contains the HMMAccompanion class, which is the main class for following scores using an HMM.
+It mainly works when the soloist plays monophonic melodies.
+"""
 from typing import Optional
 import numpy as np
 import partitura
