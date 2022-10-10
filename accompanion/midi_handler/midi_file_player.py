@@ -5,7 +5,6 @@ import threading
 
 
 class MidiFilePlayerThread(threading.Thread):
-
     def __init__(self, port, filename, player_class, bypass_audio=False):
         threading.Thread.__init__(self)
         self.mid = mido.MidiFile(filename)
@@ -22,7 +21,7 @@ class MidiFilePlayerThread(threading.Thread):
                 break
 
             # is this safety necessary for fluidsynth?
-            if msg.type in ('note_on', 'note_off', 'control_change'):
+            if msg.type in ("note_on", "note_off", "control_change"):
                 self.midi_out.send(msg)
 
                 if not self.bypass_audio:
@@ -32,9 +31,7 @@ class MidiFilePlayerThread(threading.Thread):
         self.continue_playing = False
 
 
-
 class MidiFilePlayerProcess(multiprocessing.Process):
-
     def __init__(self, port, filename, player_class, bypass_audio=False):
         multiprocessing.Process.__init__(self)
         self.mid = mido.MidiFile(filename)
@@ -47,12 +44,12 @@ class MidiFilePlayerProcess(multiprocessing.Process):
 
         fluidsynth_player = self.player_class()
         for msg in self.mid.play():
-            
+
             if not self.continue_playing:
                 break
 
             # is this safety necessary for fluidsynth?
-            if msg.type in ('note_on', 'note_off', 'control_change'):
+            if msg.type in ("note_on", "note_off", "control_change"):
                 self.midi_out.send(msg)
                 if not self.bypass_audio:
                     fluidsynth_player.send(msg)
@@ -63,12 +60,13 @@ class MidiFilePlayerProcess(multiprocessing.Process):
         self.join()
 
 
-
-def get_midi_file_player(port, 
-                         file_name, 
-                         player_class, 
-                         thread=False, 
-                         bypass_audio=False):
+def get_midi_file_player(
+    port,
+    file_name,
+    player_class,
+    thread=False,
+    bypass_audio=False,
+):
     # import pdb
     # pdb.set_trace()
     # print(f'dodo {filename}')
@@ -85,4 +83,3 @@ def get_midi_file_player(port,
         file_player_type = MidiFilePlayerProcess
 
     return file_player_type(port, file_name, player_class, bypass_audio)
-
