@@ -39,8 +39,8 @@ from accompanion.accompanist import tempo_models
 class OLTWACCompanion(ACCompanion):
     """
     The On-Line Time Wrapping Accompanion Follower Class.
-    It inherits from the Base ACCompanion Class. It updates the methods setup_scores, setup_score_follower,
-    and check_empty_frames.
+    It inherits from the Base ACCompanion Class. It updates the methods
+    setup_scores, setup_score_follower, and check_empty_frames.
 
     Parameters
     ----------
@@ -157,13 +157,16 @@ class OLTWACCompanion(ACCompanion):
         for i, fn in enumerate(self.score_kwargs["solo_fn"]):
             if fn.endswith(".match"):
                 if i == 0:
-                    solo_ppart, alignment, solo_spart = partitura.load_match(
-                        fn=fn, create_part=True, first_note_at_zero=True
+                    solo_perf, alignment, solo_score = partitura.load_match(
+                        filename=fn, create_score=True, first_note_at_zero=True,
                     )
+                    solo_ppart = solo_perf[0]
+                    solo_spart = solo_score[0]
                 else:
-                    solo_ppart, alignment = partitura.load_match(
-                        fn=fn, create_part=False, first_note_at_zero=True
+                    solo_perf, alignment = partitura.load_match(
+                        filename=fn, create_score=False, first_note_at_zero=True,
                     )
+                    solo_ppart = solo_perf[0]
 
                 ptime_to_stime_map, stime_to_ptime_map = get_time_maps_from_alignment(
                     ppart_or_note_array=solo_ppart,
@@ -174,7 +177,7 @@ class OLTWACCompanion(ACCompanion):
                     (solo_ppart, ptime_to_stime_map, stime_to_ptime_map)
                 )
             else:
-                solo_spart = partitura.load_score(fn)
+                solo_spart = partitura.load_score(fn)[0]
 
                 if i == 0:
                     solo_spart = solo_spart
@@ -184,7 +187,7 @@ class OLTWACCompanion(ACCompanion):
         self.solo_score = part_to_score(solo_spart, bpm=self.init_bpm)
 
         if self.score_kwargs["accompaniment_match"] is None:
-            acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])
+            acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])[0]
             acc_notes = list(part_to_score(acc_spart, bpm=self.init_bpm).notes)
             velocity_trend = None
             velocity_dev = None
@@ -193,11 +196,13 @@ class OLTWACCompanion(ACCompanion):
             log_bpr = None
 
         else:
-            acc_ppart, acc_alignment, acc_spart = partitura.load_match(
-                fn=self.score_kwargs["accompaniment_match"],
+            acc_perf, acc_alignment, acc_score = partitura.load_match(
+                filename=self.score_kwargs["accompaniment_match"],
                 first_note_at_zero=True,
-                create_part=True,
+                create_score=True,
             )
+            acc_ppart = acc_perf[0]
+            acc_spart = acc_score[0]
             acc_notes = list(
                 alignment_to_score(
                     fn_or_spart=acc_spart, ppart=acc_ppart, alignment=acc_alignment

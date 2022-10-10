@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 New utilities to be added to partitura!
+
+TODO
+----
+* Replace utilities with the latest version from Partitura
 """
 
 import mido

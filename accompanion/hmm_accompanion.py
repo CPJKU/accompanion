@@ -153,15 +153,15 @@ class HMMACCompanion(ACCompanion):
 
         solo_spart = partitura.load_score(self.score_kwargs["solo_fn"])
 
-        if isinstance(solo_spart, list):
+        if isinstance(solo_spart, (list, partitura.score.Score)):
             solo_spart = solo_spart[0]
         elif isinstance(solo_spart, partitura.score.PartGroup):
             solo_spart = solo_spart.children[0]
 
         if self.score_kwargs["accompaniment_match"] is None:
-            acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])
+            acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])[0]
 
-            if isinstance(acc_spart, list):
+            if isinstance(acc_spart, (list, partitura.score.Score)):
                 acc_spart = acc_spart[0]
             elif isinstance(acc_spart, partitura.score.PartGroup):
                 acc_spart = acc_spart.children[0]
@@ -173,11 +173,13 @@ class HMMACCompanion(ACCompanion):
             log_bpr = None
 
         else:
-            acc_ppart, acc_alignment, acc_spart = partitura.load_match(
-                fn=self.score_kwargs["accompaniment_match"],
+            acc_perf, acc_alignment, acc_score = partitura.load_match(
+                filename=self.score_kwargs["accompaniment_match"],
                 first_note_at_zero=True,
-                create_part=True,
+                create_score=True,
             )
+            acc_ppart = acc_perf[0]
+            acc_spart = acc_score[0]
             acc_notes = list(
                 alignment_to_score(
                     fn_or_spart=acc_spart, ppart=acc_ppart, alignment=acc_alignment

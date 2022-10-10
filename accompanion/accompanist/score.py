@@ -10,8 +10,8 @@ import warnings
 from partitura import load_score
 from mido import Message
 import partitura
-from partitura.score import Part
-from partitura.performance import PerformedPart
+from partitura.score import Part, Score as PtScore
+from partitura.performance import PerformedPart, Performance
 
 from partitura.utils.music import performance_from_part
 
@@ -470,15 +470,20 @@ def alignment_to_score(fn_or_spart, ppart, alignment):
         part = load_score(fn_or_spart)
     elif isinstance(fn_or_spart, Part):
         part = fn_or_spart
+    elif isinstance(fn_or_spart, PtScore):
+        part = fn_or_spart[0]
     else:
         raise ValueError(
-            "`fn_or_spart` must be a `Part` or a filename, " f"but is {type(part)}."
+            "`fn_or_spart` must be a `Part` or a filename, " f"but is {type(fn_or_spart)}."
         )
 
-    if not isinstance(ppart, PerformedPart):
+    if not isinstance(ppart, (PerformedPart, Performance)):
         raise ValueError(
             "`ppart` must be a `PerformedPart`, but is ", f"{type(ppart)}."
         )
+
+    if isinstance(ppart, Performance):
+        ppart = ppart[0]
 
     part_by_id = dict((n.id, n) for n in part.notes_tied)
 
