@@ -1,6 +1,5 @@
+# -*- coding: utf-8 -*-
 from typing import Optional
-
-
 import numpy as np
 import partitura
 

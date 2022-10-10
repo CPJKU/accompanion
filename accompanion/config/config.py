@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 CONFIG = {
     # Found in base.py
     "ACC_PROCESS": True,
