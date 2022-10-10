@@ -36,7 +36,26 @@ class MidiInputPlayer(threading.Thread):
 
 
 class ScoreSequencer(threading.Thread):
-    def __init__(self, score_or_notes, outport=None, mediator=None):
+    """
+    The Score Sequencer sends the MIDI messages defined in the input
+    score to the MIDI port at the specified time
+
+    Parameters
+    ----------
+    score_or_notes : list of Note objects, AccompanimentScore
+        The accompaniment score to be performed by the ACCompanion.
+    outport : mido.Output
+       The Mido object for the Output MIDI port
+    mediator : ThreadMediator
+        The Mediator for filtering MIDI Messages (for the Bösendorfer CEUS).
+    """
+
+    def __init__(
+        self,
+        score_or_notes,
+        outport=None,
+        mediator=None,
+    ):
 
         threading.Thread.__init__(self)
         self.outport = outport
@@ -58,9 +77,18 @@ class ScoreSequencer(threading.Thread):
         self.last_performed_note = None
 
     def _next_notes(self, t):
+        """
+        List of the next notes to be played at any given time
+
+        Parameters
+        ----------
+        t : float
+           Time for which the next notes are sorted.
+        """
         try:
             return sorted(
-                [n for n in self.notes if n.p_onset >= t], key=lambda x: x.p_onset
+                [n for n in self.notes if n.p_onset >= t],
+                key=lambda x: x.p_onset,
             )
         except Exception as e:
             print("it happens here")
@@ -71,7 +99,6 @@ class ScoreSequencer(threading.Thread):
         Stop playing and send note off messages for all
         MIDI pitches
         """
-        # self.play = False
         # better use Mido's built-in panic button...
         try:
             print("Trying to note off all notes.")
@@ -80,10 +107,11 @@ class ScoreSequencer(threading.Thread):
 
         except AttributeError:
             pass
-        # self.outport.reset()
 
     def run(self):
-
+        """
+        Send the MIDI notes in the score through the output port in real time
+        """
         # Dictionary for holding currently sounding notes
         sounding_notes = {}
 
@@ -104,7 +132,8 @@ class ScoreSequencer(threading.Thread):
 
             # Get next note offs
             note_offs = sorted(
-                [sounding_notes[p] for p in sounding_notes], key=lambda x: x.p_offset
+                [sounding_notes[p] for p in sounding_notes],
+                key=lambda x: x.p_offset,
             )
 
             # Send note offs
@@ -123,7 +152,8 @@ class ScoreSequencer(threading.Thread):
                 if c_time >= n_on.p_onset and not n_on.already_performed:
 
                     if n_on.pitch in sounding_notes:
-                        # send note off if the pitch is the same as an already sounding note
+                        # send note off if the pitch is the same as an
+                        # already sounding note
                         self.outport.send(sounding_notes[n_on.pitch].note_off)
 
                     else:
@@ -157,10 +187,14 @@ class ScoreSequencer(threading.Thread):
                 self.panic_button()
 
     def get_midi_frame(self):
+        """
+        Get current MIDI frame (for the visualization)
+        """
         return self.curr_frame
 
     def stop_playing(self):
-
+        """
+        Stop playing
+        """
         self.play = False
         self.panic_button()
-        # self.join()
