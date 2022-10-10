@@ -14,6 +14,7 @@ class PitchIOIProcessor(object):
     piano_range : bool
         If True, the pitch range will be limited to the piano range (21-108).
     """
+
     def __init__(self, piano_range=False):
         self.prev_time = 0
         self.piano_range = piano_range
@@ -23,10 +24,6 @@ class PitchIOIProcessor(object):
     def __call__(self, frame, kwargs={}):
         data, f_time = frame
         pitch_obs = []
-        
-        # if len(data) > 0:
-        #     ioi_obs = f_time - self.prev_time
-        #     self.prev_time = f_time
 
         for msg, t in data:
             if (
@@ -62,6 +59,7 @@ class PianoRollProcessor(object):
     dtype : type
         The data type of the piano roll. Default is float.
     """
+
     def __init__(self, use_velocity=False, piano_range=False, dtype=float):
         self.active_notes = dict()
         self.piano_roll_slices = []
@@ -72,12 +70,8 @@ class PianoRollProcessor(object):
     def __call__(self, frame, kwargs={}):
         # initialize piano roll
         piano_roll_slice = np.zeros(128, dtype=self.dtype)
-        data, f_time = frame # NOTE f_time variable is never accessed
-        is_empty = False # NOTE variable is never accessed
+        data, f_time = frame
         for msg, m_time in data:
-            # CC is this still relevant?
-            # TODO: update with new format, if Mido Messages
-            # messages are substituted for something else
             if msg.type in ("note_on", "note_off"):
                 if msg.type == "note_on" and msg.velocity > 0:
                     self.active_notes[msg.note] = (msg.velocity, m_time)
@@ -108,6 +102,7 @@ class CumSumPianoRollProcessor(object):
     """
     A class to convert a MIDI file time slice to a piano roll representation.
     """
+
     def __init__(self, use_velocity=False, piano_range=False, dtype=float):
         self.active_notes = dict()
         self.piano_roll_slices = []
@@ -120,8 +115,6 @@ class CumSumPianoRollProcessor(object):
         piano_roll_slice = np.zeros(128, dtype=self.dtype)
         data, f_time = frame
         for msg, m_time in data:
-            # TODO: update with new format, if Mido Messages
-            # messages are substituted for something else
             if msg.type in ("note_on", "note_off"):
                 if msg.type == "note_on" and msg.velocity > 0:
                     self.active_notes[msg.note] = (msg.velocity, m_time)
