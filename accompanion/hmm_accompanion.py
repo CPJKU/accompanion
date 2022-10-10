@@ -12,7 +12,7 @@ from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
 from accompanion.base import ACCompanion
 from accompanion.midi_handler.midi_input import POLLING_PERIOD
-
+from accompanion.config import CONFIG
 from accompanion.accompanist.score import (
     AccompanimentScore,
     alignment_to_score,
@@ -275,11 +275,16 @@ class HMMACCompanion(ACCompanion):
         state_space = ioi_matrix[0]
         n_states = len(state_space)
 
-        # NOTE: Why is scale set to 0.5???
+        # The choice of the gumbel_transition_matrix should be a parameter in the future
+        # The distribution was chosen because it gives more weight to the upcoming states/onsets
+        # The scale parameter is the dispersion parameter of the distribution.
+        # The value scale=0.5 was chosen empirically during tests back in 2019.
+        # In this particular case, it is similar to a standard deviation of 0.5 beats the transition is centered
+        # on the next score onset with a "standard deviation" of 0.5 beats
         transition_matrix = score_hmm.gumbel_transition_matrix(
             n_states=n_states,
             inserted_states=inserted_states,
-            scale=0.5,
+            scale=CONFIG["gumbel_transition_matrix_scale"],
         )
         initial_probabilities = score_hmm.gumbel_init_dist(n_states=n_states)
 

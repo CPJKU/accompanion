@@ -11,4 +11,6 @@ CONFIG = {
     # I/O MIDI
     "BACKEND": "mido",
     "POLLING_PERIOD": 0.02,
+    # Used in HMMACCompanion
+    "gumbel_transition_matrix_scale" : 0.5,
 }
