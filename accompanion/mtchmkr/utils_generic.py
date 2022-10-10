@@ -29,17 +29,18 @@ class SequentialOutputProcessor(object):
         """
         Makes a processor callable.
         """
-        for processor in self.processors:
-            data, kwargs = processor(data, kwargs)
+        for proc in self.processors:
+            data, kwargs = proc(data, kwargs)
         return data
 
     def reset(self):
         """
-        Reset the processor. Must be implemented in the derived class to reset the processor to its initial state.
+        Reset the processor. Must be implemented in the derived class
+        to reset the processor to its initial state.
         """
-        for processor in self.processors:
-            if hasattr(processor, "reset"):
-                processor.reset()
+        for proc in self.processors:
+            if hasattr(proc, "reset"):
+                proc.reset()
 
 
 def matchfile_to_midi(fn, perf_outfile, score_outfile=None):
