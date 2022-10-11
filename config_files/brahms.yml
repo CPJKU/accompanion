@@ -20,10 +20,10 @@ config:
         log_articulation_scale: 0.12
         mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Silent Piano
-        acc_output_to_sound_port_name: Silent Piano
-        MIDIPlayer_to_sound_port_name: None
-        MIDIPlayer_to_accompaniment_port_name: None
+        solo_input_to_accompaniment_port_name: 0
+        acc_output_to_sound_port_name: FluidsynthPlayer
+        MIDIPlayer_to_sound_port_name: FluidsynthPlayer
+        MIDIPlayer_to_accompaniment_port_name: 0
         simple_button_input_port_name: None
     adjust_following_rate: 0.2 # How much the SF is adjusted if solo stops playing.
     bypass_audio: False

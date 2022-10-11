@@ -329,13 +329,15 @@ class ACCompanion(ACC_PARENT):
         if self.midi_fn is not None:
             print("Start playing MIDI file")
             self.dummy_solo = get_midi_file_player(
-                port=self.router.MIDIPlayer_to_accompaniment_port,
+                port= self.router.MIDIPlayer_to_accompaniment_port,
                 file_name=self.midi_fn,
                 player_class=FluidsynthPlayer,
                 thread=CONFIG["USE_THREADS"],
                 bypass_audio=self.bypass_audio,
             )
             self.dummy_solo.start()
+
+
 
         # dummy start time (see below)
         if start_time is None:

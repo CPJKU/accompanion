@@ -181,6 +181,10 @@ if __name__ == "__main__":
     configurations["record_midi"] = args.record_midi if args.record_midi else False
     configurations["midi_fn"] = args.midi_fn if args.midi_fn else None
 
+    if configurations["midi_fn"] is not None:
+        configurations["midi_router_kwargs"]["solo_input_to_accompaniment_port_name"] = 0
+        configurations["midi_router_kwargs"]["MIDIPlayer_to_accompaniment_port_name"] = 0
+
     accompanion = ACCompanion(**configurations)
 
     accompanion.run()
