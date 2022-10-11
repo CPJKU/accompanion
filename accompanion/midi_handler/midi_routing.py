@@ -424,7 +424,7 @@ class RecordingRouter(MidiRouter):
     the soloist and the MIDI output of the accompaniment.
     """
 
-    def __init__(self, router_kwargs, piece_name):
+    def __init__(self, piece_name, **router_kwargs):
         super(RecordingRouter, self).__init__(**router_kwargs)
         self.piece_name = piece_name
         self.solo_input_to_accompaniment_port = RecordingPort(

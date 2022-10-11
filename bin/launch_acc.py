@@ -59,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
     parser.add_argument("--record-midi", action="store_true", help="Record Midi input and Output.")
+    parser.add_argument("--midi-fn", help="Midi file to play instead of real time input.")
 
     args = parser.parse_args()
 
@@ -178,6 +179,7 @@ if __name__ == "__main__":
     configurations["test"] = True if args.test else False
 
     configurations["record_midi"] = args.record_midi if args.record_midi else False
+    configurations["midi_fn"] = args.midi_fn if args.midi_fn else None
 
     accompanion = ACCompanion(**configurations)
 

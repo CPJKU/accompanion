@@ -212,7 +212,7 @@ class ACCompanion(ACC_PARENT):
                 raise ValueError(
                     f"{self.score_kwargs['solo_fn']} should be a string or a list"
                 )
-            self.router = RecordingRouter(self.router_kwargs, piece_name)
+            self.router = RecordingRouter(piece_name, **self.router_kwargs)
         else:
             self.router = MidiRouter(**self.router_kwargs)
 
