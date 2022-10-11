@@ -43,12 +43,11 @@ def midi_file_from_midi_msg(midi_msg_list, output_path):
     starting_time = midi_msg_list[0][1]
     last_message_time = starting_time
     for msg, abs_time in midi_msg_list:
-        delta_time = abs_time - last_message_time
-        last_message_time = abs_time
-        ticks = int(mido.second2tick(delta_time, mid.ticks_per_beat, 500000))
-
         # TODO: Add pedal messages
         if msg.type in ("note_on", "note_off"):
+            delta_time = abs_time - last_message_time
+            last_message_time = abs_time
+            ticks = int(mido.second2tick(delta_time, mid.ticks_per_beat, 500000))
             track.append(
                 mido.Message(
                     msg.type,
