@@ -358,6 +358,8 @@ class ACCompanion(ACC_PARENT):
             while not self.seq.end_of_piece:
                 # TODO GH Issue 22: "if not self.queue.poll()"
                 # vs. "self.queue.poll() is not None"
+                # (NV) actually, this should be "have a CORRECT branch (non-blocking MIDI)
+                # vs. no branch (blocking MIDI)"
                 if self.queue.poll() is not None:
                     output = self.queue.recv()
                     solo_p_onset = time.time() - start_time
