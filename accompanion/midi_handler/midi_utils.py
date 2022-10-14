@@ -1,9 +1,10 @@
+
 # -*- coding: utf-8 -*-
 """
 MIDI utilities
 """
-import threading
 import os
+
 
 import mido
 
@@ -13,14 +14,6 @@ filepath = realpath(__file__)
 dir_of_file = dirname(filepath)
 acc_pack_dir = dirname(dir_of_file)
 accdir = dirname(acc_pack_dir)
-
-
-class VirtualMidiThroughPort(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-
-    def send(self, msg):
-        self.outport.send(msg)
 
 
 OUTPUT_MIDI_FOLDER = os.path.join(accdir, "recorded_midi")

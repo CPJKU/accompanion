@@ -7,7 +7,10 @@ be updated without requiring to re-install matchmaker
 import time
 import datetime
 import queue
+
 # import sys
+
+from typing import Optional
 
 import mido
 
@@ -17,6 +20,46 @@ from accompanion.midi_handler.midi_utils import (
     OUTPUT_MIDI_FOLDER,
 )
 import os
+
+
+class BasePort(object):
+    """
+    Base class for custom ports. All custom ports need
+    to implement at least the `send` method.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
+    def send(self, msg: mido.Message) -> None:
+        """
+        Send a MIDI message
+
+        Parameters
+        ----------
+        msg: mido.Message
+           MIDI Message to be sent through the port.
+        """
+        raise NotImplementedError
+
+    def panic(self) -> None:
+        """
+        Panic button to stop all MIDI notes.
+        """
+        pass
+
+    def poll(self) -> Optional[mido.Message]:
+        """
+        Poll message from the port. Needs to be implemented
+        by the subclasses if they serve as input ports.
+        """
+        raise NotImplementedError
+
+    def reset(self) -> None:
+        """
+        Reset all activity in the MIDI port (stop all notes, programs and controllers).
+        """
+        pass
 
 
 class MidiRouter(object):
@@ -296,8 +339,9 @@ class MidiRouter(object):
             return None
 
 
-class DummyMultiPort(object):
+class DummyMultiPort(BasePort):
     def __init__(self, midi_port, fluid_port):
+        super().__init__()
         self.midi_port = midi_port
         self.fluid_port = fluid_port
 
