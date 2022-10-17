@@ -4,7 +4,7 @@ import multiprocessing
 import time
 import threading
 from multiprocessing import Pipe
-from queue import Queue
+from queue import Queue, Empty
 import tempfile
 import os
 
@@ -28,7 +28,7 @@ class RECVQueue(Queue):
         while True:
             try:
                 return self.get(timeout=1)
-            except Queue.Empty:
+            except Empty:
                 pass
 
     def poll(self):
