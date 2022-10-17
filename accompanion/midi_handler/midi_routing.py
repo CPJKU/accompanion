@@ -10,9 +10,11 @@ import queue
 
 # import sys
 
-from typing import Optional
+from typing import Optional, Iterable, Union
 
 import mido
+
+from mido.ports import BaseOutput
 
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 from accompanion.midi_handler.midi_utils import (
@@ -287,11 +289,11 @@ class MidiRouter(object):
 
     def open_ports(self):
         for port_name in self.input_port_names.keys():
-            if self.input_port_names[port_name] == None:
+            if self.input_port_names[port_name] is None:
                 port = self.open_ports_by_name(port_name, input=True)
                 self.input_port_names[port_name] = port
         for port_name in self.output_port_names.keys():
-            if self.output_port_names[port_name] == None:
+            if self.output_port_names[port_name] is None:
                 port = self.open_ports_by_name(port_name, input=False)
                 self.output_port_names[port_name] = port
 
@@ -350,21 +352,61 @@ class DummyMultiPort(BasePort):
         self.fluid_port.send(msg)
 
 
-class DummyPort(object):
+class DummyPort(BasePort):
     def __init__(self, *args, **kwargs):
-        pass
+        super().__init__()
 
     def send(self, msg):
-        pass
-
-    def panic(self):
         pass
 
     def poll(self):
         pass
 
+
+class MultiOutputPort(BasePort):
+    """
+    Virtual MIDI port that sends messages to multiple output ports.
+
+    Parameters
+    ----------
+    output_ports: BaseOutput, BasePort or iterable of those classes
+        Output ports that we want to send the same messages to.
+    """
+
+    def __init__(
+        self,
+        output_ports: Union[Iterable[BaseOutput], BaseOutput, BasePort],
+    ) -> None:
+
+        if isinstance(output_ports, (BaseOutput, BasePort)):
+            self.output_ports = [output_ports]
+
+        elif isinstance(output_ports, Iterable):
+            if any(not isinstance(op) for op in output_ports):
+                raise ValueError(
+                    "All provided output ports should be of type " "`BaseOutput`!"
+                )
+            self.output_ports = output_ports
+        else:
+            raise ValueError(
+                "`output_ports` should be a ` BaseOutput` instance"
+                f"or a list of instances, but it is {type(output_ports)}."
+            )
+
+    def send(self, msg):
+
+        for port in self.output_ports:
+            port.send(msg)
+
+    def panic(self):
+
+        for port in self.output_ports:
+            port.panic()
+
     def reset(self):
-        pass
+
+        for port in self.output_ports:
+            port.reset()
 
 
 class MidiFilePlayerInterceptPort(object):
@@ -498,12 +540,13 @@ class RecordingRouter(MidiRouter):
         print(f"MIDI files saved in {soloist_out_path} and {accompaniment_out_path}")
 
 
-class RecordingPort(object):
+class RecordingPort(BasePort):
     """This class acts a middleman MIDI port for recording MIDI msgs.
     It captures messages sent and received and forward them to the wanted port
     """
 
     def __init__(self, real_port):
+        super().__init__()
         self.active = True
         self.port = real_port
         self.all_msg = queue.Queue()
