@@ -360,95 +360,98 @@ class ACCompanion(ACC_PARENT):
                 # vs. "self.queue.poll() is not None"
                 # (NV) actually, this should be "have a CORRECT branch (non-blocking MIDI)
                 # vs. no branch (blocking MIDI)"
-                if self.queue.poll() is not None:
-                    output = self.queue.recv()
-                    solo_p_onset = time.time() - start_time
-                    input_midi_messages, output = output
-                    new_midi_messages = False
+                
+                #if self.queue.poll() is not None:
+                
+                #this version of recv uses the quasi-blocking version with periodic timeouts
+                output = self.queue.recv()
+                solo_p_onset = time.time() - start_time
+                input_midi_messages, output = output
+                new_midi_messages = False
 
-                    for msg, msg_time in input_midi_messages:
-                        if msg.type in ("note_on", "note_off"):
+                for msg, msg_time in input_midi_messages:
+                    if msg.type in ("note_on", "note_off"):
 
-                            if msg.type == "note_on" and msg.velocity > 0:
-                                new_midi_messages = True
-                            midi_msg = (msg.type, msg.note, msg.velocity, solo_p_onset)
-                            self.note_tracker.track_note(midi_msg)
+                        if msg.type == "note_on" and msg.velocity > 0:
+                            new_midi_messages = True
+                        midi_msg = (msg.type, msg.note, msg.velocity, solo_p_onset)
+                        self.note_tracker.track_note(midi_msg)
 
-                    if self.check_empty_frames(output):
-                        empty_loops += 1
+                if self.check_empty_frames(output):
+                    empty_loops += 1
+                else:
+                    empty_loops = 0
+
+                # if perf_start:
+                score_position = self.score_follower(output)
+
+                solo_s_onset, onset_index, acc_update = onset_tracker(
+                    score_position,
+                    expected_position
+                    # self.seq.performed_score_onsets[-1]
+                )
+
+                pioi = (
+                    solo_p_onset - prev_solo_p_onset
+                    if prev_solo_p_onset is not None
+                    else self.polling_period
+                )
+                prev_solo_p_onset = solo_p_onset
+                expected_position = expected_position + pioi / self.beat_period
+
+                if solo_s_onset is not None:
+
+                    print(
+                        f"performed onset {solo_s_onset}",
+                        f"expected onset {expected_position}",
+                        f"beat_period {self.beat_period}",
+                        f"adjusted {acc_update or adjusted_sf}",
+                    )
+
+                    if self.test and test_counter == 10:
+                        break
                     else:
-                        empty_loops = 0
+                        test_counter += 1
 
-                    # if perf_start:
-                    score_position = self.score_follower(output)
-
-                    solo_s_onset, onset_index, acc_update = onset_tracker(
-                        score_position,
-                        expected_position
-                        # self.seq.performed_score_onsets[-1]
-                    )
-
-                    pioi = (
-                        solo_p_onset - prev_solo_p_onset
-                        if prev_solo_p_onset is not None
-                        else self.polling_period
-                    )
-                    prev_solo_p_onset = solo_p_onset
-                    expected_position = expected_position + pioi / self.beat_period
-
-                    if solo_s_onset is not None:
-
-                        print(
-                            f"performed onset {solo_s_onset}",
-                            f"expected onset {expected_position}",
-                            f"beat_period {self.beat_period}",
-                            f"adjusted {acc_update or adjusted_sf}",
-                        )
-
-                        if self.test and test_counter == 10:
-                            break
-                        else:
-                            test_counter += 1
-
-                        if not acc_update:
-                            asynch = expected_position - solo_s_onset
-                            expected_position = expected_position - 0.6 * asynch
-                            loops_without_update = 0
-                            adjusted_sf = False
-                        else:
-                            loops_without_update += 1
-
-                        if new_midi_messages:
-                            self.note_tracker.update_alignment(solo_s_onset)
-                        # start accompaniment if it starts at the
-                        # same time as the solo
-                        if solo_starts and onset_index == 0:
-                            if not sequencer_start:
-                                print("Start accompaniment")
-                                sequencer_start = True
-                                self.accompanist.accompaniment_step(
-                                    solo_s_onset=solo_s_onset,
-                                    solo_p_onset=solo_p_onset,
-                                )
-                                self.seq.start()
-
-                        if (
-                            solo_s_onset > self.first_score_onset
-                            and not acc_update
-                            and not adjusted_sf
-                        ):
-                            self.accompanist.accompaniment_step(
-                                solo_s_onset=solo_s_onset, solo_p_onset=solo_p_onset
-                            )
-                            self.beat_period = self.accompanist.pc.bp_ave
+                    if not acc_update:
+                        asynch = expected_position - solo_s_onset
+                        expected_position = expected_position - 0.6 * asynch
+                        loops_without_update = 0
+                        adjusted_sf = False
                     else:
                         loops_without_update += 1
 
-                    if loops_without_update % self.afr == 0:
-                        # only allow forward updates
-                        if self.score_follower.current_position < expected_position:
-                            self.score_follower.update_position(expected_position)
-                            adjusted_sf = True
+                    if new_midi_messages:
+                        self.note_tracker.update_alignment(solo_s_onset)
+                    # start accompaniment if it starts at the
+                    # same time as the solo
+                    if solo_starts and onset_index == 0:
+                        if not sequencer_start:
+                            print("Start accompaniment")
+                            sequencer_start = True
+                            self.accompanist.accompaniment_step(
+                                solo_s_onset=solo_s_onset,
+                                solo_p_onset=solo_p_onset,
+                            )
+                            self.seq.start()
+
+                    if (
+                        solo_s_onset > self.first_score_onset
+                        and not acc_update
+                        and not adjusted_sf
+                    ):
+                        self.accompanist.accompaniment_step(
+                            solo_s_onset=solo_s_onset, solo_p_onset=solo_p_onset
+                        )
+                        self.beat_period = self.accompanist.pc.bp_ave
+                else:
+                    loops_without_update += 1
+
+                if loops_without_update % self.afr == 0:
+                    # only allow forward updates
+                    if self.score_follower.current_position < expected_position:
+                        self.score_follower.update_position(expected_position)
+                        adjusted_sf = True
         except Exception as e:
             print(e)
             pass
