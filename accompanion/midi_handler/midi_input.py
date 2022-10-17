@@ -20,8 +20,16 @@ class RECVQueue(Queue):
     def __init__(self):
         Queue.__init__(self)
 
+    # using python's Queue.get with a timeout makes it interruptable via KeyboardInterrupt
+    # and even for the future where that is possibly out-dated, the interrupt can happen after each timeout
+    # so periodically query the queue with a timeout of 1s each attempt, finding a middleground
+    # between busy-waiting and uninterruptable blocked waiting
     def recv(self):
-        return self.get()
+        while True:
+            try:
+                return self.get(timeout=1)
+            except Queue.Empty:
+                pass
 
     def poll(self):
         return self.empty()
