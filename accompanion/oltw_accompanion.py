@@ -57,7 +57,7 @@ class OLTWACCompanion(ACCompanion):
     score_follower_kwargs : dict, optional
         The keyword arguments for the score follower, by default {"score_follower": "PitchIOIHMM", "score_follower_kwargs": {}, "input_processor": {"processor": "PitchIOIProcessor", "processor_kwargs": {}}}.
     tempo_model_kwargs : dict, optional
-        The keyword arguments for the tempo model, by default {"tempo_model": tempo_models.LSM}.
+        The keyword arguments for the tempo model, by default {"tempo_model": tempo_models.LTSM}.
     performance_codec_kwargs : dict, optional
         The keyword arguments for the performance codec, by default {"velocity_trend_ma_alpha": 0.6, "articulation_ma_alpha": 0.4, "velocity_dev_scale": 70, "velocity_min": 20, "velocity_max": 100, "velocity_solo_scale": 0.85, "timing_scale": 0.001, "log_articulation_scale": 0.1, "mechanical_delay": 0.0}.
     init_bpm : float, optional
@@ -93,7 +93,7 @@ class OLTWACCompanion(ACCompanion):
                 "processor_kwargs": {"piano_range": True},
             },
         },
-        tempo_model_kwargs={"tempo_model": tempo_models.LSM},
+        tempo_model_kwargs={"tempo_model": tempo_models.LTSM}, 
         performance_codec_kwargs={
             "velocity_trend_ma_alpha": 0.6,
             "articulation_ma_alpha": 0.4,

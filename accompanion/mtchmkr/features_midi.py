@@ -101,6 +101,7 @@ class PianoRollProcessor(object):
 class CumSumPianoRollProcessor(object):
     """
     A class to convert a MIDI file time slice to a piano roll representation.
+    TODO: del, never called?
     """
 
     def __init__(self, use_velocity=False, piano_range=False, dtype=float):
