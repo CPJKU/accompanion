@@ -129,8 +129,13 @@ class OLTWACCompanion(ACCompanion):
                     solo_spart = solo_spart
 
                 self.solo_parts.append((solo_spart, None, None))
-
+        
         self.solo_score = part_to_score(solo_spart, bpm=self.init_bpm)
+        # Dirty fix for partitura >= 1.1.0
+        # print(type(solo_spart)) # partitura.score.Score
+        # self.solo_score = solo_spart #bpm=self.init_bpm
+        # print(type(solo_spart.parts[0])) # <class 'partitura.score.Part'>
+        # self.solo_spart = self.solo_score.parts[0]
 
         if self.score_kwargs["accompaniment_match"] is None:
             acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])
@@ -147,6 +152,13 @@ class OLTWACCompanion(ACCompanion):
                 first_note_at_zero=True,
                 create_part=True,
             )
+            # Dirty fix for partitura >= 1.1.0
+            # print(type(acc_ppart), type(acc_alignment), type(acc_spart))
+            # <class 'partitura.performance.Performance'> <class 'list'> <class 'partitura.score.Score'>
+            # acc_ppart = acc_ppart.performedparts[0]
+            # acc_spart = acc_spart.parts[0]
+            # print(type(acc_ppart), type(acc_alignment), type(acc_spart))
+            # <class 'partitura.performance.PerformedPart'> <class 'list'> <class 'partitura.score.Part'>
             acc_notes = list(
                 alignment_to_score(
                     fn_or_spart=acc_spart, ppart=acc_ppart, alignment=acc_alignment

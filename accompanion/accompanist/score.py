@@ -312,7 +312,8 @@ class AccompanimentScore(Score):
         log_articulation=None,
         note_array=None,
     ):
-
+        
+        # print(type(solo_score)) # partitura.score.Score
         assert isinstance(solo_score, Score)
 
         super().__init__(
@@ -403,12 +404,17 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     score : Score
         A `Score` object.
     """
-
+    
+    # print(type(fn_spart_or_ppart)) # partitura.score.Score
+    # print(fn_spart_or_ppart) # <partitura.score.Score object at 0x7f8aaac61990>
+    # print(isinstance(fn_spart_or_ppart, Score)) # False
+    
     if isinstance(fn_spart_or_ppart, str):
         part = load_score(fn_spart_or_ppart)
-    elif isinstance(fn_spart_or_ppart, (Part, PerformedPart)):
+    # elif isinstance(fn_spart_or_ppart, (Part, PerformedPart)):
+    elif isinstance(fn_spart_or_ppart, (Score, PerformedPart)):
         part = fn_spart_or_ppart
-
+  
     s_note_array = part.note_array()
     if isinstance(part, Part):
         p_note_array = performance_from_part(part, bpm).note_array()
