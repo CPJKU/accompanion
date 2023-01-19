@@ -3,8 +3,8 @@ config:
     follower : oltw
     score_follower_kwargs :
         score_follower: OnlineTimeWarping
-        window_size: 100
-        step_size: 10
+        window_size: 20 # 40 # 60 # 80 #100
+        step_size: 12 # 8 # 10
         input_processor:
             processor: PianoRollProcessor
             processor_kwargs:
@@ -25,14 +25,14 @@ config:
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
-    adjust_following_rate: 0.2
+    adjust_following_rate: 033 # 0.12 # 0.2
     bypass_audio: False
     tempo_model_kwargs:
         tempo_model: LTESM
     use_ceus_mediator: False
-    polling_period: 0.01
-    init_bpm : 120
+    polling_period: 0.01 # 0.01
+    init_bpm : 112 # 60 # 72 # 90 # 112 # 120
     init_velocity : 60
 piece_dir : mozart_demo
-acc_fn : musicxml/Sonata-k381-a123_Secondo.musicxml
+acc_fn : musicxml/Sonata-k381-a123_Primo.musicxml
 accompaniment_match : basismixer/mozart_sonata_secondo.match

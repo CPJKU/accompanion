@@ -162,6 +162,7 @@ def partitura_to_framed_midi_custom(
     score_bpm=100,
     return_reference=False,
 ):
+    part_or_notearray_or_filename = part_or_notearray_or_filename.performedparts[0]
     # Allow for loading all valid representations in partitura
     if isinstance(
         part_or_notearray_or_filename,
