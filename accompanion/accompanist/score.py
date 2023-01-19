@@ -414,6 +414,8 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     # elif isinstance(fn_spart_or_ppart, (Part, PerformedPart)):
     elif isinstance(fn_spart_or_ppart, (Score, PerformedPart)):
         part = fn_spart_or_ppart
+    else:
+        part = fn_spart_or_ppart
   
     s_note_array = part.note_array()
     if isinstance(part, Part):

@@ -109,10 +109,13 @@ class OLTWACCompanion(ACCompanion):
                     solo_ppart, alignment, solo_spart = partitura.load_match(
                         fn=fn, create_part=True, first_note_at_zero=True
                     )
+                    solo_ppart = solo_ppart.performedparts[0]
+                    solo_spart = solo_spart.parts[0]
                 else:
                     solo_ppart, alignment = partitura.load_match(
                         fn=fn, create_part=False, first_note_at_zero=True
                     )
+                    solo_ppart = solo_ppart.performedparts[0]
 
                 ptime_to_stime_map, stime_to_ptime_map = get_time_maps_from_alignment(
                     ppart_or_note_array=solo_ppart,
@@ -123,7 +126,7 @@ class OLTWACCompanion(ACCompanion):
                     (solo_ppart, ptime_to_stime_map, stime_to_ptime_map)
                 )
             else:
-                solo_spart = partitura.load_score(fn)
+                solo_spart = partitura.load_score(fn).parts[0]
 
                 if i == 0:
                     solo_spart = solo_spart
@@ -155,8 +158,8 @@ class OLTWACCompanion(ACCompanion):
             # Dirty fix for partitura >= 1.1.0
             # print(type(acc_ppart), type(acc_alignment), type(acc_spart))
             # <class 'partitura.performance.Performance'> <class 'list'> <class 'partitura.score.Score'>
-            # acc_ppart = acc_ppart.performedparts[0]
-            # acc_spart = acc_spart.parts[0]
+            acc_ppart = acc_ppart.performedparts[0]
+            acc_spart = acc_spart.parts[0]
             # print(type(acc_ppart), type(acc_alignment), type(acc_spart))
             # <class 'partitura.performance.PerformedPart'> <class 'list'> <class 'partitura.score.Part'>
             acc_notes = list(
