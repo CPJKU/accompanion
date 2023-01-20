@@ -1,0 +1,34 @@
+config:
+#    follower : oltw
+#    score_follower_kwargs :
+#        score_follower: OnlineTimeWarping
+#        window_size: 100
+#        step_size: 10
+#        input_processor:
+#            processor: PianoRollProcessor
+#            processor_kwargs:
+#              piano_range: True
+    performance_codec_kwargs :
+        velocity_trend_ma_alpha: 0.6
+        articulation_ma_alpha: 0.4
+        velocity_dev_scale: 70
+        velocity_min: 20
+        velocity_max: 85
+        velocity_solo_scale: 0.83
+        timing_scale: 0.001
+        log_articulation_scale: 0.12
+        mechanical_delay: 0.0
+    midi_router_kwargs :
+        solo_input_to_accompaniment_port_name: 0
+        acc_output_to_sound_port_name: FluidsynthPlayer
+        MIDIPlayer_to_sound_port_name: FluidsynthPlayer
+        MIDIPlayer_to_accompaniment_port_name: 0
+        simple_button_input_port_name: None
+    adjust_following_rate: 0.2 # How much the SF is adjusted if solo stops playing.
+    bypass_audio: False
+    tempo_model_kwargs:
+        tempo_model: LTESM
+    use_ceus_mediator: False
+    polling_period: 0.01
+    init_bpm : 120
+    init_velocity : 60

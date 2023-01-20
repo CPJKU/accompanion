@@ -23,7 +23,8 @@ class NoteTracker(object):
         "already_matched",
         "time",
         "note_dict",
-        "recently_closed_snotes"
+        "recently_closed_snotes",
+        "alignment"
     ]
 
 
@@ -39,6 +40,7 @@ class NoteTracker(object):
         # 1d list of all matched score note ids (easier to check if id is already matched)
         self.time = 0
         self.recently_closed_snotes = []
+        self.alignment = list()
         self.setup_tracked_notes()
 
     def setup_tracked_notes(self):
@@ -138,8 +140,10 @@ class NoteTracker(object):
 
                 if score_id is None:
                     print("No match for", note)
+                    self.alignment.append({"label": "insertion", "onset": self.onset[idx]})
                 else:
                     self.note_dict[score_id][2] = self.onset[idx]
+                    self.alignment.append({"label": "match", "score_id": score_id, "onset": self.onset[idx]})
                 matched_ids.append(score_id)
 
             # store matches for particular notes

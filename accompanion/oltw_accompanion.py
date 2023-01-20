@@ -93,7 +93,7 @@ class OLTWACCompanion(ACCompanion):
                 "processor_kwargs": {"piano_range": True},
             },
         },
-        tempo_model_kwargs={"tempo_model": tempo_models.LTSM}, 
+        tempo_model_kwargs={"tempo_model": tempo_models.LTESM},
         performance_codec_kwargs={
             "velocity_trend_ma_alpha": 0.6,
             "articulation_ma_alpha": 0.4,
@@ -112,7 +112,7 @@ class OLTWACCompanion(ACCompanion):
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # bypass MIDIRouter
-        record_midi : bool = False,
+        record_midi: bool = False,
     ) -> None:
 
         score_kwargs = dict(

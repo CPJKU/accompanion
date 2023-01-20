@@ -91,7 +91,6 @@ class ACCompanion(ACC_PARENT):
         self.solo_fn = solo_fn
         self.acc_fn = acc_fn
         self.midi_fn = midi_fn
-
         # Matchfile with ground truth alignment (to
         # test the accuracy of the score follower)
         self.ground_truth_match = ground_truth_match
@@ -582,10 +581,15 @@ class ACCompanion(ACC_PARENT):
                             f"adjusted {acc_update or adjusted_sf}",
                         )
 
+
+
+
                         if not acc_update:
                             asynch = expected_position - solo_s_onset
                             # print('asynchrony', asynch)
                             expected_position = expected_position - 0.6 * asynch
+
+
                             loops_without_update = 0
                             adjusted_sf = False
                         else:
@@ -632,7 +636,6 @@ class ACCompanion(ACC_PARENT):
                                 self.get_tempo(),
                             )
                         )
-
         except Exception:
             pass
         finally:
