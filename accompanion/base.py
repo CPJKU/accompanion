@@ -408,7 +408,7 @@ class ACCompanion(ACC_PARENT):
                         f"beat_period {self.beat_period}",
                         f"adjusted {acc_update or adjusted_sf}",
                     )
-                    self.time_delays.append((solo_s_onset, solo_p_onset, self.beat_period))
+                    self.time_delays.append([solo_s_onset, solo_p_onset, self.beat_period])
 
                     if not acc_update:
                         asynch = expected_position - solo_s_onset

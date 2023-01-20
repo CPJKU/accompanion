@@ -121,7 +121,7 @@ if __name__ == "__main__":
     performance = partitura.load_performance(args.midi_fn)
     pnote_array = performance.note_array()
     piece_name = os.path.splitext(os.path.basename(args.piece_fn))[0]
-    solo_s_onset, solo_p_onset, beat_period = zip(accompanion.time_delays)
+    solo_s_onset, solo_p_onset, beat_period = zip(*accompanion.time_delays)
     alignmnent = accompanion.alignment
     for i in range(len(alignmnent)):
         a = pnote_array[pnote_array["onset_sec"] == alignmnent[i]["onset"]]
