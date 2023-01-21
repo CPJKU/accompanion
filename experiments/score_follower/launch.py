@@ -131,13 +131,13 @@ if __name__ == "__main__":
     #     alignmnent["performance_id"] = a["id"].item()
 
     partitura.io.exportparangonada.save_parangonada_alignment(
-        alignmnent, os.path.join(os.path.dirname(__file__), "artifacts", f"{piece_name}_alignment.csv"))
+        alignmnent, os.path.join(os.path.dirname(__file__), "artifacts", f"{piece_name}_{args.follower}_alignment.csv"))
 
     df = pd.DataFrame({
         "Solo Score Onset": solo_s_onset,
         "Solo Performance Onset": solo_p_onset,
         "Beat Period": beat_period,
     })
-    df.to_csv(os.path.join(os.path.dirname(__file__), "artifacts", f"{piece_name}_time_delays.csv"), index=False)
+    df.to_csv(os.path.join(os.path.dirname(__file__), "artifacts", f"{piece_name}_{args.follower}_time_delays.csv"), index=False)
 
 
