@@ -40,7 +40,7 @@ class NoteTracker(object):
         self.already_matched = []
         # 1d list of all matched score note ids (easier to check if id is already matched)
         self.time = 0
-        self.midi_id = 0
+        self.midi_id = -1
         self.recently_closed_snotes = []
         self.alignment = list()
         self.setup_tracked_notes()
