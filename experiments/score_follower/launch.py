@@ -123,11 +123,13 @@ if __name__ == "__main__":
     piece_name = os.path.splitext(os.path.basename(args.piece_fn))[0]
     solo_s_onset, solo_p_onset, beat_period = zip(*accompanion.time_delays)
     alignmnent = accompanion.alignment
-    for i in range(len(alignmnent)):
-        a = pnote_array[pnote_array["onset_sec"] == alignmnent[i]["onset"]]
-        if len(a) == 0:
-            raise ValueError("No note found in performance for onset {}".format(alignmnent[i]["onset"]))
-        alignmnent["performance_id"] = a["id"].item()
+    # for i in range(len(alignmnent)):
+        # alignmnent[i]["performance_id"] = alignmnent[i]["onset"]
+    #     a = pnote_array[pnote_array["onset_sec"] == alignmnent[i]["onset"]]
+    #     if len(a) == 0:
+    #         raise ValueError("No note found in performance for onset {}".format(alignmnent[i]["onset"]))
+    #     alignmnent["performance_id"] = a["id"].item()
+
     partitura.io.exportparangonada.save_parangonada_alignment(
         alignmnent, os.path.join(os.path.dirname(__file__), "artifacts", f"{piece_name}_alignment.csv"))
 
