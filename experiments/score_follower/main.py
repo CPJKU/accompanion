@@ -9,7 +9,7 @@ pl = platform.system()
 if pl == "Windows":
     path_par = os.path.normpath("C:\\Users\\melki\\Desktop\\JKU\\data\\accompanion_experiment\\")
 else:
-    path_par = os.path.normpath("/home/manos/Desktop/JKU/data/accompaniment_experiment/")
+    path_par = os.path.normpath("/home/manos/Desktop/JKU/data/accompanion_experiment/")
 for file in os.listdir(os.path.join(path_par, "musicxml")):
     xml_path = os.path.join(path_par, "musicxml", file)
     midi_path = os.path.join(path_par, "midi", os.path.splitext(file)[0] + ".mid")
