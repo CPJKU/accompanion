@@ -107,6 +107,17 @@ if __name__ == "__main__":
     else:
         raise ValueError("No midi file has been specified, or path MIDI path is invalid.")
 
+    # Load Match files for OLTW
+    if args.follower == "oltw":
+        base_name = os.path.splitext(os.path.basename(args.piece_fn))[0]
+        match_dir = os.path.join(
+            os.path.dirname(os.path.dirname(args.piece_fn)), "match_gen", base_name)
+        if not os.path.exists(match_dir):
+            raise ValueError("No match directory found.")
+        configurations["solo_fn"] = glob.glob(
+            os.path.join(match_dir, "*.match")
+        )
+
     if configurations["midi_fn"] is not None:
 
         configurations["midi_router_kwargs"]["solo_input_to_accompaniment_port_name"] = 0
