@@ -9,6 +9,7 @@ import glob
 import partitura
 from accompanion import PLATFORM
 import sys
+import numpy as np
 
 # open the file in the write mode
 
@@ -134,6 +135,10 @@ if __name__ == "__main__":
     piece_name = os.path.splitext(os.path.basename(args.piece_fn))[0]
     solo_s_onset, solo_p_onset, beat_period = zip(*accompanion.time_delays)
     alignmnent = accompanion.alignment
+
+    for a in alignmnent:
+        a["performance_id"] = pnote_array[np.argmin(np.abs(a["onset"] - pnote_array["onset_sec"]))]["id"]
+
     # for i in range(len(alignmnent)):
         # alignmnent[i]["performance_id"] = alignmnent[i]["onset"]
     #     a = pnote_array[pnote_array["onset_sec"] == alignmnent[i]["onset"]]
@@ -150,5 +155,4 @@ if __name__ == "__main__":
         "Beat Period": beat_period,
     })
     df.to_csv(os.path.join(os.path.dirname(__file__), "artifacts", f"{piece_name}_{args.follower}_time_delays.csv"), index=False)
-
 
