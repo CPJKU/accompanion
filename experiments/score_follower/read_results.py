@@ -67,6 +67,6 @@ if __name__ == "__main__":
         mean_beat = get_beat_delay(gt_ppart, score, gt_alignment, time_delays)
         beat_delays.append(mean_beat)
 
-    print(f"Mean time delay: {np.mean(mean_time)}")
-    print(f"Mean beat delay: {np.mean(beat_delays)}")
+    print(f"Mean time delay: {np.array(mean_time).mean()}")
+    print(f"Mean beat delay: {np.array(beat_delays).mean()}")
 
