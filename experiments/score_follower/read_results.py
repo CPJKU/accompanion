@@ -54,7 +54,7 @@ if __name__ == "__main__":
     follower = args.follower
     artifact_path = os.path.join(os.path.dirname(__file__), "artifacts")
     beat_delays = []
-    time_delays = []
+    second_delays = []
 
     # Read the ground truth match
     for file in os.listdir(os.path.join(path_par, "match")):
@@ -63,7 +63,7 @@ if __name__ == "__main__":
         name = os.path.splitext(file)[0]
         time_delays = pd.read_csv(os.path.join(artifact_path, f"{name}_{follower}_time_delays.csv"), index_col=0, sep=",")
         mean_time = get_time_delay(gt_ppart, score, gt_alignment, time_delays)
-        time_delays.append(mean_time)
+        second_delays.append(mean_time)
         mean_beat = get_beat_delay(gt_ppart, score, gt_alignment, time_delays)
         beat_delays.append(mean_beat)
 
