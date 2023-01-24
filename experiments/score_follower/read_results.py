@@ -2,6 +2,7 @@ import os, platform, argparse
 import numpy as np
 import pandas as pd
 import partitura as pt
+import parangonar as pg
 
 
 def get_beat_delay(gt_ppart, score, gt_alignment, time_delays):
@@ -55,18 +56,26 @@ if __name__ == "__main__":
     artifact_path = os.path.join(os.path.dirname(__file__), "artifacts")
     beat_delays = []
     second_delays = []
-
+    fscores = []
     # Read the ground truth match
     for file in os.listdir(os.path.join(path_par, "match")):
         match_path = os.path.join(path_par, "match", file)
         gt_ppart, gt_alignment, score = pt.load_match(match_path, create_score=True)
         name = os.path.splitext(file)[0]
         time_delays = pd.read_csv(os.path.join(artifact_path, f"{name}_{follower}_time_delays.csv"), index_col=0, sep=",")
+        a = pd.read_csv(os.path.join(artifact_path, f"{name}_{follower}_alignment.csv"), sep=",")
         mean_time = get_time_delay(gt_ppart, score, gt_alignment, time_delays)
         second_delays.append(mean_time)
         mean_beat = get_beat_delay(gt_ppart, score, gt_alignment, time_delays)
         beat_delays.append(mean_beat)
+        pred_alignment = [{"label": ("match" if row[1].matchtype == 0 else "insertion"), "score_id": row[1].partid,
+                           "performance_id": row[1].ppartid[4:]} for row in a.iterrows()]
 
-    print(f"Mean time delay: {np.array(mean_time).mean()}")
+        # Load Ground Truth Alignment
+        fmeasure = pg.fscore_alignments(pred_alignment, gt_alignment, types=["match"])[2]
+        fscores.append(fmeasure)
+
+    print(f"Mean time delay: {np.array(second_delays).mean()}")
     print(f"Mean beat delay: {np.array(beat_delays).mean()}")
+    print(f"Mean F-score: {np.array(fscores).mean()}")
 
