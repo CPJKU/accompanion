@@ -76,6 +76,7 @@ if __name__ == "__main__":
         }
     elif args.follower == "oltw":
         from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
+        match_folder = "match_solo"
         configurations["score_follower_kwargs"] = {
             "score_follower": "OnlineTimeWarping",
             "window_size": 100,
@@ -85,6 +86,20 @@ if __name__ == "__main__":
                 "processor_kwargs": {"piano_range": True},
             },
         }
+    elif args.follower == "oltw_score":
+        from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
+        match_folder = "match_gen"
+        args.follower = "oltw"
+        configurations["score_follower_kwargs"] = {
+            "score_follower": "OnlineTimeWarping",
+            "window_size": 100,
+            "step_size": 10,
+            "input_processor": {
+                "processor": "PianoRollProcessor",
+                "processor_kwargs": {"piano_range": True},
+            },
+        }
+
     else:
         raise ValueError(
             f"console argument 'follower' is of unknown value {args.follower}"
@@ -112,7 +127,7 @@ if __name__ == "__main__":
     if args.follower == "oltw":
         base_name = os.path.splitext(os.path.basename(args.piece_fn))[0]
         match_dir = os.path.join(
-            os.path.dirname(os.path.dirname(args.piece_fn)), "match_gen", base_name)
+            os.path.dirname(os.path.dirname(args.piece_fn)), match_folder, base_name)
         if not os.path.exists(match_dir):
             raise ValueError("No match directory found.")
         configurations["solo_fn"] = glob.glob(
