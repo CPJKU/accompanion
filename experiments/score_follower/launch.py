@@ -150,7 +150,7 @@ if __name__ == "__main__":
         pnote_array = performance.note_array()
         piece_name = os.path.splitext(os.path.basename(args.piece_fn))[0]
         solo_s_onset, solo_p_onset, beat_period = zip(*accompanion.time_delays)
-        alignmnent = accompanion.alignment
+        alignmnent = accompanion.note_tracker.alignment
 
         for a in alignmnent:
             a["performance_id"] = pnote_array[np.argmin(np.abs(a["onset"] - pnote_array["onset_sec"]))]["id"]
