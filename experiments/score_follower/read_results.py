@@ -19,6 +19,8 @@ def get_beat_delay(gt_ppart, score, gt_alignment, time_delays):
                     s_beat_delays.append(abs(pred_beats[idx] - onset))
                     break
     s_beat_delays = np.array(s_beat_delays)
+    if s_beat_delays.size == 0:
+        return 0
     return s_beat_delays.mean()
 
 
@@ -39,6 +41,8 @@ def get_time_delay(gt_ppart, score, gt_alignment, time_delays):
         if tmp:
             p_time_delays.append(min(tmp))
     p_time_delays = np.array(p_time_delays)
+    if p_time_delays.size == 0:
+        return 0
     return p_time_delays.mean()
 
 if __name__ == "__main__":
@@ -57,6 +61,7 @@ if __name__ == "__main__":
     beat_delays = []
     second_delays = []
     fscores = []
+    filenames = []
     # Read the ground truth match
     for file in os.listdir(os.path.join(path_par, "match")):
         match_path = os.path.join(path_par, "match", file)
@@ -74,7 +79,11 @@ if __name__ == "__main__":
         # Load Ground Truth Alignment
         fmeasure = pg.fscore_alignments(pred_alignment, gt_alignment, types=["match"])[2]
         fscores.append(fmeasure)
+        filenames.append(name)
 
+    df = pd.DataFrame({"Filename": filenames, "Beat Delay": beat_delays, "Time Delay": second_delays, "F-Score": fscores})
+    df.to_csv(os.path.join(artifact_path, f"{follower}_results.csv"), index=False)
+    print(f"Names: {np.array(filenames)}")
     print(f"Mean time delay: {np.array(second_delays)}")
     print(f"Mean beat delay: {np.array(beat_delays)}")
     print(f"Mean F-score: {np.array(fscores)}")
