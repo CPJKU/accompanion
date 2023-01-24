@@ -75,7 +75,7 @@ if __name__ == "__main__":
         fmeasure = pg.fscore_alignments(pred_alignment, gt_alignment, types=["match"])[2]
         fscores.append(fmeasure)
 
-    print(f"Mean time delay: {np.array(second_delays).mean()}")
-    print(f"Mean beat delay: {np.array(beat_delays).mean()}")
-    print(f"Mean F-score: {np.array(fscores).mean()}")
+    print(f"Mean time delay: {np.array(second_delays)}")
+    print(f"Mean beat delay: {np.array(beat_delays)}")
+    print(f"Mean F-score: {np.array(fscores)}")
 
