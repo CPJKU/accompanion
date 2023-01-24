@@ -89,7 +89,6 @@ if __name__ == "__main__":
     elif args.follower == "oltw_score":
         from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
         match_folder = "match_gen"
-        args.follower = "oltw"
         configurations["score_follower_kwargs"] = {
             "score_follower": "OnlineTimeWarping",
             "window_size": 100,
@@ -124,7 +123,7 @@ if __name__ == "__main__":
         raise ValueError("No midi file has been specified, or path MIDI path is invalid.")
 
     # Load Match files for OLTW
-    if args.follower == "oltw":
+    if args.follower.startswith("oltw"):
         base_name = os.path.splitext(os.path.basename(args.piece_fn))[0]
         match_dir = os.path.join(
             os.path.dirname(os.path.dirname(args.piece_fn)), match_folder, base_name)
