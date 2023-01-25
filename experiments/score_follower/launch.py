@@ -98,7 +98,19 @@ if __name__ == "__main__":
                 "processor_kwargs": {"piano_range": True},
             },
         }
+    elif args.follower == "oltw_test":
+        from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
 
+        match_folder = "match"
+        configurations["score_follower_kwargs"] = {
+            "score_follower": "OnlineTimeWarping",
+            "window_size": 100,
+            "step_size": 10,
+            "input_processor": {
+                "processor": "PianoRollProcessor",
+                "processor_kwargs": {"piano_range": True},
+            },
+        }
     else:
         raise ValueError(
             f"console argument 'follower' is of unknown value {args.follower}"
