@@ -101,7 +101,7 @@ if __name__ == "__main__":
     elif args.follower == "oltw_test":
         from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
 
-        match_folder = "match"
+        match_folder = "match_test"
         configurations["score_follower_kwargs"] = {
             "score_follower": "OnlineTimeWarping",
             "window_size": 100,
