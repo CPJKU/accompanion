@@ -79,6 +79,7 @@ if __name__ == "__main__":
             },
         }
     elif args.follower == "oltw":
+        # Accompanion Version using random variations of the performance as reference input (created by create_solo_match.py)
         from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
         match_folder = "match_solo"
         configurations["score_follower_kwargs"] = {
@@ -91,6 +92,7 @@ if __name__ == "__main__":
             },
         }
     elif args.follower == "oltw_score":
+        # Accompanion Version using the score as reference input (created by create_solo_match_score.py)
         from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
         match_folder = "match_gen"
         configurations["score_follower_kwargs"] = {
@@ -103,6 +105,7 @@ if __name__ == "__main__":
             },
         }
     elif args.follower == "oltw_test":
+        # Accompanion Version using the ground truth match same as the performance.
         from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
 
         match_folder = "match_test"
@@ -188,24 +191,19 @@ if __name__ == "__main__":
         })
         df.to_csv(os.path.join(os.path.dirname(__file__), "artifacts", f"{piece_name}_{args.follower}_time_delays.csv"),
                   index=False)
+    # Repeat process in case accompanion is done but processes are stuck (doesn't work on windows).
     except KeyboardInterrupt:
         # Post processing
-
         performance = partitura.load_performance(args.midi_fn)
         pnote_array = performance.note_array()
         piece_name = os.path.splitext(os.path.basename(args.piece_fn))[0]
         solo_s_onset, solo_p_onset, beat_period = zip(*accompanion.time_delays)
         alignmnent = accompanion.note_tracker.alignment
 
+
+        # Select the correct performance id for the alignments by using argmin from actual performance array.
         for a in alignmnent:
             a["performance_id"] = pnote_array[np.argmin(np.abs(a["onset"] - pnote_array["onset_sec"]))]["id"]
-
-        # for i in range(len(alignmnent)):
-        # alignmnent[i]["performance_id"] = alignmnent[i]["onset"]
-        #     a = pnote_array[pnote_array["onset_sec"] == alignmnent[i]["onset"]]
-        #     if len(a) == 0:
-        #         raise ValueError("No note found in performance for onset {}".format(alignmnent[i]["onset"]))
-        #     alignmnent["performance_id"] = a["id"].item()
 
         partitura.io.exportparangonada.save_parangonada_alignment(
             alignmnent,
