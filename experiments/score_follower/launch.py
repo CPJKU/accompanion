@@ -59,11 +59,15 @@ if __name__ == "__main__":
     parser.add_argument("--acc_fn", help="MusicXML file of the accompaniment part. If None it takes lower staff of piece_fn.", default=None)
     parser.add_argument("--accompaniment_match", help="Match for the accompaniment part (Only for DTW).", default=None)
     parser.add_argument("--midi_fn", help="Midi file to play instead of real time input.")
+    parser.add_argument("--window_size", default=100, type=int, help="Window size for the OTW.")
+    parser.add_argument("--step_size", default=10, type=int, help="Step size for the OTW.")
+    parser.add_argument("--init_bpm", default=120, type=int, help="Initial BPM.")
     args = parser.parse_args()
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf_file.yml"), "rb") as f:
         info_file = yaml.safe_load(f)
     configurations = info_file["config"]
+    configurations["init_bpm"] = args.init_bpm
     # import ACCompanion version
     if args.follower == "hmm":
         from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
@@ -79,8 +83,8 @@ if __name__ == "__main__":
         match_folder = "match_solo"
         configurations["score_follower_kwargs"] = {
             "score_follower": "OnlineTimeWarping",
-            "window_size": 100,
-            "step_size": 10,
+            "window_size": args.window_size,
+            "step_size": args.step_size,
             "input_processor": {
                 "processor": "PianoRollProcessor",
                 "processor_kwargs": {"piano_range": True},
@@ -91,8 +95,8 @@ if __name__ == "__main__":
         match_folder = "match_gen"
         configurations["score_follower_kwargs"] = {
             "score_follower": "OnlineTimeWarping",
-            "window_size": 100,
-            "step_size": 10,
+            "window_size": args.window_size,
+            "step_size": args.step_size,
             "input_processor": {
                 "processor": "PianoRollProcessor",
                 "processor_kwargs": {"piano_range": True},
@@ -104,8 +108,8 @@ if __name__ == "__main__":
         match_folder = "match_test"
         configurations["score_follower_kwargs"] = {
             "score_follower": "OnlineTimeWarping",
-            "window_size": 100,
-            "step_size": 10,
+            "window_size": args.window_size,
+            "step_size": args.step_size,
             "input_processor": {
                 "processor": "PianoRollProcessor",
                 "processor_kwargs": {"piano_range": True},
