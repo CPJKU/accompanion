@@ -12,7 +12,7 @@ def get_beat_delay(gt_ppart, score, gt_alignment, time_delays):
     s_beat_delays = list()
     already_found = list()
     for idx, p_onset in enumerate(time_delays["Solo Performance Onset"].to_numpy()):
-        rest_idx = ~np.isin(np.arrange(len(pnote_array)), np.array(already_found))
+        rest_idx = ~np.isin(np.arange(len(pnote_array)), np.array(already_found))
         p_id = pnote_array[np.argmin(np.abs(pnote_array[rest_idx]["onset_sec"] - p_onset))]["id"]
         for a in gt_alignment:
             if a["label"] == "match":
