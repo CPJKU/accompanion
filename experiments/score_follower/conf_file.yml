@@ -20,7 +20,7 @@ config:
         mechanical_delay: 0.0
     midi_router_kwargs :
         solo_input_to_accompaniment_port_name: 0
-        acc_output_to_sound_port_name: FluidsynthPlayer
+        acc_output_to_sound_port_name: Clavinova
         MIDIPlayer_to_sound_port_name: FluidsynthPlayer
         MIDIPlayer_to_accompaniment_port_name: 0
         simple_button_input_port_name: None
