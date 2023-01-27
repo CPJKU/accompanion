@@ -267,7 +267,16 @@ def partitura_to_framed_midi_custom(
     frames = midi_messages_to_framed_midi(
         midi_messages, message_times, polling_period, pipeline
     )
-    frames = decay_midi(np.asarray(frames).T, onsets).T
+
+    # import pdb
+    # pdb.set_trace()
+    try:
+        frames = decay_midi(np.asarray(frames).T, onsets).T
+    except Exception:
+        # this step does not work for non-piano roll frames
+        # for now this is just a hack.
+        # TODO: check pipeline?
+        pass
     # frame_times = np.arange(len(frames)) * polling_period
     ref_times = np.linspace(min_ref_time, max_ref_time, len(frames))
     state_to_ref_time_map = interp1d(
