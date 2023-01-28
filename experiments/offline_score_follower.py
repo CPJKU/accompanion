@@ -302,7 +302,7 @@ def evaluate_alignment(target_ponsets, tracked_ponsets):
     lt_25ms = np.mean(abs_asynch <= 0.025)
     lt_50ms = np.mean(abs_asynch <= 0.05)
     lt_100ms = np.mean(abs_asynch <= 0.1)
-    return mean_asynch, lt_25ms, lt_50ms, lt_100ms, skewness, skewtest
+    return mean_asynch, lt_25ms, lt_50ms, lt_100ms, skewness, sktest
 
 
 def alignment_experiment(
