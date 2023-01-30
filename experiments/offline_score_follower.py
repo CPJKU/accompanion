@@ -58,13 +58,13 @@ OLTW_KWARGS = dict(
 
 HMM_KWARGS = dict(
     follower_type="hmm",
-    ioi_precision=1,
-    gumbel_transition_matrix_scale=0.5,
+    ioi_precision=0.1,
+    gumbel_transition_matrix_scale=1.5,
     init_bp=0.8,
-    trans_par=1,
-    trans_var=0.03,
-    obs_var=0.0213,
-    init_var=1,
+    trans_par=2,
+    trans_var=0.5,
+    obs_var=1,
+    init_var=0.5,
 )
 
 
@@ -339,6 +339,7 @@ def alignment_experiment(
     score_follower_kwargs: dict,
     out_dir: Optional[PathLike] = None,
     make_plots: bool = False,
+    print_results: bool = False,
 ):
 
     # Load performance of the solo(as a PerformedPart)
@@ -432,11 +433,13 @@ def alignment_experiment(
         f.write(
             "#mean_asynch_ms,leq_25ms_%,leq_50ms_%,leq_100ms_%,skewness,sk_statistic,sk_pvalue\n"
         )
-        print(
-            f"Mean asynchrony (ms): {mean_asynch * 1000:.2f}\nAsynchrony <= 25ms (%): {lt_25ms * 100:.1f}\n"
-            f"Asynchrony <= 50ms (%): {lt_50ms * 100:.1f}\nAsyncrhony <= 100ms (%): {lt_100ms * 100:.1f}\nAsynch skweness:{skewness:.2f} "
-            f"(t={sktest.statistic:.3f}, p={sktest.pvalue:.4f})\n"
-        )
+
+        if print_results:
+            print(
+                f"Mean asynchrony (ms): {mean_asynch * 1000:.2f}\nAsynchrony <= 25ms (%): {lt_25ms * 100:.1f}\n"
+                f"Asynchrony <= 50ms (%): {lt_50ms * 100:.1f}\nAsyncrhony <= 100ms (%): {lt_100ms * 100:.1f}\nAsynch skweness:{skewness:.2f} "
+                f"(t={sktest.statistic:.3f}, p={sktest.pvalue:.4f})\n"
+            )
         f.write(
             f"{mean_asynch * 1000:.2f},{lt_25ms * 100:.1f},"
             f"{lt_50ms * 100:.1f},{lt_100ms * 100:.1f},{skewness:.2f},"
@@ -528,7 +531,7 @@ if __name__ == "__main__":
     if args.config is not None:
 
         with open(args.config, "rb") as f:
-            config = yaml.save_load(f)
+            config = yaml.safe_load(f)
 
     else:
 
