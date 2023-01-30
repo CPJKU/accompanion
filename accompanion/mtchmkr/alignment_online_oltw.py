@@ -55,6 +55,7 @@ class OnlineTimeWarping(OnlineAlignment):
         window_size=WINDOW_SIZE,
         step_size=STEP_SIZE,
         local_cost_fun=DEFAULT_LOCAL_COST,
+        start_window_size=START_WINDOW_SIZE,
     ):
 
         super().__init__(reference_features=reference_features)
@@ -86,6 +87,7 @@ class OnlineTimeWarping(OnlineAlignment):
         self.N_ref = self.reference_features.shape[0]
         self.window_size = window_size
         self.step_size = step_size
+        self.start_window_size = start_window_size
 
         self.current_position = 0
         self.positions = []
@@ -104,8 +106,8 @@ class OnlineTimeWarping(OnlineAlignment):
 
     def get_window(self):
         w_size = self.window_size
-        if self.window_index < START_WINDOW_SIZE:
-            w_size = START_WINDOW_SIZE
+        if self.window_index < self.start_window_size:
+            w_size = self.start_window_size
         window_start = max(self.window_index - w_size, 0)
         window_end = min(self.window_index + w_size, self.N_ref)
         return window_start, window_end

@@ -77,6 +77,7 @@ class OLTWACCompanion(ACCompanion):
     record_midi : bool, optional
         Whether to record the MIDI, by default False.
     """
+
     def __init__(
         self,
         solo_fn,
@@ -93,7 +94,7 @@ class OLTWACCompanion(ACCompanion):
                 "processor_kwargs": {"piano_range": True},
             },
         },
-        tempo_model_kwargs={"tempo_model": tempo_models.LTESM},
+        tempo_model_kwargs={"tempo_model": tempo_models.LSM},
         performance_codec_kwargs={
             "velocity_trend_ma_alpha": 0.6,
             "articulation_ma_alpha": 0.4,
@@ -134,7 +135,7 @@ class OLTWACCompanion(ACCompanion):
             bypass_audio=bypass_audio,
             tempo_model_kwargs=tempo_model_kwargs,
             test=test,
-            record_midi=record_midi
+            record_midi=record_midi,
         )
 
         self.solo_parts = None
@@ -158,13 +159,17 @@ class OLTWACCompanion(ACCompanion):
             if fn.endswith(".match"):
                 if i == 0:
                     solo_perf, alignment, solo_score = partitura.load_match(
-                        filename=fn, create_score=True, first_note_at_zero=True,
+                        filename=fn,
+                        create_score=True,
+                        first_note_at_zero=True,
                     )
                     solo_ppart = solo_perf[0]
                     solo_spart = solo_score[0]
                 else:
                     solo_perf, alignment = partitura.load_match(
-                        filename=fn, create_score=False, first_note_at_zero=True,
+                        filename=fn,
+                        create_score=False,
+                        first_note_at_zero=True,
                     )
                     solo_ppart = solo_perf[0]
 
