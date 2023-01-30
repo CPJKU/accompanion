@@ -8,6 +8,7 @@ from typing import Union, List, Tuple, Callable, Iterable, Any, Optional
 import numpy as np
 import partitura as pt
 import matplotlib.pyplot as plt
+import yaml
 
 from scipy.stats import skew, skewtest
 
@@ -36,6 +37,10 @@ from accompanion.mtchmkr import score_hmm
 from accompanion.score_follower.trackers import HMMScoreFollower
 from accompanion.accompanist import tempo_models
 
+import warnings
+
+warnings.filterwarnings("ignore")
+
 
 PIANO_ROLL_PIPELINE = SequentialOutputProcessor([PianoRollProcessor(piano_range=True)])
 DEFAULT_LOCAL_COST = "Manhattan"
@@ -43,6 +48,24 @@ WINDOW_SIZE = 100
 STEP_SIZE = 5
 START_WINDOW_SIZE = 60
 POLLING_PERIOD = 0.01
+
+OLTW_KWARGS = dict(
+    follower_type="oltw",
+    window_size=100,
+    step_size=10,
+    start_window_size=60,
+)
+
+HMM_KWARGS = dict(
+    follower_type="hmm",
+    ioi_precision=1,
+    gumbel_transition_matrix_scale=0.5,
+    init_bp=0.8,
+    trans_par=1,
+    trans_var=0.03,
+    obs_var=0.0213,
+    init_var=1,
+)
 
 
 def setup_scores(
@@ -92,6 +115,9 @@ def compute_pianoroll_features(
     polling_period: float,
     pianoroll_method: str = "partitura",
 ):
+    """
+    Features for OLTW
+    """
     if pianoroll_method == "accompanion":
         ref_frames = partitura_to_framed_midi(
             part_or_notearray_or_filename=note_info,
@@ -127,6 +153,9 @@ def compute_hmm_features(
     note_info: Union[ScoreLike, PerformanceLike],
     polling_period: float = POLLING_PERIOD,
 ):
+    """
+    Features for the HMM
+    """
 
     if isinstance(note_info, (Score, Part)):
         ppart = pt.utils.music.performance_from_part(note_info, bpm=60)
@@ -156,7 +185,6 @@ def setup_oltw(
     """
     Setup an OLTW score follower
     """
-    # NOTE: pipeline_kwargs and score_follower_type are not used.
     state_to_ref_time_maps = []
     ref_to_state_time_maps = []
     score_followers = []
@@ -308,7 +336,6 @@ def evaluate_alignment(target_ponsets, tracked_ponsets):
 def alignment_experiment(
     solo_perf_fn: PathLike,
     reference_fn: Union[PathLike, List[PathLike]],
-    follower_type: str,
     score_follower_kwargs: dict,
     out_dir: Optional[PathLike] = None,
     make_plots: bool = False,
@@ -321,6 +348,20 @@ def alignment_experiment(
     solo_parts, solo_score = setup_scores(
         reference_fn if isinstance(reference_fn, (list, tuple)) else [reference_fn]
     )
+
+    out_dir = out_dir if out_dir is not None else "."
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    config_fn = os.path.join(out_dir, "config.yaml")
+    yaml.dump(
+        score_follower_kwargs,
+        open(config_fn, "w+"),
+        default_flow_style=False,
+    )
+
+    follower_type = score_follower_kwargs.pop("follower_type")
 
     solo_score_notearray = solo_score.note_array()
 
@@ -366,35 +407,41 @@ def alignment_experiment(
         tracked_ponsets=tracked_ponsets,
     )
 
-    if out_dir is not None:
-        if not os.path.exists(out_dir):
-            os.mkdir(out_dir)
+    alignment_fn = os.path.join(out_dir, "alignment.csv")
 
-        alignment_fn = os.path.join(out_dir, "alignment.csv")
+    np.savetxt(
+        alignment_fn,
+        np.column_stack(
+            (
+                tracked_sonsets,
+                tracked_ponsets,
+                target_ponsets,
+                frames_in_input,
+            )
+        ),
+        delimiter=",",
+        header=(
+            "score_onset_beats,tracked_perf_onset_seconds,"
+            "target_perf_onset_seconds,frame_number"
+        ),
+    )
 
-        np.savetxt(
-            alignment_fn,
-            np.column_stack(
-                (tracked_sonsets, tracked_ponsets, target_ponsets, frames_in_input),
-                delimiter=",",
-                header=(
-                    "score_onset_beats,tracked_perf_onset_seconds,"
-                    "target_perf_onset_seconds,frame_number"
-                ),
-            ),
+    results_fn = os.path.join(out_dir, "results.csv")
+    with open(results_fn, "w") as f:
+
+        f.write(
+            "#mean_asynch_ms,leq_25ms_%,leq_50ms_%,leq_100ms_%,skewness,sk_statistic,sk_pvalue\n"
         )
-
-        results_fn = os.path.join(out_dir, "results.csv")
-        with open(results_fn, "w") as f:
-
-            f.write(
-                "#mean_asynch_ms,leq_25ms_%,leq_50ms_%,leq_100ms_%,skewness,sk_statistic,sk_pvalue\n"
-            )
-            f.write(
-                f"{mean_asynch * 1000:.2f},{lt_25ms * 100:.1f},"
-                f"{lt_100ms * 100:.1f},{lt_100ms * 100:.1f},{skewness:.2f}"
-                f"{sktest.statistic:.3f},{sktest.pvalue:.4f}"
-            )
+        print(
+            f"Mean asynchrony (ms): {mean_asynch * 1000:.2f}\nAsynchrony <= 25ms (%): {lt_25ms * 100:.1f}\n"
+            f"Asynchrony <= 50ms (%): {lt_50ms * 100:.1f}\nAsyncrhony <= 100ms (%): {lt_100ms * 100:.1f}\nAsynch skweness:{skewness:.2f} "
+            f"(t={sktest.statistic:.3f}, p={sktest.pvalue:.4f})\n"
+        )
+        f.write(
+            f"{mean_asynch * 1000:.2f},{lt_25ms * 100:.1f},"
+            f"{lt_50ms * 100:.1f},{lt_100ms * 100:.1f},{skewness:.2f},"
+            f"{sktest.statistic:.3f},{sktest.pvalue:.4f}"
+        )
 
     if make_plots:
         n_markers = 20
@@ -412,106 +459,88 @@ def alignment_experiment(
             interpolation="nearest",
         )
         plt.xticks(
-            np.arange(len(input_pianoroll[: frames_in_input[n_markers + 1]]), 10),
-            np.arange(
-                len(input_pianoroll[: frames_in_input[n_markers + 1]]) * POLLING_PERIOD
-            ),
+            np.arange(0, len(input_pianoroll[: frames_in_input[n_markers + 1]]), 50),
+            np.arange(0, len(input_pianoroll[: frames_in_input[n_markers + 1]]), 50)
+            * POLLING_PERIOD,
         )
         plt.xlabel("Time (s)")
         plt.ylabel("Piano Key")
         for fp in frames_in_input[:n_markers]:
-            plt.plot(np.ones(88) * fp, np.arange(88), c="red", alpha=0.5)
+            plt.plot(np.ones(88) * fp, np.arange(88), c="red", alpha=0.5, linewidth=2)
 
-        plt.figsave(os.path.join(out_dir, "alignment_example.pdf"))
+        plt.savefig(os.path.join(out_dir, "alignment.pdf"))
+        plt.clf()
+        plt.close()
 
 
 if __name__ == "__main__":
 
-    import os
-    import glob
+    parser = argparse.ArgumentParser("Run an offline alignment experiment")
 
-    data_dir = "../accompanion_pieces/complex_pieces/brahms_data/match/cc_solo"
-
-    solo_perf_fn = "../accompanion_pieces/complex_pieces/brahms_data/match/cc_solo/Brahms_Hungarian-Dance-5_Primo_2021-07-27.match"
-
-    follower_type = "hmm"
-
-    match_fn = glob.glob(os.path.join(data_dir, "*.match"))
-
-    # data_dir = "/Users/carlos/Downloads/sf_exp_data/match_solo/chopin_op09_No1"
-
-    solo_perf_fn = "/Users/carlos/Downloads/sf_exp_data/match/chopin_op09_No2.match"
-    match_fn = [solo_perf_fn]
-
-    solo_perf, _ = setup_scores([solo_perf_fn])
-
-    solo_parts, solo_score = setup_scores(match_fn)
-
-    solo_score_notearray = solo_score.note_array()
-
-    unique_onsets = np.unique(solo_score_notearray["onset_beat"])
-
-    onset_tracker = OnsetTracker(unique_onsets=unique_onsets)
-
-    if follower_type == "oltw":
-
-        score_follower = setup_oltw(
-            solo_parts=solo_parts,
-            polling_period=POLLING_PERIOD,
-            window_size=100,
-            step_size=5,
-            start_window_size=50,
-        )
-
-        input_signal = compute_pianoroll_features(
-            solo_perf[0][0],
-            polling_period=POLLING_PERIOD,
-            pianoroll_method="partitura",
-        ).astype(float)
-
-    elif follower_type == "hmm":
-
-        score_follower = setup_hmm(
-            solo_score_notearray=solo_score_notearray,
-            ioi_precision=1,
-            gumbel_transition_matrix_scale=0.5,
-            init_bp=0.8,
-            trans_par=1,
-            trans_var=0.03,
-            obs_var=0.0213,
-            init_var=1,
-        )
-
-        input_signal = compute_hmm_features(
-            solo_perf[0][0],
-            polling_period=POLLING_PERIOD,
-        )
-
-    tracked_sonsets, frames_in_input, tracked_ponsets = compute_alignment(
-        input_signal, score_follower, onset_tracker
+    parser.add_argument(
+        "--solo",
+        "-s",
+        help="Input Solo performance (as a match file)",
+        type=str,
+        default=None,
     )
 
-    target_ponsets = solo_perf[0][2](tracked_sonsets)
+    parser.add_argument(
+        "--reference",
+        "-r",
+        help="Reference (as a list of match files)",
+        nargs="+",
+        default=None,
+    )
 
-    evaluate_alignment(target_ponsets=target_ponsets, tracked_ponsets=tracked_ponsets)
-    make_plots = True
+    parser.add_argument(
+        "--config",
+        "-c",
+        help="Config file (YAML)",
+        type=str,
+        default=None,
+    )
 
-    if make_plots:
-        n_markers = 20
-        input_pianoroll = compute_pianoroll_features(
-            solo_perf[0][0],
-            polling_period=POLLING_PERIOD,
-            pianoroll_method="partitura",
-        ).astype(float)
+    parser.add_argument(
+        "--out-dir",
+        "-o",
+        help="Output directory to store the results",
+        type=str,
+        default=".",
+    )
 
-        plt.imshow(
-            input_pianoroll[: frames_in_input[n_markers + 1]].T,
-            aspect="auto",
-            origin="lower",
-            cmap="gray",
-            interpolation="nearest",
-        )
-        for fp in frames_in_input[:n_markers]:
-            plt.plot(np.ones(88) * fp, np.arange(88), c="red", alpha=0.5)
+    parser.add_argument(
+        "--make_plots",
+        "-p",
+        help="Store piano roll alignment plot",
+        action="store_true",
+        default=False,
+    )
 
-        plt.show()
+    args = parser.parse_args()
+
+    if args.solo is None:
+        raise ValueError("No input performance given!")
+
+    if args.reference is None:
+        raise ValueError("No references given!")
+
+    if args.config is not None:
+
+        with open(args.config, "rb") as f:
+            config = yaml.save_load(f)
+
+    else:
+
+        config = OLTW_KWARGS
+
+    print(config)
+    print(args.solo)
+
+    alignment_experiment(
+        solo_perf_fn=args.solo,
+        reference_fn=args.reference,
+        score_follower_kwargs=config,
+        out_dir=args.out_dir,
+        make_plots=args.make_plots,
+    )
