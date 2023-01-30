@@ -488,11 +488,18 @@ if __name__ == "__main__":
         default=None,
     )
 
+    # parser.add_argument(
+    #     "--reference",
+    #     "-r",
+    #     help="Reference (as a list of match files)",
+    #     nargs="+",
+    #     default=None,
+    # )
     parser.add_argument(
         "--reference",
         "-r",
-        help="Reference (as a list of match files)",
-        nargs="+",
+        help="Reference (as a folder with match files)",
+        type=str,
         default=None,
     )
 
@@ -521,6 +528,19 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    # Select config files
+    piece_name = os.path.splitext(os.path.basename(args.solo))[0]
+    args.config = os.path.join(os.path.dirname(__file__), "artifacts", "best_config", piece_name+".yml")
+    ref = glob.glob(
+        os.path.join(args.reference, piece_name, "*.match")
+    )
+    save_dir = os.path.join(os.path.dirname(__file__), "artifacts", os.path.basename(os.path.normpath(args.reference)), piece_name)
+    args.reference = ref
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    args.out_dir = save_dir
 
     if args.solo is None:
         raise ValueError("No input performance given!")
