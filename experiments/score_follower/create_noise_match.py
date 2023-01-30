@@ -26,7 +26,7 @@ for file in os.listdir(os.path.join(par_path, "musicxml")):
     mcu = mf.info("midiClockUnits")
     miliseconds = 100
     for i in range(5):
-        umf = copy.copy(mf)
+        umf = copy.deepcopy(mf)
         noise_onset = np.clip(pt.utils.music.seconds_to_midi_ticks(np.random.normal(0, miliseconds/1000, len(mf.notes)), mcr, mcu), -300, 300)
         noise_offset = np.clip(pt.utils.music.seconds_to_midi_ticks(np.random.normal(0, miliseconds/1000, len(mf.notes)), mcr, mcu), -300, 300)
         for idx, note in enumerate(umf.notes):

@@ -532,9 +532,12 @@ if __name__ == "__main__":
     # Select config files
     piece_name = os.path.splitext(os.path.basename(args.solo))[0]
     args.config = os.path.join(os.path.dirname(__file__), "artifacts", "best_config", piece_name+".yml")
-    ref = glob.glob(
-        os.path.join(args.reference, piece_name, "*.match")
-    )
+    if os.path.isdir(args.reference):
+        ref = glob.glob(
+            os.path.join(args.reference, piece_name, "*.match")
+        )
+    else:
+        ref = args.reference
     save_dir = os.path.join(os.path.dirname(__file__), "artifacts", os.path.basename(os.path.normpath(args.reference)), piece_name)
     args.reference = ref
 
