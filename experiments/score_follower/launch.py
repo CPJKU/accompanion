@@ -134,7 +134,7 @@ if __name__ == "__main__":
         raise ValueError("No piece file specified or piece path invalid.")
 
     # Sets Dummy MIDI Router for test environment
-    configurations["test"] = True
+    # configurations["test"] = True
     configurations["record_midi"] = False
     if args.midi_fn and os.path.exists(args.midi_fn):
         configurations["midi_fn"] = args.midi_fn
