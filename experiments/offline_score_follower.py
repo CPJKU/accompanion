@@ -326,7 +326,15 @@ def evaluate_alignment(target_ponsets, tracked_ponsets):
     abs_asynch = abs(asynchrony)
     mean_asynch = np.mean(abs_asynch)
     skewness = skew(asynchrony)
-    sktest = skewtest(asynchrony, alternative="two-sided")
+    try:
+        sktest = skewtest(asynchrony, alternative="two-sided")
+    except ValueError:
+        class Dummytest:
+            statistic = np.nan
+            pvalue = np.nan
+
+        sktest = Dummytest()
+        
     lt_25ms = np.mean(abs_asynch <= 0.025)
     lt_50ms = np.mean(abs_asynch <= 0.05)
     lt_100ms = np.mean(abs_asynch <= 0.1)
@@ -387,8 +395,14 @@ def alignment_experiment(
 
     elif follower_type == "hmm":
 
+        if "init_bp" in score_follower_kwargs:
+            del score_follower_kwargs["init_bp"]
+        init_bp = (
+            solo_perf[0][2](unique_onsets[1]) - solo_perf[0][2](unique_onsets[0])
+        ) / (unique_onsets[1] - unique_onsets[0])
         score_follower = setup_hmm(
             solo_score_notearray=solo_score_notearray,
+            init_bp=init_bp,
             **score_follower_kwargs,
         )
 

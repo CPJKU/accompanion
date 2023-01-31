@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     parameters = list(product(WINDOW_SIZES, STEP_SIZES, START_WINDOW_SIZES))
 
-    with Pool(8) as p:
+    with Pool(12) as p:
         r = list(
             tqdm.tqdm(
                 p.imap(hyper_parameter_experiment, parameters),

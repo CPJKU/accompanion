@@ -167,6 +167,7 @@ if __name__ == "__main__":
     if args.delay is not None:
         configurations["performance_codec_kwargs"]["mechanical_delay"] = args.delay
 
+
     if args.piece:
         file_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
