@@ -51,9 +51,9 @@ POLLING_PERIOD = 0.01
 
 OLTW_KWARGS = dict(
     follower_type="oltw",
-    window_size=100,
+    window_size=200,
     step_size=10,
-    start_window_size=60,
+    start_window_size=200,
 )
 
 HMM_KWARGS = dict(
@@ -533,7 +533,7 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
     )
-
+    
     args = parser.parse_args()
 
     if args.solo is None:
@@ -549,7 +549,7 @@ if __name__ == "__main__":
 
     else:
 
-        config = OLTW_KWARGS
+        config = HMM_KWARGS
 
     print(config)
     print(args.solo)
