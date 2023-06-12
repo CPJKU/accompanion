@@ -24,7 +24,8 @@ pip install -e .
 
 ## Usage
 
-The ACCompanion features two playing modes, one for beginner and one for advanced players. In the beginner mode, for a two-handed piano piece, the ACCompanion plays the left hand as accompaniment while the user plays the right hand (usually containing the melody). In the advanced mode, the ACCompanion plays the secondo part of a four-hand piano piece, leaving the primo part to the user.
+The ACCompanion features two playing modes, one for beginner and one for advanced players. 
+In the beginner mode, for a two-handed piano piece, the ACCompanion plays the left hand as accompaniment while the user plays the right hand (usually containing the melody). In the advanced mode, the ACCompanion plays the secondo part of a four-hand piano piece, leaving the primo part to the user.
 
 **Beginner Mode**
 
@@ -49,6 +50,14 @@ cd Path/to/accompanion/bin
 python ./bin/launch_acc.py --input Your_MIDI_Input -out Your_MIDI_Output -f brahms
 ```
 
+## Using the ACCompanion with a GUI
+
+The ACCompanion can be used with a GUI. To do so, run the following command:
+```shell
+cd Path/to/accompanion/bin
+python app.py
+```
+
 ## Adding new pieces
 
 **Data Requirements**
@@ -71,7 +80,7 @@ cd Path/to/accompanion/bin
 python launch_acc.py -f simple_pieces --piece new_piece
 ```
 
-***The Python wrapper for the Nakamura Alignment Tool provides a a scrpt for this (see Additional Resources below). 
+***The Python wrapper for the Nakamura Alignment Tool provides a scrpt for this (see Additional Resources below). 
 
 For more instructions follow the submodule documentation : [accompaniment_pieces](https://github.com/CPJKU/accompaniment_pieces)
 
@@ -87,4 +96,15 @@ necessary for testing purposes on VMs where ports and such cannot be accessed
 * Parangonada Alignment Visualisation: [Webtool](https://sildater.github.io/parangonada/) and [GitHub repo](https://github.com/sildater/parangonada)
 
 
+## Cite Us
 
+If you use the ACCompanion in your research, please cite our [paper](https://arxiv.org/pdf/2304.12939.pdf):
+
+```
+@article{cancino2023accompanion,
+  title={The ACCompanion: Combining Reactivity, Robustness, and Musical Expressivity in an Automatic Piano Accompanist},
+  author={Cancino-Chac{\'o}n, Carlos and Peter, Silvan and Hu, Patricia and Karystinaios, Emmanouil and Henkel, Florian and Foscarin, Francesco and Varga, Nimrod and Widmer, Gerhard},
+  journal={arXiv preprint arXiv:2304.12939},
+  year={2023}
+}
+```
