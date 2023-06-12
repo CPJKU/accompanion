@@ -23,7 +23,7 @@ overridable_args = [
 
 
 if __name__ == "__main__":
-    
+
     # This creates a RuntimeError: context has already been set.
     if PLATFORM == "Darwin" or PLATFORM == "Linux":
         multiprocessing.set_start_method("spawn")
@@ -103,6 +103,34 @@ if __name__ == "__main__":
                 "simple_pieces",
                 info_file["piece_dir"],
             )
+            # If only one piece is available load and separate to parts
+            if os.path.join(file_dir, "primo.musicxml") not in glob.glob(os.path.join(file_dir, "*.musicxml")):
+                import partitura
+                score = partitura.load_score((glob.glob(os.path.join(file_dir, "*.musicxml")) + glob.glob(os.path.join(file_dir, "*.mxl")))[0])
+                if len(score.parts) == 1:
+                    from copy import deepcopy
+                    import numpy as np
+                    # find individual staff
+                    na = score.note_array(include_staff=True)
+                    staff = np.unique(na["staff"])
+                    primo_part = deepcopy(score.parts[0])
+                    secondo_part = deepcopy(score.parts[0])
+                    for st in staff:
+                        if st == 1:
+                            primo_part.notes = [note for note in primo_part.notes if note.staff == st]
+                        else:
+                            secondo_part.notes = [note for note in secondo_part.notes if note.staff == st]
+
+                elif len(score.parts) == 2:
+                    primo_part = score.parts[0]
+                    partitura.save_musicxml(primo_part, os.path.join(file_dir, "primo.musicxml"))
+                    secondo_part = score.parts[1]
+                    partitura.save_musicxml(secondo_part, os.path.join(file_dir, "secondo.musicxml"))
+                else:
+                    raise ValueError("Score has more than two parts.")
+
+
+
             configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
             configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
 
