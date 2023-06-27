@@ -1,15 +1,24 @@
 # ACCompanion
 
 The ACCompanion is an expressive accompaniment system.
+This is the official implementation of the paper [The ACCompanion: Combining Reactivity, Robustness, and Musical Expressivity in an Automatic Piano Accompanist](https://arxiv.org/abs/2304.12939), accepted at IJCAI 2023.
+
+This work was conducted at the [Institute of Computational Perception](https://www.jku.at/en/institute-of-computational-perception/) at JKU.
+
+## Abstract
+
+This paper introduces the ACCompanion, an expressive accompaniment system. Similarly to a musician who accompanies a soloist playing a given musical piece, our system can produce a human-like rendition of the accompaniment part that follows the soloist's choices in terms of tempo, dynamics, and articulation. The ACCompanion works in the symbolic domain, i.e., it needs a musical instrument capable of producing and playing MIDI data, with explicitly encoded onset, offset, and pitch for each played note. We describe the components that go into such a system, from real-time score following and prediction to expressive performance generation and online adaptation to the expressive choices of the human player. Based on our experience with repeated live demonstrations in front of various audiences, we offer an analysis of the challenges of combining these components into a system that is highly reactive and precise, while still a reliable musical partner, robust to possible performance errors and responsive to expressive variations. 
 
 ## Setup
 
 Clone and install the accompanion environment:
+
 ```shell
 git clone https://github.com/CPJKU/accompanion.git
-cd .\accompanion
+cd ./accompanion
 conda env create -f environment.yml
 ```
+
 Also, init the submodules if this step is not done automatically on cloning:
 ```shell
 git submodule init
@@ -85,6 +94,24 @@ necessary for testing purposes on VMs where ports and such cannot be accessed
 ### Additional Resources
 * Nakamura Alignment Tool (Python wrapper): [GitHub repo](https://github.com/neosatrapahereje/nakamura_alignment_wrapper)
 * Parangonada Alignment Visualisation: [Webtool](https://sildater.github.io/parangonada/) and [GitHub repo](https://github.com/sildater/parangonada)
+
+## Aknowledgments
+This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (”Wither Music?”).
+
+
+## Cite Us
+
+If you use this work please cite us:
+
+```shell
+@inproceedings{cancino2023accompanion,
+  title={The ACCompanion: Combining Reactivity, Robustness, and Musical Expressivity in an Automatic Piano Accompanist},
+  author={Cancino-Chac{\'o}n, Carlos and Peter, Silvan and Hu, Patricia and Karystinaios, Emmanouil and Henkel, Florian and Foscarin, Francesco and Varga, Nimrod and Widmer, Gerhard},
+  booktitle={Proceeding of the International Joint Conference on Artificial Intelligence},
+  year={2023}
+}
+```
+
 
 
 
