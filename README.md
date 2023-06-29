@@ -5,7 +5,12 @@ This is the official implementation of the paper [The ACCompanion: Combining Rea
 
 This work was conducted at the [Institute of Computational Perception](https://www.jku.at/en/institute-of-computational-perception/) at JKU.
 
-**Live Demos:** 
+### Awards
+This work was awarded Science Breakthroughs of the Year 2021 for the Falling Walls Foundation in Berlin. See [press release](https://falling-walls.com/press-releases/109869/).
+See [Talk and Demo](https://www.youtube.com/watch?v=KE6WhYxuWLk).
+
+
+### Live Demos
 - [J. Brahms "Hungarian Dance No.5 in F# minor"](https://www.youtube.com/watch?v=Wtxcqp-sQ_4)
 - [F. Schubert "Rondo in A major D.951"](https://www.youtube.com/watch?v=qEocywdruco)
 
