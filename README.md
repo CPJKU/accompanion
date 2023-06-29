@@ -7,7 +7,7 @@ This work was conducted at the [Institute of Computational Perception](https://w
 
 ### Awards
 This work was awarded Science Breakthroughs of the Year 2021 for the Falling Walls Foundation in Berlin. See [press release](https://falling-walls.com/press-releases/109869/).
-See [Talk and Demo](https://www.youtube.com/watch?v=KE6WhYxuWLk).
+See [Talk and Demo]([https://www.youtube.com/watch?v=KE6WhYxuWLk](https://falling-walls.com/discover/videos/computer-accompanist-breaking-the-wall-to-computational-expressivity-in-music-performance/)).
 
 
 ### Live Demos
