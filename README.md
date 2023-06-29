@@ -84,9 +84,9 @@ cd Path/to/accompanion/bin
 python launch_acc.py -f simple_pieces --piece new_piece
 ```
 
-***The Python wrapper for the Nakamura Alignment Tool provides a a scrpt for this (see Additional Resources below). 
+***The Python wrapper for the Nakamura Alignment Tool provides a a script for this (see Additional Resources below). 
 
-For more instructions follow the submodule documentation : [accompaniment_pieces](https://github.com/CPJKU/accompaniment_pieces)
+For more instructions follow the submodule documentation : [accompaniment_pieces](https://github.com/CPJKU/accompanion_pieces)
 
 
 ### Turn off MIDI routing
