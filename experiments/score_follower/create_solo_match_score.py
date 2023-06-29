@@ -2,12 +2,9 @@ import partitura as pt
 import os
 import numpy as np
 import gc
-import platform
 
-if platform.system() == "Windows":
-    par_path = os.path.normpath("C:\\Users\\melki\\Desktop\\JKU\\data\\accompanion_experiment\\")
-else:
-    par_path = os.path.normpath("/home/manos/Desktop/JKU/data/accompanion_experiment/")
+# Input your own path here, i.e. /home/User/data/accompanion_experiment/
+par_path = ""
 
 for file in os.listdir(os.path.join(par_path, "musicxml")):
     piece_name = os.path.splitext(file)[0]

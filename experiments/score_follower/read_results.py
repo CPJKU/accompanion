@@ -102,11 +102,8 @@ if __name__ == "__main__":
     argparser.add_argument("--follower", help="Which score follower to use", default="hmm")
     args = argparser.parse_args()
 
-    pl = platform.system()
-    if pl == "Windows":
-        path_par = os.path.normpath("C:\\Users\\melki\\Desktop\\JKU\\data\\accompanion_experiment\\")
-    else:
-        path_par = os.path.normpath("/home/manos/Desktop/JKU/data/accompanion_experiment/")
+    # Input your own path here, i.e. /home/User/data/accompanion_experiment/
+    path_par = ""
 
     follower = args.follower
     artifact_path = os.path.join(os.path.dirname(__file__), "artifacts")

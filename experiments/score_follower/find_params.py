@@ -1,6 +1,9 @@
 import os
 
-match_path = os.path.normpath("/home/manos/Desktop/JKU/data/accompanion_experiment/match")
+# Input your own path with the match files here, i.e. /home/User/data/match_files/
+match_path = ""
+
+
 results_path = os.path.join(os.path.dirname(__file__), "artifacts", "config")
 if not os.path.exists(results_path):
     os.makedirs(results_path)
