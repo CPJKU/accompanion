@@ -54,7 +54,7 @@ cd Path/to/accompanion/
 python ./bin/launch_acc.py --input Your_MIDI_Input -out Your_MIDI_Output --piece Your_Piece
 ```
 
-** Advanced Mode - _Complex Pieces_**
+**Advanced Mode - _Complex Pieces_**
 
 The default for the advanced mode runs the Hungarian Dance No. 5 by Johannes Brahms (piano arrangement for four hands):
 ```shell
