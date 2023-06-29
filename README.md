@@ -99,7 +99,7 @@ necessary for testing purposes on VMs where ports and such cannot be accessed
 * Nakamura Alignment Tool (Python wrapper): [GitHub repo](https://github.com/neosatrapahereje/nakamura_alignment_wrapper)
 * Parangonada Alignment Visualisation: [Webtool](https://sildater.github.io/parangonada/) and [GitHub repo](https://github.com/sildater/parangonada)
 
-## Aknowledgments
+## Acknowledgments
 This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (”Wither Music?”).
 
 
