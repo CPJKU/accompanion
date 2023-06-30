@@ -1,1 +1,0 @@
-python ./offline_oltw_grid_search.py -s $1 -r $1 -o $2

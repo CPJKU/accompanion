@@ -1,1 +1,0 @@
-python ./launch.py --test --midi_fn $1 --piece_fn $2 --follower $3
