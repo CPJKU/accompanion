@@ -53,7 +53,7 @@ if __name__ == "__main__":
     parser.add_argument("--piece")
     parser.add_argument("--follower", default="hmm")
     parser.add_argument(
-        "-f", "--config_file", default="test", help="config file to load."
+        "-f", "--config_file", default="simple_pieces", help="config file to load."
     )
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
@@ -204,6 +204,7 @@ if __name__ == "__main__":
         configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
 
     configurations["test"] = True if args.test else False
+
 
     configurations["record_midi"] = args.record_midi if args.record_midi else False
     configurations["midi_fn"] = args.midi_fn if args.midi_fn else None
