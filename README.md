@@ -19,6 +19,27 @@ This paper introduces the ACCompanion, an expressive accompaniment system. Simil
 
 ## Setup
 
+### Prerequisites
+To set up the ACCompanion you need a couple of dependencies ([Miniconda](https://docs.conda.io/en/latest/miniconda.html#installing) and [Git](https://git-scm.com/downloads)).
+
+Check if `git` is installed by typing in your terminal:
+```shell
+git --version
+```
+If you get an error please install `git` by following the instructions [here](https://git-scm.com/downloads) according to your OS.
+
+Check if `conda` is installed by typing in your terminal:
+
+```shell
+git --version
+```
+If you get an error please install `git` by following the instructions [here]([https://git-scm.com/downloads](https://docs.conda.io/en/latest/miniconda.html#installing)) according to your OS.
+
+
+### Installation
+
+To install the ACCompanion copy the following steps in your terminal.
+
 Clone and install the accompanion environment:
 
 ```shell
@@ -40,6 +61,15 @@ pip install -e .
 ```
 
 ## Usage
+
+If you have already installed the ACCompanion, i.e. already done the Setup steps you should remember to activate your ACCompanion environment before trying out the accompanion by typing the following command in your terminal:
+
+```shell
+conda activate accompanion
+```
+If the accompanion enviroment is activated then you can follow the below instructions to try it out!
+
+
 
 The ACCompanion features two playing modes, one for beginner and one for advanced players. In the beginner mode, for a two-handed piano piece, the ACCompanion plays the left hand as accompaniment while the user plays the right hand (usually containing the melody). In the advanced mode, the ACCompanion plays the secondo part of a four-hand piano piece, leaving the primo part to the user.
 
