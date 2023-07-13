@@ -23,7 +23,9 @@ class NoteTracker(object):
         "already_matched",
         "time",
         "note_dict",
-        "recently_closed_snotes"
+        "recently_closed_snotes",
+        "alignment",
+        "midi_id",
     ]
 
 
@@ -38,7 +40,9 @@ class NoteTracker(object):
         self.already_matched = []
         # 1d list of all matched score note ids (easier to check if id is already matched)
         self.time = 0
+        self.midi_id = -1
         self.recently_closed_snotes = []
+        self.alignment = list()
         self.setup_tracked_notes()
 
     def setup_tracked_notes(self):
@@ -122,7 +126,7 @@ class NoteTracker(object):
             for note in notes:
                 # apply pitch constraint for each note
                 matching_pitch = candidates[candidates["pitch"] == note]
-
+                self.midi_id += 1
                 score_id = None
                 for match in matching_pitch:
                     if (
@@ -138,8 +142,14 @@ class NoteTracker(object):
 
                 if score_id is None:
                     print("No match for", note)
+                    self.alignment.append({"label": "insertion", "onset": self.onset[idx], "performance_id": self.midi_id})
                 else:
                     self.note_dict[score_id][2] = self.onset[idx]
+                    self.alignment.append({
+                        "label": "match",
+                        "score_id": score_id,
+                        "onset": self.onset[idx],
+                        "performance_id": self.midi_id})
                 matched_ids.append(score_id)
 
             # store matches for particular notes

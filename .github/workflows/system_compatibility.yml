@@ -34,7 +34,7 @@ jobs:
       - name: Run Accompanion
         run: |
           cd bin
-          python launch_acc_yaml.py --test
+          python launch_acc_yaml.py --test -f test
 
   ubuntu_testing:
     runs-on: ubuntu-20.04

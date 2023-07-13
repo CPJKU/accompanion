@@ -9,6 +9,7 @@ from accompanion.config import CONFIG
 
 
 class MidiInputPlayer(threading.Thread):
+    # TODO: del, never init?
     def __init__(self, in_port, out_port, chords):
         threading.Thread.__init__(self)
 

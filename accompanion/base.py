@@ -18,9 +18,9 @@ from accompanion.midi_handler.midi_routing import (
     DummyRouter,
     RecordingRouter,
 )
-from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg
+from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg # TODO: del, import is never used
 
-from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
+from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor # TODO: del
 
 from accompanion.accompanist.score import AccompanimentScore, Score
 
@@ -29,7 +29,7 @@ from accompanion.accompanist.accompaniment_decoder import (
     Accompanist,
 )
 
-from accompanion.accompanist.tempo_models import SyncModel
+from accompanion.accompanist.tempo_models import SyncModel # TODO: del
 from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.score_follower.note_tracker import NoteTracker
 from accompanion.score_follower.onset_tracker import OnsetTracker, DiscreteOnsetTracker
@@ -109,7 +109,8 @@ class ACCompanion(ACC_PARENT):
         self.solo_score: Optional[Score] = None
         self.acc_score: Optional[AccompanimentScore] = None
         self.accompanist = None
-
+        self.time_delays = list()
+        self.alignment = list()
         self.midi_fn: Optional[str] = midi_fn
 
         self.router_kwargs = midi_router_kwargs
@@ -407,11 +408,7 @@ class ACCompanion(ACC_PARENT):
                         f"beat_period {self.beat_period}",
                         f"adjusted {acc_update or adjusted_sf}",
                     )
-
-                    if self.test and test_counter == 10:
-                        break
-                    else:
-                        test_counter += 1
+                    self.time_delays.append([solo_s_onset, solo_p_onset, self.beat_period])
 
                     if not acc_update:
                         asynch = expected_position - solo_s_onset
@@ -452,6 +449,7 @@ class ACCompanion(ACC_PARENT):
                     if self.score_follower.current_position < expected_position:
                         self.score_follower.update_position(expected_position)
                         adjusted_sf = True
+            self.alignment = self.note_tracker.alignment
         except Exception as e:
             print(e)
             pass

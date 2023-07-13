@@ -57,7 +57,7 @@ class OLTWACCompanion(ACCompanion):
     score_follower_kwargs : dict, optional
         The keyword arguments for the score follower, by default {"score_follower": "PitchIOIHMM", "score_follower_kwargs": {}, "input_processor": {"processor": "PitchIOIProcessor", "processor_kwargs": {}}}.
     tempo_model_kwargs : dict, optional
-        The keyword arguments for the tempo model, by default {"tempo_model": tempo_models.LSM}.
+        The keyword arguments for the tempo model, by default {"tempo_model": tempo_models.LTSM}.
     performance_codec_kwargs : dict, optional
         The keyword arguments for the performance codec, by default {"velocity_trend_ma_alpha": 0.6, "articulation_ma_alpha": 0.4, "velocity_dev_scale": 70, "velocity_min": 20, "velocity_max": 100, "velocity_solo_scale": 0.85, "timing_scale": 0.001, "log_articulation_scale": 0.1, "mechanical_delay": 0.0}.
     init_bpm : float, optional
@@ -77,6 +77,7 @@ class OLTWACCompanion(ACCompanion):
     record_midi : bool, optional
         Whether to record the MIDI, by default False.
     """
+
     def __init__(
         self,
         solo_fn,
@@ -112,7 +113,7 @@ class OLTWACCompanion(ACCompanion):
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # bypass MIDIRouter
-        record_midi : bool = False,
+        record_midi: bool = False,
     ) -> None:
 
         score_kwargs = dict(
@@ -134,7 +135,7 @@ class OLTWACCompanion(ACCompanion):
             bypass_audio=bypass_audio,
             tempo_model_kwargs=tempo_model_kwargs,
             test=test,
-            record_midi=record_midi
+            record_midi=record_midi,
         )
 
         self.solo_parts = None
@@ -158,13 +159,17 @@ class OLTWACCompanion(ACCompanion):
             if fn.endswith(".match"):
                 if i == 0:
                     solo_perf, alignment, solo_score = partitura.load_match(
-                        filename=fn, create_score=True, first_note_at_zero=True,
+                        filename=fn,
+                        create_score=True,
+                        first_note_at_zero=True,
                     )
                     solo_ppart = solo_perf[0]
                     solo_spart = solo_score[0]
                 else:
                     solo_perf, alignment = partitura.load_match(
-                        filename=fn, create_score=False, first_note_at_zero=True,
+                        filename=fn,
+                        create_score=False,
+                        first_note_at_zero=True,
                     )
                     solo_ppart = solo_perf[0]
 

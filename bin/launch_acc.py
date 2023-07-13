@@ -23,7 +23,6 @@ overridable_args = [
 
 
 if __name__ == "__main__":
-
     # This creates a RuntimeError: context has already been set.
     if PLATFORM == "Darwin" or PLATFORM == "Linux":
         multiprocessing.set_start_method("spawn")
@@ -54,7 +53,7 @@ if __name__ == "__main__":
     parser.add_argument("--piece")
     parser.add_argument("--follower", default="hmm")
     parser.add_argument(
-        "-f", "--config_file", default="test", help="config file to load."
+        "-f", "--config_file", default="simple_pieces", help="config file to load."
     )
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
