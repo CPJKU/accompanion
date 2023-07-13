@@ -1,9 +1,7 @@
 from inspect import signature
 from ast import literal_eval
-
 import PySimpleGUI
 from typing import Union
-
 import os
 
 
@@ -23,10 +21,10 @@ def currently_supported_types(t):
     return t in (int, float, bool, list, dict, str)
 
 
-_currently_supported_versions = dict(
-    HMM_based=('accompanion.hmm_accompanion', 'HMMACCompanion'),
-    OLTW_based=('accompanion.oltw_accompanion', 'OLTWACCompanion')
-)
+_currently_supported_versions = {
+    "HMM based (for solo simple Pieces)": ('accompanion.hmm_accompanion', 'HMMACCompanion'),
+    "OLTW based (usually for four hands pieces)": ('accompanion.oltw_accompanion', 'OLTWACCompanion')
+}
 
 
 class ConfigurationNode(object):

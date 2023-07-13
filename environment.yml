@@ -25,6 +25,7 @@ dependencies:
     - PyQt5
     - pyyaml
     - pyqtgraph
+    - PySimpleGUI==4.18.2
+    - partitura>=1.3.0
     - git+https://github.com/OFAI/basismixer.git
-    - git+https://github.com/CPJKU/partitura.git@develop
     - git+https://github.com/neosatrapahereje/hiddenmarkov.git
