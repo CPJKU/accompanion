@@ -127,7 +127,7 @@ cd Path/to/accompanion/bin
 python launch_acc.py -f simple_pieces --piece new_piece
 ```
 
-***The Python wrapper for the Nakamura Alignment Tool provides a a script for this (see Additional Resources below). 
+***The Parangonar package provides tools for this (see Additional Resources below). 
 
 For more instructions follow the submodule documentation : [accompanion_pieces](https://github.com/CPJKU/accompanion_pieces)
 
@@ -139,7 +139,6 @@ necessary for testing purposes on VMs where ports and such cannot be accessed
 
 
 ### Additional Resources
-* Nakamura Alignment Tool (Python wrapper): [GitHub repo](https://github.com/neosatrapahereje/nakamura_alignment_wrapper)
 * Parangonada Alignment Visualisation: [Webtool](https://sildater.github.io/parangonada/) and [GitHub repo](https://github.com/sildater/parangonada)
 
 ## Acknowledgments
@@ -150,7 +149,7 @@ This work is supported by the European Research Council (ERC) under the EU’s H
 
 If you use this work please cite us:
 
-```shell
+```
 @inproceedings{cancino2023accompanion,
   title={The ACCompanion: Combining Reactivity, Robustness, and Musical Expressivity in an Automatic Piano Accompanist},
   author={Cancino-Chac{\'o}n, Carlos and Peter, Silvan and Hu, Patricia and Karystinaios, Emmanouil and Henkel, Florian and Foscarin, Francesco and Varga, Nimrod and Widmer, Gerhard},
