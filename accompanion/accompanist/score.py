@@ -4,12 +4,14 @@ Objects for representing score information
 """
 from typing import Iterable
 import numpy as np
+import warnings
 
 # from matchmaker.io.symbolic import load_score
 from partitura import load_score
 from mido import Message
-from partitura.score import Part
-from partitura.performance import PerformedPart
+import partitura
+from partitura.score import Part, Score as PtScore
+from partitura.performance import PerformedPart, Performance
 
 from partitura.utils.music import performance_from_part
 
@@ -385,12 +387,12 @@ class AccompanimentScore(Score):
 
 def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     """
-    Get a `Score` instance from a partitura `Part` or `PerformedPart`
+    Get a accompanion `Score` instance from a partitura `Part`, `Score` or `PerformedPart`
 
     Parameters
     ----------
-    fn_spart_or_ppart : filename, Part of PerformedPart
-        Filename or partitura Part
+    fn_spart_or_ppart : str, partitura.Part, partitura.Score, partitura.PerformedPart
+        The object containing the musical information for the accompanion Score.
     bpm : float
         Beats per minute to generate the performance (this is ignored if
         the input is a `PerformedPart`
@@ -401,13 +403,17 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     Returns
     -------
     score : Score
-        A `Score` object.
+        An accompanion `Score` object.
     """
 
     if isinstance(fn_spart_or_ppart, str):
         part = load_score(fn_spart_or_ppart)
     elif isinstance(fn_spart_or_ppart, (Part, PerformedPart)):
         part = fn_spart_or_ppart
+    elif isinstance(fn_spart_or_ppart, partitura.score.Score):
+        if len(fn_spart_or_ppart.parts) != 1:
+            warnings.warn("More than one part in the input score. Using the first one.")
+        part = fn_spart_or_ppart.parts[0]
 
     s_note_array = part.note_array()
     if isinstance(part, Part):
@@ -464,15 +470,20 @@ def alignment_to_score(fn_or_spart, ppart, alignment):
         part = load_score(fn_or_spart)
     elif isinstance(fn_or_spart, Part):
         part = fn_or_spart
+    elif isinstance(fn_or_spart, PtScore):
+        part = fn_or_spart[0]
     else:
         raise ValueError(
-            "`fn_or_spart` must be a `Part` or a filename, " f"but is {type(part)}."
+            "`fn_or_spart` must be a `Part` or a filename, " f"but is {type(fn_or_spart)}."
         )
 
-    if not isinstance(ppart, PerformedPart):
+    if not isinstance(ppart, (PerformedPart, Performance)):
         raise ValueError(
             "`ppart` must be a `PerformedPart`, but is ", f"{type(ppart)}."
         )
+
+    if isinstance(ppart, Performance):
+        ppart = ppart[0]
 
     part_by_id = dict((n.id, n) for n in part.notes_tied)
 

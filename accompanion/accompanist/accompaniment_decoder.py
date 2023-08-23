@@ -4,12 +4,22 @@ Decode the performance from the accompaniment
 """
 import numpy as np
 from accompanion.utils.expression_tools import friberg_sundberg_rit
-
-
-RIT_LEN = 24
+from accompanion.config import CONFIG
 
 
 class Accompanist(object):
+    """
+    The Accompanist class is responsible for decoding the performance
+    from the accompaniment.
+
+    Parameters
+    ----------
+    accompaniment_score : AccompanimentScore
+        The accompaniment score.
+    performance_codec : PerformanceCodec
+        The performance codec.
+    """
+
     def __init__(self, accompaniment_score, performance_codec):
 
         self.acc_score = accompaniment_score
@@ -20,7 +30,7 @@ class Accompanist(object):
         )
         self.step_counter = 0
         self.bp_prev = None
-        self.rit_curve = friberg_sundberg_rit(RIT_LEN, r_w=0.75)
+        self.rit_curve = friberg_sundberg_rit(CONFIG["RIT_LEN"], CONFIG["RIT_W"])
         self.rit_counter = 0
         # self.num_acc_onsets = len(self.acc_score.ssc.unique_onsets)
 
@@ -33,7 +43,7 @@ class Accompanist(object):
         self.num_chords = len(all_chords)
         for i, so in enumerate(all_chords):
             self.tempo_change_curve[so] = 1.0
-            if self.num_chords - i <= RIT_LEN:
+            if self.num_chords - i <= CONFIG["RIT_LEN"]:
                 self.tempo_change_curve[so] = self.rit_curve[j]
                 j += 1
 
@@ -109,6 +119,40 @@ class Accompanist(object):
 
 
 class OnlinePerformanceCodec(object):
+    """
+    An Online Version of the Performance Codec.
+
+    Parameters
+    ----------
+    pass: partitura.score.Part (optional)
+        The solo part.
+    note_tracker : NoteTracker (optional)
+        The note tracker.
+    beat_period_ave : float (optional)
+        The average beat period.
+    velocity_ave : int (optional)
+        The average velocity. Is used when the moving average cannot be computed.
+    vel_min : int (optional)
+        The minimum velocity accompaniment.
+    vel_max : int (optional)
+        The maximum velocity of the accompaniment.
+    velocity_ma_alpha : float (optional)
+        The alpha parameter for the moving average of the velocity.
+    init_eq_onset : float (optional)
+        The initial equalized onset.
+    mechanical_delay : float (optional)
+        The mechanical delay of the accompaniment (to be used with a mechnaical piano).
+        This refers to the delay of the message arriving to the piano and the mechanical piano actually producing the sound.
+    tempo_model : TempoModel (optional)
+        The tempo model to be used from available models in accompanist tempo_models.py
+    vel_prev : int (optional)
+        The previous velocity.
+    articulation_prev : int (optional)
+        The previous articulation.
+    articulation_ma_alpha: float (optional)
+        The alpha parameter for the moving average of the articulation.
+    """
+
     def __init__(
         self,
         part=None,
@@ -133,14 +177,11 @@ class OnlinePerformanceCodec(object):
         self.vel_max = vel_max
         self.velocity_ma_alpha = velocity_ma_alpha
         self.articulation_ma_alpha = articulation_ma_alpha
-
         self.mechanical_delay = mechanical_delay
-
         self.prev_eq_onset = init_eq_onset
         self.part = part
         self.note_tracker = note_tracker
         self.tempo_model = tempo_model
-
         self.vel_prev = vel_prev
         self.articulation_prev = articulation_prev
         self.kwargs = kwargs
@@ -152,7 +193,7 @@ class OnlinePerformanceCodec(object):
                 self.vel_prev,
                 self.velocity_ma_alpha,
             )
-        except:
+        except Exception:
             self.vel_prev = self.velocity_ave
 
         articulation_list = []

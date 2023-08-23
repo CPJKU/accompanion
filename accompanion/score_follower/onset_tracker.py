@@ -1,5 +1,4 @@
 from typing import Tuple, List, Optional
-
 import numpy as np
 
 
@@ -83,6 +82,14 @@ class OnsetTracker(object):
 
 
 class DiscreteOnsetTracker(object):
+    """
+    A class to track discrete onset events.
+
+    Parameters
+    ----------
+    unique_onsets : np.ndarray
+        The unique score onsets in beats.
+    """
     def __init__(self, unique_onsets: np.ndarray, *args, **kwargs) -> None:
         print("Using discrete onset tracker")
         self.unique_onsets = unique_onsets

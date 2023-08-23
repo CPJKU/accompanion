@@ -11,6 +11,7 @@ class OnlineAlignment(object):
     reference_features : Any
         Features of the music we want to align our online input to.
     """
+
     def __init__(self, reference_features: Any):
         super().__init__()
         self.reference_features: Any = reference_features

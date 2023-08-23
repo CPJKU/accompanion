@@ -55,6 +55,7 @@ class OnlineTimeWarping(OnlineAlignment):
         window_size=WINDOW_SIZE,
         step_size=STEP_SIZE,
         local_cost_fun=DEFAULT_LOCAL_COST,
+        start_window_size=START_WINDOW_SIZE,
     ):
 
         super().__init__(reference_features=reference_features)
@@ -77,8 +78,7 @@ class OnlineTimeWarping(OnlineAlignment):
             # If the local cost is a callable
             self.local_cost_fun = local_cost_fun
 
-        # A callable to compute the distance between
-        # the rows of matrix and a vector
+        # A callable to compute the distance between the rows of matrix and a vector
         if isinstance(self.local_cost_fun, Metric):
             self.vdist = vdist
         else:
@@ -87,19 +87,14 @@ class OnlineTimeWarping(OnlineAlignment):
         self.N_ref = self.reference_features.shape[0]
         self.window_size = window_size
         self.step_size = step_size
+        self.start_window_size = start_window_size
 
         self.current_position = 0
         self.positions = []
         self.warping_path = []
-        # For debugging
-
         self.global_cost_matrix = (
             np.ones((reference_features.shape[0] + 1, 2)) * np.infty
         )
-        # self.global_cost_matrix = initialize_cost_matrix(self.N_ref)
-        # For fast reinitializing the cost matrix
-        # self.global_cost_matrix_reset = initialize_cost_matrix(self.N_ref)
-        # self.inf_step = inf_vector(self.N_ref)
         self.input_index = 0
         self.go_backwards = False
         self.update_window_index = False
@@ -110,10 +105,9 @@ class OnlineTimeWarping(OnlineAlignment):
         return self.current_position
 
     def get_window(self):
-
         w_size = self.window_size
-        if self.window_index < START_WINDOW_SIZE:
-            w_size = START_WINDOW_SIZE
+        if self.window_index < self.start_window_size:
+            w_size = self.start_window_size
         window_start = max(self.window_index - w_size, 0)
         window_end = min(self.window_index + w_size, self.N_ref)
         return window_start, window_end
@@ -124,7 +118,7 @@ class OnlineTimeWarping(OnlineAlignment):
 
     def step(self, input_features):
         """
-        Step
+        Update the current position and the warping path.
         """
         min_costs = np.infty
         min_index = max(self.window_index - self.step_size, 0)
@@ -138,7 +132,6 @@ class OnlineTimeWarping(OnlineAlignment):
             input_features,
             self.local_cost_fun,
         )
-
         if self.restart:
             self.global_cost_matrix = reset_cost_matrix(
                 global_cost_matrix=self.global_cost_matrix,
@@ -168,7 +161,8 @@ class OnlineTimeWarping(OnlineAlignment):
         # update input index
         self.input_index += 1
 
-    # def update_position(self, position):
+    # # TODO review that update_position method is not needed.
+    # def update_position(self, input_features, position):
     #     """
     #     Restart following from a new position.
     #     This method "forgets" the pasts and starts from
@@ -181,23 +175,6 @@ class OnlineTimeWarping(OnlineAlignment):
     #         input_features,
     #         self.local_cost_fun
     #     )
-
-
-# class TempoControlledOnlineTimeWarping(OnlineTimeWarping):
-#     def __init__(self, reference_features,
-#                  window_size=WINDOW_SIZE,
-#                  step_size=STEP_SIZE,
-#                  local_cost_fun=DEFAULT_LOCAL_COST):
-#         super().__init__(reference_features=reference_features,
-#                          window_size=window_size,
-#                          step_size=step_size,
-#                          local_cost_fun=local_cost_fun)
-#         self.window_center = 0
-#         self.update_window_index = True
-
-#     @property
-#     def window_index(self):
-#         return self.window_center
 
 
 if __name__ == "__main__":

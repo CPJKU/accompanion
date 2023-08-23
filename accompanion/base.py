@@ -1,24 +1,26 @@
 # -*- coding: utf-8 -*-
 """
 ACCompanion!
-
-TODO
-----
-* Add visualization stuff!
 """
 import multiprocessing
 import threading
 import time
 import numpy as np
-
+import os
+from accompanion.config import CONFIG
 from typing import Optional
 
 from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
 from accompanion.midi_handler.midi_file_player import get_midi_file_player
 from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
-from accompanion.midi_handler.midi_routing import MidiRouter, DummyRouter
+from accompanion.midi_handler.midi_routing import (
+    MidiRouter,
+    DummyRouter,
+    RecordingRouter,
+)
+from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg # TODO: del, import is never used
 
-from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
+from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor # TODO: del
 
 from accompanion.accompanist.score import AccompanimentScore, Score
 
@@ -27,12 +29,7 @@ from accompanion.accompanist.accompaniment_decoder import (
     Accompanist,
 )
 
-from accompanion.accompanist.tempo_models import SyncModel
-
-from accompanion.utils.partitura_utils import (
-    DECAY_VALUE,
-)
-
+from accompanion.accompanist.tempo_models import SyncModel # TODO: del
 from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.score_follower.note_tracker import NoteTracker
 from accompanion.score_follower.onset_tracker import OnsetTracker, DiscreteOnsetTracker
@@ -40,34 +37,49 @@ from accompanion.score_follower.trackers import AccompanimentScoreFollower
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 
 
-ACC_PROCESS = True
-ACC_PARENT = multiprocessing.Process if ACC_PROCESS else threading.Thread
-USE_THREADS = True
+ACC_PARENT = multiprocessing.Process if CONFIG["ACC_PROCESS"] else threading.Thread
 
 
 class ACCompanion(ACC_PARENT):
     """
-    Main class for running the accompanion.
+    Main class for running the ACCompanion.
+
+    Both the HMMACCompanion and the OLTWACCompanion inherit from this class.
+    Arguments of this class are initialized on methods of the child classes.
 
     Parameters
     ----------
     solo_score: Score
+        Score object for the solo part.
     accompaniment_score: AccompanimentScore
+        Score object for the accompaniment part.
     score_follower: AccompanimentScoreFollower
+        Score follower object for the accompaniment part.
     tempo_model: SyncModel
+        Tempo model object for the accompaniment part.
     performance_codec: OnlinePerformanceCodec
+        Performance codec object for the accompaniment part.
     input_pipeline: SequentialOutputProcessor
+        Input pipeline object for the accompaniment part.
     midi_router: MidiRouter
+        Midi router object for handling MIDI messages.
     midi_fn: str (optional)
+        Path to the MIDI file to be played.
     init_bpm: float = 60
+        Initial tempo in beats per minute.
     init_velocity: int = 60
+        Initial velocity for the MIDI messages.
     polling_period: float
+        Period of the polling loop in seconds.
     use_ceus_mediator: bool
+        Whether to use the CEUS mediator.
     adjust_following_rate: float
+        A float between 0 and 1. The rate at which the score follower ...
     bypass_audio: bool = False
         Bypass fluidsynth audio
     test: bool = False
         switch to Dummy MIDI ROuter for test environment
+    record_midi_path : str
     """
 
     def __init__(
@@ -86,6 +98,7 @@ class ACCompanion(ACC_PARENT):
         onset_tracker_type: str = "continuous",
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # switch to Dummy MIDI ROuter for test environment
+        record_midi: bool = False,
     ) -> None:
         super(ACCompanion, self).__init__()
 
@@ -96,7 +109,8 @@ class ACCompanion(ACC_PARENT):
         self.solo_score: Optional[Score] = None
         self.acc_score: Optional[AccompanimentScore] = None
         self.accompanist = None
-
+        self.time_delays = list()
+        self.alignment = list()
         self.midi_fn: Optional[str] = midi_fn
 
         self.router_kwargs = midi_router_kwargs
@@ -109,55 +123,49 @@ class ACCompanion(ACC_PARENT):
         self.init_velocity: int = init_velocity
         self.beat_period = self.init_bp
         self.velocity = self.init_velocity
+        self.record_midi = record_midi
 
         # Parameters for following
         self.polling_period: float = polling_period
-
         self.score_follower: Optional[AccompanimentScoreFollower] = None
-
         self.tempo_model = None
-
         self.bypass_audio: bool = True if test else bypass_audio
-
         self.play_accompanion: bool = False
-
-        # self.first_score_onset: Optional[float] = None
-        self.adjust_following_rate: float = adjust_following_rate
         # Rate in "loops_without_update"  for adjusting the score
-        # follower with expected position at the
-        # current tempo
+        self.adjust_following_rate: float = adjust_following_rate
+        # follower with expected position at the current tempo.
         self.afr: float = np.round(1 / self.polling_period * self.adjust_following_rate)
-
-        # self.input_pipeline = input_pipeline
         self.input_pipeline = None
-
         self.seq = None
         self.note_tracker = None
         self.pipe_out = None
         self.queue = None
         self.midi_input_process = None
         self.router = None
-
         self.dummy_solo = None
-
         self.test = test
-
         self.onset_tracker_type = onset_tracker_type
 
     def setup_scores(self) -> None:
+        """Method to be overwritten by the child classes."""
         raise NotImplementedError
 
     def setup_accompanist(self) -> None:
+        """Method to be overwritten by the child classes."""
         raise NotImplementedError
 
     def setup_score_follower(self) -> None:
+        """Method to be overwritten by the child classes."""
         raise NotImplementedError
 
     def check_empty_frames(self, frame) -> bool:
+        """Method to be overwritten by the child classes."""
         raise NotImplementedError
 
     def setup_process(self):
-
+        """
+        Setup the process for the ACCompanion.
+        """
         if self.router_kwargs.get("acc_output_to_sound_port_name", None) is not None:
             try:
                 # For SynthPorts
@@ -193,11 +201,21 @@ class ACCompanion(ACC_PARENT):
         if self.use_mediator:
             self.mediator = CeusMediator()
 
-        self.router = (
-            MidiRouter(**self.router_kwargs)
-            if not self.test
-            else DummyRouter(**self.router_kwargs)
-        )
+        if self.test:
+            self.router = DummyRouter(**self.router_kwargs)
+        elif self.record_midi:
+
+            if isinstance(self.score_kwargs["solo_fn"], (list, tuple)):
+                piece_name = self.score_kwargs["solo_fn"][0].split(os.path.sep)[-2]
+            elif isinstance(self.score_kwargs["solo_fn"], str):
+                piece_name = self.score_kwargs["solo_fn"].split(os.path.sep)[-2]
+            else:
+                raise ValueError(
+                    f"{self.score_kwargs['solo_fn']} should be a string or a list"
+                )
+            self.router = RecordingRouter(piece_name, **self.router_kwargs)
+        else:
+            self.router = MidiRouter(**self.router_kwargs)
 
         self.seq: ScoreSequencer = ScoreSequencer(
             score_or_notes=self.acc_score,
@@ -222,7 +240,7 @@ class ACCompanion(ACC_PARENT):
             # velocities only for visualization purposes
             pipeline=self.input_pipeline,
             return_midi_messages=True,
-            thread=USE_THREADS,
+            thread=CONFIG["USE_THREADS"],
             mediator=self.mediator,
         )
 
@@ -262,19 +280,20 @@ class ACCompanion(ACC_PARENT):
         """
         self.play_accompanion = False
         if self.dummy_solo is not None:
-
             self.dummy_solo.stop_playing()
+            self.dummy_solo.join()
         self.midi_input_process.stop_listening()
         self.seq.stop_playing()
+        self.seq.panic_button()
         self.router.close_ports()
+        self.seq.join()
+        self.midi_input_process.join()
+        print("All processes have finished")
 
     def terminate(self):
         """
         Terminate process of the ACCompanion
         """
-        # if hasattr(super(ACCompanion, self), "terminate"):
-        #     super(ACCompanion, self).terminate()
-        # else:
         self.stop_playing()
 
     def run(self):
@@ -296,32 +315,30 @@ class ACCompanion(ACC_PARENT):
             solo_starts = False
             start_time = self.seq.init_time
 
-        # intialize beat period
-        # perf_start = False
-
         if self.onset_tracker_type == "discrete":
             onset_tracker = DiscreteOnsetTracker(self.solo_score.unique_onsets)
         else:
             onset_tracker = OnsetTracker(self.solo_score.unique_onsets)
 
-        # Initialize on-line Basis Mixer here
+        # TODO: Initialize on-line Basis Mixer here
         # expression_model = BasisMixer()
         self.midi_input_process.start()
         print("Start listening")
 
         self.perf_frame = None
-        # self.score_idx = 0
 
         if self.midi_fn is not None:
             print("Start playing MIDI file")
             self.dummy_solo = get_midi_file_player(
-                port=self.router.MIDIPlayer_to_accompaniment_port_name[1],
+                port= self.router.MIDIPlayer_to_accompaniment_port,
                 file_name=self.midi_fn,
                 player_class=FluidsynthPlayer,
-                thread=USE_THREADS,
+                thread=CONFIG["USE_THREADS"],
                 bypass_audio=self.bypass_audio,
             )
             self.dummy_solo.start()
+
+
 
         # dummy start time (see below)
         if start_time is None:
@@ -333,127 +350,106 @@ class ACCompanion(ACC_PARENT):
         empty_loops = 0
         prev_solo_p_onset = None
         adjusted_sf = False
-        decay = np.ones(88)
 
         pioi = self.polling_period
 
         test_counter = 0
 
         try:
-            while (
-                not self.seq.end_of_piece
-            ):  # self.play_accompanion and not self.seq.end_of_piece:
-                if self.queue.poll() is not None:
-                    output = self.queue.recv()
-                    # CC: moved solo_p_onset here because of the delays...
-                    # perhaps it would be good to take the time from
-                    # the MIDI messages?
-                    solo_p_onset = time.time() - start_time
-                    # print(output)
-                    input_midi_messages, output = output
-                    # Use these onset times?
-                    onset_times = [
-                        msg[1]
-                        for msg in input_midi_messages
-                        if msg[0].type in ("note_on", "note_off")
-                    ]
-                    onset_time = np.mean(onset_times) if len(onset_times) > 0 else 0
-                    new_midi_messages = False
-                    decay *= DECAY_VALUE
-                    for msg, msg_time in input_midi_messages:
-                        if msg.type in ("note_on", "note_off"):
+            while not self.seq.end_of_piece:
+                # TODO GH Issue 22: "if not self.queue.poll()"
+                # vs. "self.queue.poll() is not None"
+                # (NV) actually, this should be "have a CORRECT branch (non-blocking MIDI)
+                # vs. no branch (blocking MIDI)"
+                
+                #if self.queue.poll() is not None:
+                
+                #this version of recv uses the quasi-blocking version with periodic timeouts
+                output = self.queue.recv()
+                solo_p_onset = time.time() - start_time
+                input_midi_messages, output = output
+                new_midi_messages = False
 
-                            if msg.type == "note_on" and msg.velocity > 0:
-                                new_midi_messages = True
-                            midi_msg = (msg.type, msg.note, msg.velocity, onset_time)
-                            self.note_tracker.track_note(midi_msg)
+                for msg, msg_time in input_midi_messages:
+                    if msg.type in ("note_on", "note_off"):
 
-                            decay[msg.note - 21] = 1.0
+                        if msg.type == "note_on" and msg.velocity > 0:
+                            new_midi_messages = True
+                        midi_msg = (msg.type, msg.note, msg.velocity, solo_p_onset)
+                        self.note_tracker.track_note(midi_msg)
 
-                    # output *= decay
+                if self.check_empty_frames(output):
+                    empty_loops += 1
+                else:
+                    empty_loops = 0
 
-                    if self.check_empty_frames(output):
-                        empty_loops += 1
-                    else:
-                        empty_loops = 0
-                    # if output is not None:
-                    #     if sum(output) == 0:
-                    #         empty_loops += 1
-                    #     else:
-                    #         empty_loops == 0
-                    # else:
-                    #     empty_loops += 1
+                # if perf_start:
+                score_position = self.score_follower(output)
 
-                    # if perf_start:
-                    score_position = self.score_follower(output)
+                solo_s_onset, onset_index, acc_update = onset_tracker(
+                    score_position,
+                    expected_position
+                    # self.seq.performed_score_onsets[-1]
+                )
 
-                    solo_s_onset, onset_index, acc_update = onset_tracker(
-                        score_position,
-                        expected_position
-                        # self.seq.performed_score_onsets[-1]
+                pioi = (
+                    solo_p_onset - prev_solo_p_onset
+                    if prev_solo_p_onset is not None
+                    else self.polling_period
+                )
+                prev_solo_p_onset = solo_p_onset
+                expected_position = expected_position + pioi / self.beat_period
+
+                if solo_s_onset is not None:
+
+                    print(
+                        f"performed onset {solo_s_onset}",
+                        f"expected onset {expected_position}",
+                        f"beat_period {self.beat_period}",
+                        f"adjusted {acc_update or adjusted_sf}",
                     )
+                    self.time_delays.append([solo_s_onset, solo_p_onset, self.beat_period])
 
-                    pioi = (
-                        solo_p_onset - prev_solo_p_onset
-                        if prev_solo_p_onset is not None
-                        else self.polling_period
-                    )
-                    prev_solo_p_onset = solo_p_onset
-                    expected_position = expected_position + pioi / self.beat_period
-
-                    if solo_s_onset is not None:
-
-                        print(
-                            f"performed onset {solo_s_onset}",
-                            f"expected onset {expected_position}",
-                            f"beat_period {self.beat_period}",
-                            f"adjusted {acc_update or adjusted_sf}",
-                        )
-
-                        if self.test and test_counter == 10:
-                            break
-                        else:
-                            test_counter += 1
-
-                        if not acc_update:
-                            asynch = expected_position - solo_s_onset
-                            expected_position = expected_position - 0.6 * asynch
-                            loops_without_update = 0
-                            adjusted_sf = False
-                        else:
-                            loops_without_update += 1
-
-                        if new_midi_messages:
-                            self.note_tracker.update_alignment(solo_s_onset)
-                        # start accompaniment if it starts at the
-                        # same time as the solo
-                        if solo_starts and onset_index == 0:
-                            if not sequencer_start:
-                                print("Start accompaniment")
-                                sequencer_start = True
-                                self.accompanist.accompaniment_step(
-                                    solo_s_onset=solo_s_onset,
-                                    solo_p_onset=solo_p_onset,
-                                )
-                                self.seq.start()
-
-                        if (
-                            solo_s_onset > self.first_score_onset
-                            and not acc_update
-                            and not adjusted_sf
-                        ):
-                            self.accompanist.accompaniment_step(
-                                solo_s_onset=solo_s_onset, solo_p_onset=solo_p_onset
-                            )
-                            self.beat_period = self.accompanist.pc.bp_ave
+                    if not acc_update:
+                        asynch = expected_position - solo_s_onset
+                        expected_position = expected_position - 0.6 * asynch
+                        loops_without_update = 0
+                        adjusted_sf = False
                     else:
                         loops_without_update += 1
 
-                    if loops_without_update % self.afr == 0:
-                        # only allow forward updates
-                        if self.score_follower.current_position < expected_position:
-                            self.score_follower.update_position(expected_position)
-                            adjusted_sf = True
+                    if new_midi_messages:
+                        self.note_tracker.update_alignment(solo_s_onset)
+                    # start accompaniment if it starts at the
+                    # same time as the solo
+                    if solo_starts and onset_index == 0:
+                        if not sequencer_start:
+                            print("Start accompaniment")
+                            sequencer_start = True
+                            self.accompanist.accompaniment_step(
+                                solo_s_onset=solo_s_onset,
+                                solo_p_onset=solo_p_onset,
+                            )
+                            self.seq.start()
+
+                    if (
+                        solo_s_onset > self.first_score_onset
+                        and not acc_update
+                        and not adjusted_sf
+                    ):
+                        self.accompanist.accompaniment_step(
+                            solo_s_onset=solo_s_onset, solo_p_onset=solo_p_onset
+                        )
+                        self.beat_period = self.accompanist.pc.bp_ave
+                else:
+                    loops_without_update += 1
+
+                if loops_without_update % self.afr == 0:
+                    # only allow forward updates
+                    if self.score_follower.current_position < expected_position:
+                        self.score_follower.update_position(expected_position)
+                        adjusted_sf = True
+            self.alignment = self.note_tracker.alignment
         except Exception as e:
             print(e)
             pass
