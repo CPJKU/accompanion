@@ -107,5 +107,5 @@ jobs:
       - name: Run Accompanion
         run: |
           cd bin
-          python launch_acc_yaml.py --test
+          python launch_acc.py --test
 
