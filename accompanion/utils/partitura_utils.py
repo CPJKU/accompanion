@@ -1,27 +1,24 @@
 # -*- coding: utf-8 -*-
 """
 New utilities to be added to partitura!
+
+TODO
+----
+* Replace utilities with the latest version from Partitura
 """
 
 import mido
 import partitura
-
 import numpy as np
-
 from basismixer.performance_codec import get_performance_codec
 from basismixer.utils import get_unique_onset_idxs, notewise_to_onsetwise
-
 from partitura import load_score, load_performance
 from partitura.utils.music import performance_from_part
-
-# from matchmaker.io.symbolic import load_score, load_performance
-# from matchmaker.evaluation.midi_score_following import midi_messages_to_framed_midi
-
+from accompanion.config import CONFIG
 from partitura.score import Part
 from partitura.performance import PerformedPart
 from scipy.interpolate import interp1d
 
-DECAY_VALUE = 1.0
 
 PPART_FIELDS = [
     ("onset_sec", "f4"),
@@ -33,15 +30,30 @@ PPART_FIELDS = [
     ("id", "U256"),
 ]
 
-# Default polling period (in seconds)
-POLLING_PERIOD = 0.02
-
 
 def dummy_pipeline(inputs):
     return inputs
 
 
 def midi_messages_to_framed_midi(midi_msgs, msg_times, polling_period, pipeline):
+    """
+    Convert a list of MIDI messages to a framed MIDI representation
+    Parameters
+    ----------
+    midi_msgs: list of mido.Message
+        List of MIDI messages
+    msg_times: list of float
+        List of times (in seconds) at which the MIDI messages were received
+    polling_period:
+        Polling period (in seconds) used to convert the MIDI messages
+    pipeline: function
+        Function to be applied to the MIDI messages before converting them to a MIDI frame.
+
+    Returns
+    -------
+    frames: list
+        List of MIDI frames.
+    """
     n_frames = int(np.ceil(msg_times.max() / polling_period))
     frame_times = (np.arange(n_frames) + 0.5) * polling_period
 
@@ -155,7 +167,7 @@ def get_matched_notes(spart_note_array, ppart_note_array, gt_alignment):
 
 def partitura_to_framed_midi_custom(
     part_or_notearray_or_filename,
-    polling_period=POLLING_PERIOD,
+    polling_period=CONFIG["POLLING_PERIOD"],
     pipeline=dummy_pipeline,
     is_performance=False,
     tempo_curve=None,
@@ -255,7 +267,16 @@ def partitura_to_framed_midi_custom(
     frames = midi_messages_to_framed_midi(
         midi_messages, message_times, polling_period, pipeline
     )
-    frames = decay_midi(np.asarray(frames).T, onsets).T
+
+    # import pdb
+    # pdb.set_trace()
+    try:
+        frames = decay_midi(np.asarray(frames).T, onsets).T
+    except Exception:
+        # this step does not work for non-piano roll frames
+        # for now this is just a hack.
+        # TODO: check pipeline?
+        pass
     # frame_times = np.arange(len(frames)) * polling_period
     ref_times = np.linspace(min_ref_time, max_ref_time, len(frames))
     state_to_ref_time_map = interp1d(
@@ -290,7 +311,7 @@ def decay_midi(frames, onsets):
 
     for i in range(frames.shape[1]):
 
-        decay *= DECAY_VALUE
+        decay *= CONFIG["DECAY_VALUE"]
         if i in onsets:
 
             for o in onsets[i]:

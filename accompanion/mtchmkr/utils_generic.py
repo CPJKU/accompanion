@@ -2,29 +2,41 @@
 """
 Generic utilities
 
-TODO
-----
-* Use a madmom like format
+This module contains all processor related functionality.
 """
+from platform import processor
 import partitura
 
 
-# Use madmom's SequentialProcessor?
 class SequentialOutputProcessor(object):
-    """"""
+    """
+    Abstract base class for sequential processing of data
+
+    Parameters
+    ----------
+    processors: list
+        List of processors to be applied sequentially.
+    """
 
     def __init__(self, processors):
         self.processors = list(processors)
 
     def __call__(self, data, **kwargs):
-        for processor in self.processors:
-            data, kwargs = processor(data, kwargs)
+        """
+        Makes a processor callable.
+        """
+        for proc in self.processors:
+            data, kwargs = proc(data, kwargs)
         return data
 
     def reset(self):
-        for processor in self.processors:
-            if hasattr(processor, "reset"):
-                processor.reset()
+        """
+        Reset the processor. Must be implemented in the derived class
+        to reset the processor to its initial state.
+        """
+        for proc in self.processors:
+            if hasattr(proc, "reset"):
+                proc.reset()
 
 
 def matchfile_to_midi(fn, perf_outfile, score_outfile=None):

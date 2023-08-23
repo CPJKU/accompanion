@@ -1,13 +1,17 @@
-from typing import Optional, Iterable
+# -*- coding: utf-8 -*-
+"""
+Online Time Warping ACCompanion.
 
+This module contains the main class for the Online Time Warping ACCompanion.
+It works as a follower for complicated pieces usually for four hands.
+"""
+from typing import Optional, Iterable
 import numpy as np
 import partitura
-
 from basismixer.performance_codec import get_performance_codec
 from partitura.utils.music import get_time_maps_from_alignment
 from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 from scipy.interpolate import interp1d
-
 from accompanion.mtchmkr.alignment_online_oltw import (
     OnlineTimeWarping,
 )
@@ -33,6 +37,47 @@ from accompanion.accompanist import tempo_models
 
 
 class OLTWACCompanion(ACCompanion):
+    """
+    The On-Line Time Wrapping Accompanion Follower Class.
+    It inherits from the Base ACCompanion Class. It updates the methods
+    setup_scores, setup_score_follower, and check_empty_frames.
+
+    Parameters
+    ----------
+    solo_fn : str
+        The path to the solo score.
+    acc_fn : str
+        The path to the accompaniment score.
+    midi_router_kwargs : dict
+        The keyword arguments for the MIDI Router.
+    accompaniment_match : str, optional
+        The path to the accompaniment match file, by default None.
+    midi_fn : str, optional
+        The path to the MIDI file, by default None.
+    score_follower_kwargs : dict, optional
+        The keyword arguments for the score follower, by default {"score_follower": "PitchIOIHMM", "score_follower_kwargs": {}, "input_processor": {"processor": "PitchIOIProcessor", "processor_kwargs": {}}}.
+    tempo_model_kwargs : dict, optional
+        The keyword arguments for the tempo model, by default {"tempo_model": tempo_models.LTSM}.
+    performance_codec_kwargs : dict, optional
+        The keyword arguments for the performance codec, by default {"velocity_trend_ma_alpha": 0.6, "articulation_ma_alpha": 0.4, "velocity_dev_scale": 70, "velocity_min": 20, "velocity_max": 100, "velocity_solo_scale": 0.85, "timing_scale": 0.001, "log_articulation_scale": 0.1, "mechanical_delay": 0.0}.
+    init_bpm : float, optional
+        The initial BPM, by default 60.
+    init_velocity : int, optional
+        The initial velocity, by default 60.
+    polling_period : float, optional
+        The polling period, by default POLLING_PERIOD.
+    use_ceus_mediator : bool, optional
+        Whether to use the CEUS Mediator, by default False.
+    adjust_following_rate : float, optional
+        The adjustment rate for the following rate, by default 0.1.
+    bypass_audio : bool, optional
+        Whether to bypass the audio, by default False.
+    test : bool, optional
+        Whether to bypass the MIDI Router, by default False.
+    record_midi : bool, optional
+        Whether to record the MIDI, by default False.
+    """
+
     def __init__(
         self,
         solo_fn,
@@ -67,7 +112,8 @@ class OLTWACCompanion(ACCompanion):
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
-        test: bool = False  # bypass MIDIRouter
+        test: bool = False,  # bypass MIDIRouter
+        record_midi: bool = False,
     ) -> None:
 
         score_kwargs = dict(
@@ -88,13 +134,19 @@ class OLTWACCompanion(ACCompanion):
             adjust_following_rate=adjust_following_rate,
             bypass_audio=bypass_audio,
             tempo_model_kwargs=tempo_model_kwargs,
-            test=test
+            test=test,
+            record_midi=record_midi,
         )
 
         self.solo_parts = None
 
     def setup_scores(self):
+        """
+        Setup the score objects.
 
+        This method initializes arguments used in the accompanion Base Class.
+        This is called in the constructor.
+        """
         tempo_model_type = self.tempo_model_kwargs.pop("tempo_model")
 
         if isinstance(tempo_model_type, str):
@@ -106,13 +158,20 @@ class OLTWACCompanion(ACCompanion):
         for i, fn in enumerate(self.score_kwargs["solo_fn"]):
             if fn.endswith(".match"):
                 if i == 0:
-                    solo_ppart, alignment, solo_spart = partitura.load_match(
-                        fn=fn, create_part=True, first_note_at_zero=True
+                    solo_perf, alignment, solo_score = partitura.load_match(
+                        filename=fn,
+                        create_score=True,
+                        first_note_at_zero=True,
                     )
+                    solo_ppart = solo_perf[0]
+                    solo_spart = solo_score[0]
                 else:
-                    solo_ppart, alignment = partitura.load_match(
-                        fn=fn, create_part=False, first_note_at_zero=True
+                    solo_perf, alignment = partitura.load_match(
+                        filename=fn,
+                        create_score=False,
+                        first_note_at_zero=True,
                     )
+                    solo_ppart = solo_perf[0]
 
                 ptime_to_stime_map, stime_to_ptime_map = get_time_maps_from_alignment(
                     ppart_or_note_array=solo_ppart,
@@ -123,7 +182,7 @@ class OLTWACCompanion(ACCompanion):
                     (solo_ppart, ptime_to_stime_map, stime_to_ptime_map)
                 )
             else:
-                solo_spart = partitura.load_score(fn)
+                solo_spart = partitura.load_score(fn)[0]
 
                 if i == 0:
                     solo_spart = solo_spart
@@ -133,7 +192,7 @@ class OLTWACCompanion(ACCompanion):
         self.solo_score = part_to_score(solo_spart, bpm=self.init_bpm)
 
         if self.score_kwargs["accompaniment_match"] is None:
-            acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])
+            acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])[0]
             acc_notes = list(part_to_score(acc_spart, bpm=self.init_bpm).notes)
             velocity_trend = None
             velocity_dev = None
@@ -142,11 +201,13 @@ class OLTWACCompanion(ACCompanion):
             log_bpr = None
 
         else:
-            acc_ppart, acc_alignment, acc_spart = partitura.load_match(
-                fn=self.score_kwargs["accompaniment_match"],
+            acc_perf, acc_alignment, acc_score = partitura.load_match(
+                filename=self.score_kwargs["accompaniment_match"],
                 first_note_at_zero=True,
-                create_part=True,
+                create_score=True,
             )
+            acc_ppart = acc_perf[0]
+            acc_spart = acc_score[0]
             acc_notes = list(
                 alignment_to_score(
                     fn_or_spart=acc_spart, ppart=acc_ppart, alignment=acc_alignment
@@ -217,7 +278,12 @@ class OLTWACCompanion(ACCompanion):
         )
 
     def setup_score_follower(self):
+        """
+        Setup the score follower object.
 
+        This method initializes arguments used in the accompanion Base Class.
+        """
+        # NOTE: pipeline_kwargs and score_follower_type are not used.
         pipeline_kwargs = self.score_follower_kwargs.pop("input_processor")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
         pipeline = SequentialOutputProcessor([PianoRollProcessor(piano_range=True)])
@@ -225,9 +291,6 @@ class OLTWACCompanion(ACCompanion):
         state_to_ref_time_maps = []
         ref_to_state_time_maps = []
         score_followers = []
-
-        # # reference score for visualization
-        # self.reference_features = None
 
         for part, state_to_ref_time_map, ref_to_state_time_map in self.solo_parts:
 
@@ -246,12 +309,7 @@ class OLTWACCompanion(ACCompanion):
             ref_to_state_time_maps.append(ref_to_state_time_map)
             ref_features = np.array(ref_frames).astype(float)
 
-            # if self.reference_features is None:
-            #     self.reference_features = ref_features
-
             # setup score follower
-            # print(self.score_follower_kwargs)
-            # print(self.score_follower_kwargs["score_follower"])
             score_follower = OnlineTimeWarping(
                 reference_features=ref_features, **self.score_follower_kwargs
             )
@@ -270,6 +328,17 @@ class OLTWACCompanion(ACCompanion):
         )
 
     def check_empty_frames(self, frame):
+        """
+        Check if the frames are empty.
+
+        Parameters
+        ----------
+        frame : np.ndarray
+            The frame to check.
+        Returns
+        -------
+        bool
+        """
         if sum(frame) > 0:
             return False
         else:

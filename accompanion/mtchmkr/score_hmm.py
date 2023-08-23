@@ -91,7 +91,7 @@ class PitchIOIObservationModel(ObservationModel):
         pitch_prof_obs[0, pitch_obs.astype(np.int)] = 1
 
         # Compute Bernoulli probability:
-        pitch_prob = (self._pitch_profiles ** pitch_prof_obs) * (
+        pitch_prob = (self._pitch_profiles**pitch_prof_obs) * (
             (1 - self._pitch_profiles) ** (1 - pitch_prof_obs)
         )
 
@@ -525,6 +525,7 @@ class PitchIOIKHMM(HiddenMarkovModel):
         """
 
         from accompanion.accompanist.tempo_models import KalmanTempoSyncModel
+
         # reference_features = (transition_matrix, pitch_profiles, ioi_matrix)
 
         observation_model = PitchIOIObservationModel(
@@ -551,7 +552,7 @@ class PitchIOIKHMM(HiddenMarkovModel):
             trans_par=trans_par,
             trans_var=trans_var,
             obs_var=obs_var,
-            init_var=init_var
+            init_var=init_var,
         )
         self.has_insertions = has_insertions
 
@@ -585,7 +586,6 @@ class PitchIOIKHMM(HiddenMarkovModel):
     @current_state.setter
     def current_state(self, state):
         self.observation_model.current_state = state
-
 
 
 if __name__ == "__main__":

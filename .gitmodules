@@ -1,0 +1,3 @@
+[submodule "accompanion_pieces"]
+	path = accompanion_pieces
+	url = git@github.com:CPJKU/accompanion_pieces.git

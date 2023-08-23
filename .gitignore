@@ -140,3 +140,14 @@ cython_debug/
 *~
 
 *.mscbackup
+
+# recorded midi folder
+/recorded_midi/
+
+# vscode
+.vscode/
+
+/accompanion/mtchmkr/distances.c
+/accompanion/mtchmkr/distances.html
+/accompanion/mtchmkr/dtw_loop.c
+/accompanion/mtchmkr/dtw_loop.html

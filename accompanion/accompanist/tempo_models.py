@@ -157,6 +157,23 @@ MASM = MovingAverageSyncModel
 
 
 class LinearSyncModel(SyncModel):
+    """
+    Linear synchronization model.
+
+    The Default Tempo Model.
+
+    Parameters
+    ----------
+    init_beat_period : float
+        Initial beat period in seconds
+    init_score_onset : float
+        Initial score onset in beats (can be negative)
+    eta_t : float
+        Learning rate for the tempo
+    eta_o : float
+        Learning rate for the onset
+
+    """
     def __init__(
         self,
         init_beat_period=0.5,
@@ -202,8 +219,10 @@ class LinearSyncModel(SyncModel):
 # Alias
 LSM = LinearSyncModel
 
-
 class JointAdaptationAnticipationSyncModel(SyncModel):
+    """
+    Tempo Model with Joint Adaptation and Anticipation.
+    """
     def __init__(
         self,
         init_beat_period=0.5,

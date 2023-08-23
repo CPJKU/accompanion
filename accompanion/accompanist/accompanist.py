@@ -37,13 +37,10 @@ from accompanion.accompanist.accompaniment_decoder import (
     moving_average_offline,
 )
 import accompanion.accompanist.tempo_models as tempo_models
-
+from accompanion.config import CONFIG
 from accompanion.utils.partitura_utils import (
     get_time_maps_from_alignment,
-    partitura_to_framed_midi_custom as partitura_to_framed_midi,
-    # get_beat_conversion,
-    DECAY_VALUE,
-)
+    partitura_to_framed_midi_custom as partitura_to_framed_midi)
 
 from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.score_follower.note_tracker import NoteTracker
@@ -94,7 +91,6 @@ class ACCompanion(ACC_PARENT):
         self.solo_fn = solo_fn
         self.acc_fn = acc_fn
         self.midi_fn = midi_fn
-
         # Matchfile with ground truth alignment (to
         # test the accuracy of the score follower)
         self.ground_truth_match = ground_truth_match
@@ -542,7 +538,7 @@ class ACCompanion(ACC_PARENT):
                     ]
                     onset_time = np.mean(onset_times) if len(onset_times) > 0 else 0
                     new_midi_messages = False
-                    decay *= DECAY_VALUE
+                    decay *= CONFIG["DECAY_VALUE"]
                     for msg, msg_time in input_midi_messages:
                         if msg.type in ("note_on", "note_off"):
 
@@ -585,10 +581,15 @@ class ACCompanion(ACC_PARENT):
                             f"adjusted {acc_update or adjusted_sf}",
                         )
 
+
+
+
                         if not acc_update:
                             asynch = expected_position - solo_s_onset
                             # print('asynchrony', asynch)
                             expected_position = expected_position - 0.6 * asynch
+
+
                             loops_without_update = 0
                             adjusted_sf = False
                         else:
@@ -635,7 +636,6 @@ class ACCompanion(ACC_PARENT):
                                 self.get_tempo(),
                             )
                         )
-
         except Exception:
             pass
         finally:
