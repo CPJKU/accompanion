@@ -1,7 +1,6 @@
 # ACCompanion
 
 The ACCompanion is an expressive accompaniment system.
-This is the official implementation of the paper [The ACCompanion: Combining Reactivity, Robustness, and Musical Expressivity in an Automatic Piano Accompanist](https://arxiv.org/abs/2304.12939), accepted at IJCAI 2023.
 
 This work was conducted at the [Institute of Computational Perception](https://www.jku.at/en/institute-of-computational-perception/) at JKU.
 
@@ -15,7 +14,7 @@ This work was awarded the Science Breakthrough of the Year 2021 by the Falling W
 
 ## Abstract
 
-This paper introduces the ACCompanion, an expressive accompaniment system. Similarly to a musician who accompanies a soloist playing a given musical piece, our system can produce a human-like rendition of the accompaniment part that follows the soloist's choices in terms of tempo, dynamics, and articulation. The ACCompanion works in the symbolic domain, i.e., it needs a musical instrument capable of producing and playing MIDI data, with explicitly encoded onset, offset, and pitch for each played note. We describe the components that go into such a system, from real-time score following and prediction to expressive performance generation and online adaptation to the expressive choices of the human player. Based on our experience with repeated live demonstrations in front of various audiences, we offer an analysis of the challenges of combining these components into a system that is highly reactive and precise, while still a reliable musical partner, robust to possible performance errors and responsive to expressive variations. 
+The ACCompanion is an expressive accompaniment system. Similarly to a musician who accompanies a soloist playing a given musical piece, our system can produce a human-like rendition of the accompaniment part that follows the soloist's choices in terms of tempo, dynamics, and articulation. The ACCompanion works in the symbolic domain, i.e., it needs a musical instrument capable of producing and playing MIDI data, with explicitly encoded onset, offset, and pitch for each played note. We describe the components that go into such a system, from real-time score following and prediction to expressive performance generation and online adaptation to the expressive choices of the human player. Based on our experience with repeated live demonstrations in front of various audiences, we offer an analysis of the challenges of combining these components into a system that is highly reactive and precise, while still a reliable musical partner, robust to possible performance errors and responsive to expressive variations. 
 
 ## Setup
 
@@ -141,19 +140,47 @@ necessary for testing purposes on VMs where ports and such cannot be accessed
 ### Additional Resources
 * Parangonada Alignment Visualisation: [Webtool](https://sildater.github.io/parangonada/) and [GitHub repo](https://github.com/sildater/parangonada)
 
-## Acknowledgments
-This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (”Wither Music?”).
 
 
 ## Cite Us
 
 If you use this work please cite us:
 
-```
+```bibtex
 @inproceedings{cancino2023accompanion,
-  title={The ACCompanion: Combining Reactivity, Robustness, and Musical Expressivity in an Automatic Piano Accompanist},
-  author={Cancino-Chac{\'o}n, Carlos and Peter, Silvan and Hu, Patricia and Karystinaios, Emmanouil and Henkel, Florian and Foscarin, Francesco and Varga, Nimrod and Widmer, Gerhard},
-  booktitle={Proceeding of the International Joint Conference on Artificial Intelligence},
-  year={2023}
+  title     = {The ACCompanion: Combining Reactivity, Robustness, and Musical Expressivity in an Automatic Piano Accompanist},
+  author    = {Cancino-Chacón, Carlos and Peter, Silvan and Hu, Patricia and Karystinaios, Emmanouil and Henkel, Florian and Foscarin, Francesco and Varga, Nimrod and Widmer, Gerhard},
+  booktitle = {Proceedings of the Thirty-Second International Joint Conference on
+               Artificial Intelligence, {IJCAI-23}},
+  pages     = {5779--5787},
+  year      = {2023},
+  month     = {8},
 }
 ```
+
+
+## License
+
+The code in this package is licensed under the Apache 2.0 Licence. For details, please see the [LICENSE](https://github.com/CPJKU/accompanion/blob/main/LICENSE) file. 
+
+The data and trained models included in this repository are licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+
+Data and model files usually have (but are not limited to) .match, .npy, .npz, .h5, .hdf5, .pkl, .pth or .mat file extensions.
+
+If you want to include any of these files (or a variation or modification thereof) or technology which utilizes them in a commercial product, please contact [Gerhard Widmer](https://www.jku.at/en/institute-of-computational-perception/about-us/people/gerhard-widmer/).
+
+## References
+
+* Carlos Cancino-Chacón, Silvan Peter, Patricia Hu, Emmanouil Karystinaios, Florian Henkel, Francesco Foscarin, Nimrod Varga and Gerhard Widmer,
+[*The ACCompanion: Combining Reactivity, Robustness, and Musical Expressivity in an Automatic Piano Accompanist*](https://arxiv.org/abs/2304.12939). Proceedings of the Thirty-Second International Joint Conference on Artificial Intelligence (IJCAI-23), Macao S.A.R.
+* Carlos Cancino-Chacón, Martin Bonev, Amaury Durand, Maarten Grachten, Andreas Arzt, Laura Bishop, Werner Goebel, Gerhard Widmer
+[*The ACCompanion v0.1: An Expressive Accompaniment System*](https://arxiv.org/abs/1711.02427). Proceedings of the Late-Breaking Demo Session of the 18th International Society for Music Information Retrieval Conference (ISMIR 2017), Suzhou, China, 2017
+
+## Acknowledgments
+This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (["Whither Music?"](https://www.jku.at/en/institute-of-computational-perception/research/projects/whither-music/)).
+
+<p align="center">
+    <img src="docs/source/images/acknowledge_logo.png#gh-light-mode-only" height="200">
+    <img src="docs/source/images/acknowledge_logo_negative.png#gh-dark-mode-only" height="200">
+</p>
+
