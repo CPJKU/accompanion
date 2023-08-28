@@ -163,7 +163,7 @@ If you use this work please cite us:
 
 The code in this package is licensed under the Apache 2.0 Licence. For details, please see the [LICENSE](https://github.com/CPJKU/accompanion/blob/main/LICENSE) file. 
 
-The scores, data and sample trained models included in this repository (e.g., the models in `basismixer/assets/sample_models`) are licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+The scores, data and sample trained models included in this repository are licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 
 Data and model files usually have (but are not limited to) .match, .musicxml, .npy, .npz, .h5, .hdf5, .pkl, .pth or .mat file extensions.
 
