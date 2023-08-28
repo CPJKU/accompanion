@@ -141,8 +141,6 @@ necessary for testing purposes on VMs where ports and such cannot be accessed
 ### Additional Resources
 * Parangonada Alignment Visualisation: [Webtool](https://sildater.github.io/parangonada/) and [GitHub repo](https://github.com/sildater/parangonada)
 
-## Acknowledgments
-This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (”Wither Music?”).
 
 
 ## Cite Us
@@ -157,3 +155,22 @@ If you use this work please cite us:
   year={2023}
 }
 ```
+
+## License
+
+The code in this package is licensed under the Apache 2.0 Licence. For details, please see the [LICENSE](https://github.com/CPJKU/accompanion/blob/main/LICENSE) file. 
+
+The scores, data and sample trained models included in this repository (e.g., the models in `basismixer/assets/sample_models`) are licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
+
+Data and model files usually have (but are not limited to) .match, .musicxml, .npy, .npz, .h5, .hdf5, .pkl, .pth or .mat file extensions.
+
+If you want to include any of these files (or a variation or modification thereof) or technology which utilizes them in a commercial product, please contact [Gerhard Widmer](https://www.jku.at/en/institute-of-computational-perception/about-us/people/gerhard-widmer/).
+
+## Acknowledgments
+This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (["Whither Music?"](https://www.jku.at/en/institute-of-computational-perception/research/projects/whither-music/)).
+
+<p align="center">
+    <img src="docs/source/images/aknowledge_logo.png#gh-light-mode-only" height="200">
+    <img src="docs/source/images/aknowledge_logo_negative.png#gh-dark-mode-only" height="200">
+</p>
+
