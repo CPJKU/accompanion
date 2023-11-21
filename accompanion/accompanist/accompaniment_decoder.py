@@ -262,7 +262,7 @@ class OnlinePerformanceCodec(object):
 
     def decode_velocity(self, vt, vd, vel_ave):
         # Add options for normalization
-        perf_vel = np.clip(vt * vel_ave - vd, self.vel_min, self.vel_max).astype(np.int)
+        perf_vel = np.clip(vt * vel_ave - vd, self.vel_min, self.vel_max).astype(int)
         return perf_vel
 
     def decode_duration(self, dur, lart, lbpr, art_a, bp_ave):

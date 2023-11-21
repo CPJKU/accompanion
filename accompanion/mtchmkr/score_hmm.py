@@ -88,7 +88,7 @@ class PitchIOIObservationModel(ObservationModel):
         # Use Bernouli distribution to compute the prob:
         # Binary piano-roll observation:
         pitch_prof_obs = np.zeros((1, 128))
-        pitch_prof_obs[0, pitch_obs.astype(np.int)] = 1
+        pitch_prof_obs[0, pitch_obs.astype(int)] = 1
 
         # Compute Bernoulli probability:
         pitch_prob = (self._pitch_profiles**pitch_prof_obs) * (
