@@ -6,6 +6,13 @@ TODO
 """
 import numpy as np
 
+from typing import List, Callable, Union, Optional
+
+from accompanion.mtchmkr.alignment_online_oltw import OnlineTimeWarping
+from accompanion.mtchmkr.score_hmm import PitchIOIHMM, PitchIOIKHMM
+
+HMM_SF_Types = Union[PitchIOIKHMM, PitchIOIKHMM]
+
 
 class AccompanimentScoreFollower(object):
     """
@@ -15,10 +22,10 @@ class AccompanimentScoreFollower(object):
     def __init__(self):
         super().__init__()
 
-    def __call__(self, frame):
+    def __call__(self, frame: Optional[np.ndarray]) -> Optional[float]:
         raise NotImplementedError
 
-    def update_position(self, ref_time):
+    def update_position(self, ref_time: float) -> None:
         pass
 
 
@@ -28,17 +35,16 @@ class HMMScoreFollower(AccompanimentScoreFollower):
 
     Parameters
     ----------
-    score : partitura.score.Part
-        The score to be followed.
+    score_followers: Union[PitchIOIKHMM, PitchIOIKHMM]
+        The score follower to be used.
     """
 
-    def __init__(self, score_follower, update_sf_positions=False):
+    def __init__(self, score_follower: HMM_SF_Types, **kwargs):
         super().__init__()
-        self.score_follower = score_follower
-        self.current_position = 0
+        self.score_follower: HMM_SF_Types = score_follower
+        self.current_position: int = 0
 
-    def __call__(self, frame):
-
+    def __call__(self, frame) -> Optional[float]:
         if frame is not None:
             current_position = self.score_follower(frame)
 
@@ -72,22 +78,31 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
 
     def __init__(
         self,
-        score_followers,
-        state_to_ref_time_maps,
-        ref_to_state_time_maps,
-        polling_period,
-        update_sf_positions=False,
+        score_followers: List[OnlineTimeWarping],
+        state_to_ref_time_maps: List[
+            Callable[[Union[float, int, np.ndarray]], Union[float, int, np.ndarray]]
+        ],
+        ref_to_state_time_maps: List[
+            Callable[[Union[float, int, np.ndarray]], Union[float, int, np.ndarray]]
+        ],
+        polling_period: float,
+        update_sf_positions: bool = False,
+        *kwargs,
     ):
         super().__init__()
-        self.score_followers = score_followers
-        self.state_to_ref_time_maps = state_to_ref_time_maps
-        self.ref_to_state_time_maps = ref_to_state_time_maps
-        self.polling_period = polling_period
-        self.inv_polling_period = 1 / polling_period
-        self.update_sf_positions = update_sf_positions
-        self.current_position = 0
+        self.score_followers: List[OnlineTimeWarping] = score_followers
+        self.state_to_ref_time_maps: List[
+            Callable[[Union[float, int, np.ndarray]], Union[float, int, np.ndarray]]
+        ] = state_to_ref_time_maps
+        self.ref_to_state_time_maps: List[
+            Callable[[Union[float, int, np.ndarray]], Union[float, int, np.ndarray]]
+        ] = ref_to_state_time_maps
+        self.polling_period: float = polling_period
+        self.inv_polling_period: float = 1 / polling_period
+        self.update_sf_positions: bool = update_sf_positions
+        self.current_position: int = 0
 
-    def __call__(self, frame):
+    def __call__(self, frame: Optional[np.ndarray]) -> float:
         """
         Get score position by aggregating the predicted position of all
         followers in the ensemble
@@ -106,7 +121,7 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
 
         return score_position
 
-    def update_position(self, ref_time):
+    def update_position(self, ref_time: float) -> None:
         """
         Update the current position in each of the score followers
 

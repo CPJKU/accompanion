@@ -447,6 +447,7 @@ class ACCompanion(ACC_PARENT):
                 if loops_without_update % self.afr == 0:
                     # only allow forward updates
                     if self.score_follower.current_position < expected_position:
+                        # old_sf_position = float(self.score_follower.current_position)
                         self.score_follower.update_position(expected_position)
                         adjusted_sf = True
             self.alignment = self.note_tracker.alignment

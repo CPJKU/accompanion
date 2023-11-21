@@ -7,6 +7,8 @@ It mainly works when the soloist plays monophonic melodies.
 """
 from typing import Optional
 import numpy as np
+
+from os import PathLike
 import partitura
 
 from basismixer.performance_codec import get_performance_codec
@@ -75,11 +77,11 @@ class HMMACCompanion(ACCompanion):
     """
     def __init__(
         self,
-        solo_fn,
-        acc_fn,
+        solo_fn: PathLike,
+        acc_fn: PathLike,
         midi_router_kwargs: dict,  # this is just a workaround for now
         accompaniment_match: Optional[str] = None,
-        midi_fn: Optional[str] = None,
+        midi_fn: Optional[PathLike] = None,
         score_follower_kwargs: dict = {
             "score_follower": "PitchIOIHMM",
             # For the future!
@@ -110,7 +112,7 @@ class HMMACCompanion(ACCompanion):
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False, # bypass MIDIRouter
-        record_midi : str = None,
+        record_midi : Optional[str] = None,
     ) -> None:
 
         score_kwargs = dict(

@@ -4,6 +4,10 @@ On-line Dynamic Time Warping
 """
 import numpy as np
 
+from typing import Union, Callable
+
+from numpy.typing import NDArray
+
 from accompanion.mtchmkr.base import OnlineAlignment
 from accompanion.mtchmkr import distances
 from accompanion.mtchmkr.distances import vdist, Metric
@@ -12,10 +16,10 @@ from accompanion.mtchmkr.dtw_loop import (
     reset_cost_matrix,
 )
 
-DEFAULT_LOCAL_COST = "Manhattan"
-WINDOW_SIZE = 100
-STEP_SIZE = 5
-START_WINDOW_SIZE = 60
+DEFAULT_LOCAL_COST: str = "Manhattan"
+WINDOW_SIZE: int = 100
+STEP_SIZE: int = 5
+START_WINDOW_SIZE: int = 60
 
 
 class OnlineTimeWarping(OnlineAlignment):
@@ -49,15 +53,16 @@ class OnlineTimeWarping(OnlineAlignment):
         List of the positions for each input.
     """
 
+    local_cost_fun: Callable[[NDArray[np.float64]], NDArray[np.float64]]
+
     def __init__(
         self,
-        reference_features,
-        window_size=WINDOW_SIZE,
-        step_size=STEP_SIZE,
-        local_cost_fun=DEFAULT_LOCAL_COST,
-        start_window_size=START_WINDOW_SIZE,
+        reference_features: NDArray[np.float64],
+        window_size: int = WINDOW_SIZE,
+        step_size: int = STEP_SIZE,
+        local_cost_fun: Union[str, Callable] = DEFAULT_LOCAL_COST,
+        start_window_size: int = START_WINDOW_SIZE,
     ):
-
         super().__init__(reference_features=reference_features)
         # self.reference_features = reference_features
         self.input_features = []
@@ -124,8 +129,6 @@ class OnlineTimeWarping(OnlineAlignment):
         min_index = max(self.window_index - self.step_size, 0)
 
         window_start, window_end = self.get_window()
-        # window_start = max(self.window_index - self.window_size, 0)
-        # window_end = min(self.window_index + self.window_size, self.N_ref)
         # compute local cost beforehand as it is much faster (~twice as fast)
         window_cost = self.vdist(
             self.reference_features[window_start:window_end],
@@ -161,22 +164,6 @@ class OnlineTimeWarping(OnlineAlignment):
         # update input index
         self.input_index += 1
 
-    # # TODO review that update_position method is not needed.
-    # def update_position(self, input_features, position):
-    #     """
-    #     Restart following from a new position.
-    #     This method "forgets" the pasts and starts from
-    #     scratch form a new position.
-    #     """
-    #     self.current_position = int(position)
-    #     window_start, window_end = self.get_window()
-    #     window_cost = self.vdist(
-    #         self.reference_features[window_start:window_end],
-    #         input_features,
-    #         self.local_cost_fun
-    #     )
-
 
 if __name__ == "__main__":
-
     pass
