@@ -4,7 +4,7 @@ On-line Dynamic Time Warping
 """
 import numpy as np
 
-from typing import Union, Callable
+from typing import Union, Callable, ClassVar
 
 from numpy.typing import NDArray
 
@@ -31,12 +31,15 @@ class OnlineTimeWarping(OnlineAlignment):
     reference_features : np.ndarray
         A 2D array with dimensions (n_timesteps, n_features) containing the
         features of the reference the input is going to be aligned to.
-    window_size : int (optional)
+    window_size : int
         Size of the window for searching the optimal path in the cumulative
         cost matrix
-    step_size : int (optional)
+    step_size : int 
         Size of the step
-
+    local_cost_fun : Union[str, Callable]
+        Local metric for computing pairwise distances.
+    start_window_size: int
+        Size of the starting window size
     Attributes
     ----------
     reference_features : np.ndarray
@@ -93,7 +96,6 @@ class OnlineTimeWarping(OnlineAlignment):
         self.window_size = window_size
         self.step_size = step_size
         self.start_window_size = start_window_size
-
         self.current_position = 0
         self.positions = []
         self.warping_path = []

@@ -204,6 +204,7 @@ class LinearSyncModel(SyncModel):
         tempo_correction_term = (
             self.asynchrony if self.asynchrony != 0 and s_ioi != 0 else 0
         )
+        print(f"tempo_correction_term {tempo_correction_term}")
         self.prev_perf_onset = performed_onset
         self.prev_score_onset = score_onset
 
@@ -211,6 +212,8 @@ class LinearSyncModel(SyncModel):
             beat_period = self.beat_period - self.eta_t * tempo_correction_term
         else:
             beat_period = self.beat_period - 2 * self.eta_t * tempo_correction_term
+
+        print(f"tempo {60 / beat_period}")
 
         if beat_period > 0.25 and beat_period <= 3:
             self.beat_period = beat_period
@@ -424,6 +427,7 @@ class LinearTempoExpectationsSyncModel(SyncModel):
         tempo_correction_term = (
             self.asynchrony if self.asynchrony != 0 and s_ioi != 0 else 0
         )
+        print(f"tempo_correction_term {tempo_correction_term}")
         self.prev_perf_onset = performed_onset
         self.prev_score_onset = score_onset
 

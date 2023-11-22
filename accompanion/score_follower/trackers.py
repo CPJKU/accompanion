@@ -108,11 +108,15 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
         followers in the ensemble
         """
         score_positions = []
+        predicted_frames = []
         for sf, strm in zip(self.score_followers, self.state_to_ref_time_maps):
             st = sf(frame)
             sp = float(strm(st * self.polling_period))
             score_positions.append(sp)
+            predicted_frames.append(st)
         score_position = np.median(score_positions)
+        print("predicted_frames", predicted_frames)
+        print("score_positions", score_positions)
         self.current_position = score_position
 
         if self.update_sf_positions:

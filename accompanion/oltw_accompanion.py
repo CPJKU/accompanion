@@ -283,11 +283,12 @@ class OLTWACCompanion(ACCompanion):
 
         This method initializes arguments used in the accompanion Base Class.
         """
-        # NOTE: pipeline_kwargs and score_follower_type are not used.
-        pipeline_kwargs = self.score_follower_kwargs.pop("input_processor")
+        input_pipeline_kwargs = self.score_follower_kwargs.pop("input_processor")
+        input_processor_type = input_pipeline_kwargs.pop("processor")
+        input_processor_kwargs = input_pipeline_kwargs.pop("processor_kwargs")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
         pipeline = SequentialOutputProcessor([PianoRollProcessor(piano_range=True)])
-
+        
         state_to_ref_time_maps = []
         ref_to_state_time_maps = []
         score_followers = []
@@ -310,9 +311,11 @@ class OLTWACCompanion(ACCompanion):
             ref_features = np.array(ref_frames).astype(float)
 
             # setup score follower
-            score_follower = OnlineTimeWarping(
-                reference_features=ref_features, **self.score_follower_kwargs
-            )
+            if score_follower_type == "OnlineTimeWarping":
+                score_follower = OnlineTimeWarping(
+                    reference_features=ref_features, 
+                    **self.score_follower_kwargs,
+                )
 
             score_followers.append(score_follower)
 
@@ -323,9 +326,13 @@ class OLTWACCompanion(ACCompanion):
             self.polling_period,
         )
 
-        self.input_pipeline = SequentialOutputProcessor(
-            [PianoRollProcessor(piano_range=True)]
-        )
+        if input_processor_type == "PianoRollProcessor":
+            
+            self.input_pipeline = SequentialOutputProcessor(
+                [PianoRollProcessor(**input_processor_kwargs)]
+            )
+        else:
+            raise NotImplementedError(f"Unknown input pipeline: {input_processor_type}")
 
     def check_empty_frames(self, frame):
         """

@@ -31,7 +31,7 @@ config:
         tempo_model: LTESM
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm : 120
+    init_bpm : 90
     init_velocity : 80
 piece_dir : brahms_data
 acc_fn : musicxml/Brahms_Hungarian-Dance-5_Secondo.musicxml

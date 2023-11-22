@@ -305,6 +305,8 @@ class ACCompanion(ACC_PARENT):
         solo_starts = True
         sequencer_start = False
         start_time = None
+        # For debugging
+        acc_step_counter = 0
 
         # start the accompaniment if the solo part starts afterwards
         if self.acc_score.min_onset < self.solo_score.min_onset:
@@ -385,7 +387,7 @@ class ACCompanion(ACC_PARENT):
 
                 # if perf_start:
                 score_position = self.score_follower(output)
-
+                # print(f"score_position {score_position}")
                 solo_s_onset, onset_index, acc_update = onset_tracker(
                     score_position,
                     expected_position
@@ -437,10 +439,12 @@ class ACCompanion(ACC_PARENT):
                         and not acc_update
                         and not adjusted_sf
                     ):
+                        print(f"step {acc_step_counter} {solo_s_onset}")
                         self.accompanist.accompaniment_step(
                             solo_s_onset=solo_s_onset, solo_p_onset=solo_p_onset
                         )
                         self.beat_period = self.accompanist.pc.bp_ave
+                        acc_step_counter += 1
                 else:
                     loops_without_update += 1
 
