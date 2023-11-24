@@ -5,12 +5,20 @@ Online Time Warping ACCompanion.
 This module contains the main class for the Online Time Warping ACCompanion.
 It works as a follower for complicated pieces usually for four hands.
 """
+import os
 from typing import Optional, Iterable
 import numpy as np
-import partitura
+import partitura as pt
 from basismixer.performance_codec import get_performance_codec
-from partitura.musicanalysis.performance_codec import get_time_maps_from_alignment
-from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
+from partitura.musicanalysis.performance_codec import (
+    get_time_maps_from_alignment,
+    onsetwise_to_notewise,
+    notewise_to_onsetwise,
+    get_matched_notes,
+)
+from partitura.performance import PerformedPart
+
+# from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 from scipy.interpolate import interp1d
 from accompanion.mtchmkr.alignment_online_oltw import (
     OnlineTimeWarping,
@@ -31,6 +39,7 @@ from accompanion.accompanist.accompaniment_decoder import (
 from accompanion.mtchmkr.features_midi import PianoRollProcessor
 from accompanion.utils.partitura_utils import (
     partitura_to_framed_midi_custom as partitura_to_framed_midi,
+    performance_notearray_from_score_notearray,
 )
 from accompanion.score_follower.trackers import MultiDTWScoreFollower
 from accompanion.accompanist import tempo_models
@@ -115,9 +124,11 @@ class OLTWACCompanion(ACCompanion):
         test: bool = False,  # bypass MIDIRouter
         record_midi: bool = False,
     ) -> None:
-
+        # Remember that strings are also iterables ;)
         score_kwargs = dict(
-            solo_fn=solo_fn if isinstance(solo_fn, Iterable) else [solo_fn],
+            solo_fn=solo_fn
+            if (isinstance(solo_fn, Iterable) and not isinstance(solo_fn, str))
+            else [solo_fn],
             acc_fn=acc_fn,
             accompaniment_match=accompaniment_match,
         )
@@ -154,11 +165,14 @@ class OLTWACCompanion(ACCompanion):
 
         self.tempo_model = tempo_model_type(**self.tempo_model_kwargs)
 
+        print("score_kwargs", self.score_kwargs)
+
         self.solo_parts = []
         for i, fn in enumerate(self.score_kwargs["solo_fn"]):
-            if fn.endswith(".match"):
+            fn_ext = os.path.splitext(fn)[-1]
+            if fn_ext == ".match":
                 if i == 0:
-                    solo_perf, alignment, solo_score = partitura.load_match(
+                    solo_perf, alignment, solo_score = pt.load_match(
                         filename=fn,
                         create_score=True,
                         first_note_at_zero=True,
@@ -166,7 +180,7 @@ class OLTWACCompanion(ACCompanion):
                     solo_ppart = solo_perf[0]
                     solo_spart = solo_score[0]
                 else:
-                    solo_perf, alignment = partitura.load_match(
+                    solo_perf, alignment = pt.load_match(
                         filename=fn,
                         create_score=False,
                         first_note_at_zero=True,
@@ -182,17 +196,36 @@ class OLTWACCompanion(ACCompanion):
                     (solo_ppart, ptime_to_stime_map, stime_to_ptime_map)
                 )
             else:
-                solo_spart = partitura.load_score(fn)[0]
-
+                # if the score is a score format supported by partitura
+                # it will only load the first one
                 if i == 0:
-                    solo_spart = solo_spart
+                    solo_spart = pt.load_score(fn)[0]
 
-                self.solo_parts.append((solo_spart, None, None))
+                    solo_pna, alignment = performance_notearray_from_score_notearray(
+                        snote_array=solo_spart.note_array(),
+                        bpm=self.init_bpm,
+                        return_alignment=True,
+                    )
+
+                    solo_ppart = PerformedPart.from_note_array(solo_pna)
+
+                    (
+                        ptime_to_stime_map,
+                        stime_to_ptime_map,
+                    ) = get_time_maps_from_alignment(
+                        ppart_or_note_array=solo_pna,
+                        spart_or_note_array=solo_spart,
+                        alignment=alignment,
+                    )
+
+                    self.solo_parts.append(
+                        (solo_ppart, ptime_to_stime_map, stime_to_ptime_map)
+                    )
 
         self.solo_score = part_to_score(solo_spart, bpm=self.init_bpm)
 
         if self.score_kwargs["accompaniment_match"] is None:
-            acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])[0]
+            acc_spart = pt.load_score(self.score_kwargs["acc_fn"])[0]
             acc_notes = list(part_to_score(acc_spart, bpm=self.init_bpm).notes)
             velocity_trend = None
             velocity_dev = None
@@ -201,13 +234,18 @@ class OLTWACCompanion(ACCompanion):
             log_bpr = None
 
         else:
-            acc_perf, acc_alignment, acc_score = partitura.load_match(
+            acc_perf, acc_alignment, acc_score = pt.load_match(
                 filename=self.score_kwargs["accompaniment_match"],
                 first_note_at_zero=True,
                 create_score=True,
             )
             acc_ppart = acc_perf[0]
             acc_spart = acc_score[0]
+
+            acc_pnote_array = acc_ppart.note_array()
+            acc_snote_array = acc_spart.note_array()
+
+
             acc_notes = list(
                 alignment_to_score(
                     fn_or_spart=acc_spart, ppart=acc_ppart, alignment=acc_alignment
@@ -243,9 +281,13 @@ class OLTWACCompanion(ACCompanion):
 
             if self.tempo_model.has_tempo_expectations:
                 # get iterable of the tempo expectations
+                unique_acc_score_onsets = np.array(
+                    [np.mean(acc_snote_array["onset_beat"][ui]) for ui in u_onset_idx]
+                )
                 self.tempo_model.tempo_expectations_func = interp1d(
-                    np.unique(acc_spart.note_array()["onset_beat"]),
-                    bm_params_onsetwise["beat_period"],
+                    x=unique_acc_score_onsets,
+                    # np.unique(acc_spart.note_array()["onset_beat"]),
+                    y=bm_params_onsetwise["beat_period"],
                     bounds_error=False,
                     kind="previous",
                     fill_value=(
@@ -288,13 +330,12 @@ class OLTWACCompanion(ACCompanion):
         input_processor_kwargs = input_pipeline_kwargs.pop("processor_kwargs")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
         pipeline = SequentialOutputProcessor([PianoRollProcessor(piano_range=True)])
-        
+
         state_to_ref_time_maps = []
         ref_to_state_time_maps = []
         score_followers = []
 
         for part, state_to_ref_time_map, ref_to_state_time_map in self.solo_parts:
-
             if state_to_ref_time_map is not None:
                 ref_frames = partitura_to_framed_midi(
                     part_or_notearray_or_filename=part,
@@ -313,7 +354,7 @@ class OLTWACCompanion(ACCompanion):
             # setup score follower
             if score_follower_type == "OnlineTimeWarping":
                 score_follower = OnlineTimeWarping(
-                    reference_features=ref_features, 
+                    reference_features=ref_features,
                     **self.score_follower_kwargs,
                 )
 
@@ -327,7 +368,6 @@ class OLTWACCompanion(ACCompanion):
         )
 
         if input_processor_type == "PianoRollProcessor":
-            
             self.input_pipeline = SequentialOutputProcessor(
                 [PianoRollProcessor(**input_processor_kwargs)]
             )

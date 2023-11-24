@@ -71,8 +71,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print("args initialization", args.follower)
-
     if args.config_file:
         import yaml
 
@@ -87,8 +85,8 @@ if __name__ == "__main__":
             info_file = yaml.safe_load(f)
         configurations = info_file["config"]
         # TODO : add a configuration for the default loaded file and directories.
-        if args.config_file in ["brahms", "mozart", "schubert", "fourhands", "FH"]:
-            args.follower = "oltw"
+        if args.config_file in ["brahms", "mozart", "schubert", "fourhands", "FH", "grieg_morning_mood"]:
+            # args.follower = "oltw"
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "accompanion_pieces",
@@ -110,6 +108,8 @@ if __name__ == "__main__":
                 if "solo_fn" not in info_file.keys()
                 else os.path.join(file_dir, os.path.normpath(info_file["solo_fn"]))
             )
+
+            print(glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match")))
             configurations["midi_fn"] = (
                 os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
                 if "midi_fn" in info_file.keys()
@@ -197,7 +197,6 @@ if __name__ == "__main__":
         elif args.follower == "oltw":
             from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
 
-            print("I just don't know")
             configurations["score_follower_kwargs"] = {
                 "score_follower": "OnlineTimeWarping",
                 "window_size": 100,
