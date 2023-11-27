@@ -2,9 +2,10 @@
 """
 Features from symbolic files
 """
-from typing import Dict, Tuple, List, Optional
-from mido import Message
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
+from mido import Message
 
 # Type hint for Input MIDI frame. A frame is a tuple
 # consisting of a list with the MIDI messages corresponding
