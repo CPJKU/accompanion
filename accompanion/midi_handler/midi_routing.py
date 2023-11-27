@@ -4,24 +4,24 @@ This module provides basic functionality to process MIDI inputs in
 real time. This is a copy from matchmaker/io/midi.py, so that it can
 be updated without requiring to re-install matchmaker
 """
-import time
 import datetime
+import os
 import queue
-
-# import sys
-
-from typing import Optional, Iterable, Union
+import time
+from typing import Iterable, Optional, Union
 
 import mido
-
 from mido.ports import BaseOutput
 
 from accompanion.midi_handler.fluid import FluidsynthPlayer
-from accompanion.midi_handler.midi_utils import (
-    midi_file_from_midi_msg,
-    OUTPUT_MIDI_FOLDER,
-)
-import os
+from accompanion.midi_handler.midi_utils import (OUTPUT_MIDI_FOLDER,
+                                                 midi_file_from_midi_msg)
+
+# import sys
+
+
+
+
 
 
 class BasePort(object):

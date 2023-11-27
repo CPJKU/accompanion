@@ -14,14 +14,14 @@ config:
         articulation_ma_alpha: 0.4
         velocity_dev_scale: 70
         velocity_min: 45
-        velocity_max: 105
+        velocity_max: 90
         velocity_solo_scale: 1.00
         timing_scale: 0.001
         log_articulation_scale: 0.12
         mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: USB-MIDI
-        acc_output_to_sound_port_name: USB-MIDI
+        solo_input_to_accompaniment_port_name: Silent Piano
+        acc_output_to_sound_port_name: Silent Piano
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
@@ -31,7 +31,7 @@ config:
         tempo_model: LTESM
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm : 90
+    init_bpm : 120
     init_velocity : 80
 piece_dir : brahms_data
 acc_fn : musicxml/Brahms_Hungarian-Dance-5_Secondo.musicxml

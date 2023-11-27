@@ -6,43 +6,57 @@ This module contains the main class for the Online Time Warping ACCompanion.
 It works as a follower for complicated pieces usually for four hands.
 """
 import os
-from typing import Optional, Iterable
+from typing import Any, Dict, Iterable, List, Optional, Union
+
 import numpy as np
 import partitura as pt
 from basismixer.performance_codec import get_performance_codec
 from partitura.musicanalysis.performance_codec import (
-    get_time_maps_from_alignment,
-    onsetwise_to_notewise,
-    notewise_to_onsetwise,
-    get_matched_notes,
-)
+    get_matched_notes, get_time_maps_from_alignment, notewise_to_onsetwise,
+    onsetwise_to_notewise)
 from partitura.performance import PerformedPart
-
 # from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 from scipy.interpolate import interp1d
-from accompanion.mtchmkr.alignment_online_oltw import (
-    OnlineTimeWarping,
-)
-from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 
+from accompanion.accompanist import tempo_models
+from accompanion.accompanist.accompaniment_decoder import \
+    moving_average_offline
+from accompanion.accompanist.score import (AccompanimentScore,
+                                           alignment_to_score, part_to_score)
 from accompanion.base import ACCompanion
 from accompanion.midi_handler.midi_input import POLLING_PERIOD
-
-from accompanion.accompanist.score import (
-    AccompanimentScore,
-    alignment_to_score,
-    part_to_score,
-)
-from accompanion.accompanist.accompaniment_decoder import (
-    moving_average_offline,
-)
+from accompanion.mtchmkr.alignment_online_oltw import OnlineTimeWarping
 from accompanion.mtchmkr.features_midi import PianoRollProcessor
-from accompanion.utils.partitura_utils import (
-    partitura_to_framed_midi_custom as partitura_to_framed_midi,
-    performance_notearray_from_score_notearray,
-)
+from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 from accompanion.score_follower.trackers import MultiDTWScoreFollower
-from accompanion.accompanist import tempo_models
+from accompanion.utils.partitura_utils import \
+    partitura_to_framed_midi_custom as partitura_to_framed_midi
+from accompanion.utils.partitura_utils import \
+    performance_notearray_from_score_notearray
+
+SCORE_FOLLOWER_DEFAULT_KWARGS = {
+    "score_follower": "OnlineTimeWarping",
+    "window_size": 80,
+    "step_size": 10,
+    "input_processor": {
+        "processor": "PianoRollProcessor",
+        "processor_kwargs": {"piano_range": True},
+    },
+}
+
+TEMPO_MODEL_DEFAULT_KWARGS = {"tempo_model": tempo_models.LSM}
+
+PERFORMANCE_CODEC_DEFAULT_KWARGS = {
+    "velocity_trend_ma_alpha": 0.6,
+    "articulation_ma_alpha": 0.4,
+    "velocity_dev_scale": 70,
+    "velocity_min": 20,
+    "velocity_max": 100,
+    "velocity_solo_scale": 0.85,
+    "timing_scale": 0.001,
+    "log_articulation_scale": 0.1,
+    "mechanical_delay": 0.0,
+}
 
 
 class OLTWACCompanion(ACCompanion):
@@ -89,32 +103,20 @@ class OLTWACCompanion(ACCompanion):
 
     def __init__(
         self,
-        solo_fn,
-        acc_fn,
-        midi_router_kwargs: dict,  # this is just a workaround for now
+        solo_fn: str,
+        acc_fn: str,
+        midi_router_kwargs: Dict[str, Any],  # this is just a workaround for now
         accompaniment_match: Optional[str] = None,
         midi_fn: Optional[str] = None,
-        score_follower_kwargs: dict = {
-            "score_follower": "OnlineTimeWarping",
-            "window_size": 80,
-            "step_size": 10,
-            "input_processor": {
-                "processor": "PianoRollProcessor",
-                "processor_kwargs": {"piano_range": True},
-            },
-        },
-        tempo_model_kwargs={"tempo_model": tempo_models.LSM},
-        performance_codec_kwargs={
-            "velocity_trend_ma_alpha": 0.6,
-            "articulation_ma_alpha": 0.4,
-            "velocity_dev_scale": 70,
-            "velocity_min": 20,
-            "velocity_max": 100,
-            "velocity_solo_scale": 0.85,
-            "timing_scale": 0.001,
-            "log_articulation_scale": 0.1,
-            "mechanical_delay": 0.0,
-        },
+        score_follower_kwargs: Dict[
+            str, Union[str, float, int, dict]
+        ] = SCORE_FOLLOWER_DEFAULT_KWARGS,
+        tempo_model_kwargs: Dict[
+            str, Union[str, float, int, dict, tempo_models.SyncModel]
+        ] = TEMPO_MODEL_DEFAULT_KWARGS,
+        performance_codec_kwargs: Dict[
+            str, Union[float, int, str]
+        ] = PERFORMANCE_CODEC_DEFAULT_KWARGS,
         init_bpm: float = 60,
         init_velocity: int = 60,
         polling_period: float = POLLING_PERIOD,
@@ -123,6 +125,9 @@ class OLTWACCompanion(ACCompanion):
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # bypass MIDIRouter
         record_midi: bool = False,
+        accompanist_decoder_kwargs: Optional[
+            Dict[str, Union[float, int, str, dict]]
+        ] = None,
     ) -> None:
         # Remember that strings are also iterables ;)
         score_kwargs = dict(
@@ -147,9 +152,10 @@ class OLTWACCompanion(ACCompanion):
             tempo_model_kwargs=tempo_model_kwargs,
             test=test,
             record_midi=record_midi,
+            accompanist_decoder_kwargs=accompanist_decoder_kwargs,
         )
 
-        self.solo_parts = None
+        self.solo_parts: Optional[List] = None
 
     def setup_scores(self):
         """
@@ -164,8 +170,6 @@ class OLTWACCompanion(ACCompanion):
             tempo_model_type = getattr(tempo_models, tempo_model_type)
 
         self.tempo_model = tempo_model_type(**self.tempo_model_kwargs)
-
-        print("score_kwargs", self.score_kwargs)
 
         self.solo_parts = []
         for i, fn in enumerate(self.score_kwargs["solo_fn"]):
@@ -244,7 +248,6 @@ class OLTWACCompanion(ACCompanion):
 
             acc_pnote_array = acc_ppart.note_array()
             acc_snote_array = acc_spart.note_array()
-
 
             acc_notes = list(
                 alignment_to_score(

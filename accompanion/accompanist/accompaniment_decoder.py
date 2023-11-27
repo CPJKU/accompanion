@@ -2,120 +2,13 @@
 """
 Decode the performance from the accompaniment
 """
+from typing import Callable, Dict, Optional
+
 import numpy as np
-from accompanion.utils.expression_tools import friberg_sundberg_rit
+
+from accompanion.accompanist.score import AccompanimentScore
 from accompanion.config import CONFIG
-
-
-class Accompanist(object):
-    """
-    The Accompanist class is responsible for decoding the performance
-    from the accompaniment.
-
-    Parameters
-    ----------
-    accompaniment_score : AccompanimentScore
-        The accompaniment score.
-    performance_codec : PerformanceCodec
-        The performance codec.
-    """
-
-    def __init__(self, accompaniment_score, performance_codec):
-
-        self.acc_score = accompaniment_score
-
-        self.pc = performance_codec
-        self.prev_eq_onsets = np.zeros(
-            len(self.acc_score.ssc.unique_onsets), dtype=float
-        )
-        self.step_counter = 0
-        self.bp_prev = None
-        self.rit_curve = friberg_sundberg_rit(CONFIG["RIT_LEN"], CONFIG["RIT_W"])
-        self.rit_counter = 0
-        # self.num_acc_onsets = len(self.acc_score.ssc.unique_onsets)
-
-        self.tempo_change_curve = dict()
-
-        j = 0
-        all_chords = self.acc_score.solo_score_dict[
-            list(self.acc_score.solo_score_dict.keys())[0]
-        ][0]
-        self.num_chords = len(all_chords)
-        for i, so in enumerate(all_chords):
-            self.tempo_change_curve[so] = 1.0
-            if self.num_chords - i <= CONFIG["RIT_LEN"]:
-                self.tempo_change_curve[so] = self.rit_curve[j]
-                j += 1
-
-    def accompaniment_step(self, solo_s_onset, solo_p_onset, tempo_expectations=None):
-
-        # Get next accompaniment onsets and their
-        # respective score iois with respect to the current
-        # solo score onset
-
-        next_acc_onsets, next_iois, _, _, suix = self.acc_score.solo_score_dict[
-            solo_s_onset
-        ]
-
-        # if self.step_counter > 0:
-        #     beat_period, eq_onset = self.pc.tempo_model(solo_p_onset,
-        #                                                 solo_s_onset)
-        # else:
-        #     beat_period = self.pc.bp_ave
-        #     eq_onset = solo_p_onset
-
-        beat_period, eq_onset = self.pc.tempo_model(solo_p_onset, solo_s_onset)
-
-        # print(self.step_counter, beat_period)
-
-        velocity, articulation = self.pc.encode_step()
-
-        # if solo_p_onset is not None:
-        self.prev_eq_onsets[suix] = eq_onset
-        prev_eq_onset = self.prev_eq_onsets[suix]
-
-        if next_acc_onsets is not None:
-
-            for i, (so, ioi) in enumerate(zip(next_acc_onsets, next_iois)):
-
-                if tempo_expectations is not None and i != 0:
-                    bp_ave = tempo_expectations(so.onset)
-                else:
-                    bp_ave = beat_period
-
-                    t_factor = self.tempo_change_curve[so]
-                    bp_ave *= t_factor
-
-                (
-                    perf_onset,
-                    so.p_duration,
-                    so.velocity,
-                    prev_eq_onset,
-                ) = self.pc.decode_step(
-                    ioi=ioi,
-                    dur=so.duration,
-                    # TODO: This will need to be changed when
-                    # the expressive parameters are computed in
-                    # in real time.
-                    vt=self.acc_score.velocity_trend[so],
-                    vd=self.acc_score.velocity_dev[so],
-                    lbpr=self.acc_score.log_bpr[so],
-                    tim=self.acc_score.timing[so],
-                    lart=self.acc_score.log_articulation[so],
-                    bp_ave=bp_ave,
-                    vel_a=velocity,
-                    art_a=articulation,
-                    prev_eq_onset=prev_eq_onset,
-                )
-
-                # if i == 0:
-                #     print(so.onset, perf_onset, ioi, bp_ave, solo_p_onset)
-
-                if ioi != 0 or self.step_counter == 0:
-                    # print('accompaniment step')
-                    so.p_onset = perf_onset
-
-        self.step_counter += 1
+from accompanion.utils.expression_tools import friberg_sundberg_rit
 
 
 class OnlinePerformanceCodec(object):
@@ -170,7 +63,6 @@ class OnlinePerformanceCodec(object):
         articulation_ma_alpha=0.4,
         **kwargs
     ):
-
         self.velocity_ave = float(velocity_ave)
         self.bp_ave = float(beat_period_ave)
         self.vel_min = vel_min
@@ -241,7 +133,6 @@ class OnlinePerformanceCodec(object):
         art_a,
         prev_eq_onset=None,
     ):
-
         self.bp_ave = bp_ave
         self.velocity_ave = vel_a
         # Compute equivalent onsets
@@ -272,9 +163,143 @@ class OnlinePerformanceCodec(object):
 
         art_a = np.clip(art_a, 0, 1)
 
-        perf_duration = (2 ** lart) * ((2 ** lbpr) * bp_ave) * dur * art_a
+        perf_duration = (2**lart) * ((2**lbpr) * bp_ave) * dur * art_a
         np.clip(perf_duration, a_min=0.01, a_max=4, out=perf_duration)
         return perf_duration
+
+
+class Accompanist(object):
+    """
+    The Accompanist class is responsible for decoding the performance
+    from the accompaniment.
+
+    Parameters
+    ----------
+    accompaniment_score : AccompanimentScore
+        The accompaniment score.
+    performance_codec : PerformanceCodec
+        The performance codec.
+    """
+
+    def __init__(
+        self,
+        accompaniment_score: AccompanimentScore,
+        performance_codec: OnlinePerformanceCodec,
+        decoder_kwargs: Optional[Dict] = None,
+    ) -> None:
+        self.acc_score = accompaniment_score
+
+        self.pc = performance_codec
+
+        self.decoder_kwargs = decoder_kwargs if decoder_kwargs is not None else {}
+
+        self.prev_eq_onsets = np.zeros(
+            len(self.acc_score.ssc.unique_onsets), dtype=float
+        )
+        self.step_counter = 0
+        self.bp_prev = None
+        self.rit_curve = friberg_sundberg_rit(
+            len_c=self.decoder_kwargs.get("rit_len", CONFIG["RIT_LEN"]),
+            r_w=self.decoder_kwargs.get("rit_w", CONFIG["RIT_W"]),
+            r_q=self.decoder_kwargs.get("rit_q", CONFIG["RIT_Q"]),
+        )
+        self.rit_counter = 0
+
+        self.tempo_change_curve = dict()
+
+        j = 0
+        all_chords = self.acc_score.solo_score_dict[
+            list(self.acc_score.solo_score_dict.keys())[0]
+        ][0]
+        self.num_chords = len(all_chords)
+        for i, so in enumerate(all_chords):
+            self.tempo_change_curve[so] = 1.0
+            if self.num_chords - i <= self.decoder_kwargs.get(
+                "rit_len", CONFIG["RIT_LEN"]
+            ):
+                self.tempo_change_curve[so] = self.rit_curve[j]
+                j += 1
+
+    def accompaniment_step(
+        self,
+        solo_s_onset: float,
+        solo_p_onset: float,
+        tempo_expectations: Optional[Callable[[float], float]] = None,
+    ) -> None:
+        # Get next accompaniment onsets and their
+        # respective score iois with respect to the current
+        # solo score onset
+
+        next_acc_onsets, next_iois, _, _, suix = self.acc_score.solo_score_dict[
+            solo_s_onset
+        ]
+
+        # if self.step_counter > 0:
+        #     beat_period, eq_onset = self.pc.tempo_model(solo_p_onset,
+        #                                                 solo_s_onset)
+        # else:
+        #     beat_period = self.pc.bp_ave
+        #     eq_onset = solo_p_onset
+
+        beat_period, eq_onset = self.pc.tempo_model(solo_p_onset, solo_s_onset)
+
+        # print(self.step_counter, beat_period)
+
+        velocity, articulation = self.pc.encode_step()
+
+        # if solo_p_onset is not None:
+        self.prev_eq_onsets[suix] = eq_onset
+        prev_eq_onset = self.prev_eq_onsets[suix]
+
+        if next_acc_onsets is not None:
+            for i, (so, ioi) in enumerate(zip(next_acc_onsets, next_iois)):
+                if tempo_expectations is not None and i != 0:
+                    bp_ave = tempo_expectations(so.onset)
+                else:
+                    bp_ave = beat_period
+
+                    t_factor = self.tempo_change_curve[so]
+                    bp_ave *= t_factor
+
+                (
+                    perf_onset,
+                    so.p_duration,
+                    so.velocity,
+                    prev_eq_onset,
+                ) = self.pc.decode_step(
+                    ioi=ioi,
+                    dur=so.duration,
+                    # TODO: This will need to be changed when
+                    # the expressive parameters are computed in
+                    # in real time.
+                    vt=self.acc_score.velocity_trend[so],
+                    vd=self.acc_score.velocity_dev[so],
+                    lbpr=self.acc_score.log_bpr[so],
+                    tim=self.acc_score.timing[so],
+                    lart=self.acc_score.log_articulation[so],
+                    bp_ave=bp_ave,
+                    vel_a=velocity,
+                    art_a=articulation,
+                    prev_eq_onset=prev_eq_onset,
+                )
+
+                # if i == 0:
+                #     print(so.onset, perf_onset, ioi, bp_ave, solo_p_onset)
+
+                if ioi != 0 or self.step_counter == 0:
+                    # print('accompaniment step')
+                    so.p_onset = perf_onset
+                    if i == 0:
+                        print(
+                            "onset mmmmm",
+                            so.onset,
+                            ioi,
+                            so.p_onset,
+                            perf_onset,
+                            perf_onset - solo_p_onset,
+                        )
+
+        self.step_counter += 1
 
 
 def moving_average_online(param_new, param_old, alpha=0.5):

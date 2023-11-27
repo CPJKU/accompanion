@@ -2,14 +2,18 @@
 # -*- coding: utf-8 -*-
 import multiprocessing
 import os
+import warnings
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
-import os
 import argparse
 import glob
+import os
+import sys
+
 from accompanion import PLATFORM
 
-import sys
+warnings.filterwarnings("ignore", module="partitura")
+
 
 sys.path.append("..")
 
@@ -85,7 +89,16 @@ if __name__ == "__main__":
             info_file = yaml.safe_load(f)
         configurations = info_file["config"]
         # TODO : add a configuration for the default loaded file and directories.
-        if args.config_file in ["brahms", "mozart", "schubert", "fourhands", "FH", "grieg_morning_mood"]:
+        if args.config_file in [
+            "brahms",
+            "mozart",
+            "schubert",
+            "fourhands",
+            "FH",
+            "grieg_morning_mood",
+            "grieg_ases_tod",
+            "grieg_mountain_king",
+        ]:
             # args.follower = "oltw"
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -108,8 +121,6 @@ if __name__ == "__main__":
                 if "solo_fn" not in info_file.keys()
                 else os.path.join(file_dir, os.path.normpath(info_file["solo_fn"]))
             )
-
-            print(glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match")))
             configurations["midi_fn"] = (
                 os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
                 if "midi_fn" in info_file.keys()
@@ -136,22 +147,40 @@ if __name__ == "__main__":
                 )
                 if len(score.parts) == 1:
                     from copy import deepcopy
+
                     import numpy as np
 
                     # find individual staff
                     na = score.note_array(include_staff=True)
                     staff = np.unique(na["staff"])
-                    primo_part = deepcopy(score.parts[0])
-                    secondo_part = deepcopy(score.parts[0])
+                    primo_part = partitura.load_score(
+                        (
+                            glob.glob(os.path.join(file_dir, "*.musicxml"))
+                            + glob.glob(os.path.join(file_dir, "*.mxl"))
+                        )[0]
+                    )[0]
+                    secondo_part = partitura.load_score(
+                        (
+                            glob.glob(os.path.join(file_dir, "*.musicxml"))
+                            + glob.glob(os.path.join(file_dir, "*.mxl"))
+                        )[0]
+                    )[0]
+                    # primo_part = deepcopy(score.parts[0])
+                    # secondo_part = deepcopy(score.parts[0])
                     for st in staff:
                         if st == 1:
-                            primo_part.notes = [
-                                note for note in primo_part.notes if note.staff == st
-                            ]
+                            primo_notes = primo_part.notes
+
+                            for note in primo_part.notes:
+                                if note.staff != st:
+                                    primo_part.remove(note)
+
                         else:
-                            secondo_part.notes = [
-                                note for note in secondo_part.notes if note.staff == st
-                            ]
+                            secondo_notes = secondo_part.notes
+
+                            for note in secondo_notes:
+                                if note.staff == 1:
+                                    secondo_part.remove(note)
 
                 elif len(score.parts) == 2:
                     primo_part = score.parts[0]
@@ -175,9 +204,11 @@ if __name__ == "__main__":
 
     if "follower" in configurations.keys():
         if configurations["follower"] == "hmm":
-            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
+            from accompanion.hmm_accompanion import \
+                HMMACCompanion as ACCompanion
         elif configurations["follower"] == "oltw":
-            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
+            from accompanion.oltw_accompanion import \
+                OLTWACCompanion as ACCompanion
         else:
             raise ValueError(
                 f"configuration parameter 'follower' is of unknown value {configurations['follower']}"
@@ -185,7 +216,8 @@ if __name__ == "__main__":
     elif args.follower:
         # Use the version in follower only if not specified in the
         if args.follower == "hmm":
-            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
+            from accompanion.hmm_accompanion import \
+                HMMACCompanion as ACCompanion
 
             configurations["score_follower_kwargs"] = {
                 "score_follower": "PitchIOIHMM",
@@ -195,7 +227,8 @@ if __name__ == "__main__":
                 },
             }
         elif args.follower == "oltw":
-            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
+            from accompanion.oltw_accompanion import \
+                OLTWACCompanion as ACCompanion
 
             configurations["score_follower_kwargs"] = {
                 "score_follower": "OnlineTimeWarping",
@@ -217,6 +250,9 @@ if __name__ == "__main__":
 
     if "follower" in configurations.keys():
         del configurations["follower"]
+
+    if not "accompanist_decoder_kwargs" in configurations.keys():
+        configurations["accompanist_decoder_kwargs"] = None
 
     if args.input:
         configurations["midi_router_kwargs"][

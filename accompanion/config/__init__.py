@@ -8,6 +8,8 @@ CONFIG = {
     "RIT_LEN": 24,
     # Ritenuto Window Length found in  Accompanist in Accopanist decoder
     "RIT_W": 0.75,
+    # Ritenuto curvature found in Accompanist decoder
+    "RIT_Q": 2.0,
     # I/O MIDI
     "BACKEND": "mido",
     "POLLING_PERIOD": 0.02,

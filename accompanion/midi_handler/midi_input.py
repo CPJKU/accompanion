@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-import mido
 import multiprocessing
-import time
-import threading
-from multiprocessing import Pipe
-from queue import Queue, Empty
-import tempfile
 import os
+import tempfile
+import threading
+import time
+from multiprocessing import Pipe
+from queue import Empty, Queue
+
+import mido
 
 # Default polling period (in seconds)
 POLLING_PERIOD = 0.02
@@ -88,7 +89,6 @@ class MidiInputProcess(multiprocessing.Process):
                 else:
                     self.pipe.send(output)
 
-
     @property
     def current_time(self):
         """
@@ -117,9 +117,9 @@ class MidiInputProcess(multiprocessing.Process):
         # close port
         # TODO!!!
 
-        #self.terminate()
+        # self.terminate()
         # Join thread
-        #self.join()
+        # self.join()
 
     def save_midi(self):
         # sort MIDI messages
@@ -154,8 +154,7 @@ class MidiInputThread(threading.Thread):
     def run(self):
         self.start_listening()
         while self.listen:
-            
-            
+
             msg = self.midi_in.poll()
             if msg is not None:
                 if (
@@ -199,10 +198,10 @@ class MidiInputThread(threading.Thread):
         # reset init time
         self.init_time = None
 
-        #self.terminate()
+        # self.terminate()
 
         # Join thread
-        #self.join()
+        # self.join()
 
 
 class Buffer(object):
@@ -237,6 +236,7 @@ class Buffer(object):
 
     def __str__(self):
         return str(self.frame)
+
 
 class FramedMidiInputProcess(MidiInputProcess):
     def __init__(
@@ -291,6 +291,7 @@ class FramedMidiInputProcess(MidiInputProcess):
                 else:
                     self.pipe.send(output)
                 frame.reset(c_time)
+
 
 class FramedMidiInputThread(MidiInputThread):
     def __init__(
@@ -355,6 +356,7 @@ class FramedMidiInputThread(MidiInputThread):
                         self.queue.put(output)
                     # self.queue.put(output)
                     frame.reset(c_time)
+
 
 def create_midi_poll(
     port,

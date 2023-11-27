@@ -7,21 +7,20 @@ TODO
 * Replace utilities with the latest version from Partitura
 """
 
+from typing import Callable, Dict, List, Tuple, Union
+
 import mido
-import partitura
 import numpy as np
-
-from typing import List, Dict, Union, Tuple, Callable
-
+import partitura
 from basismixer.performance_codec import get_performance_codec
 from basismixer.utils import get_unique_onset_idxs, notewise_to_onsetwise
-from partitura import load_score, load_performance
-from partitura.utils.music import performance_from_part
-from accompanion.config import CONFIG
-from partitura.score import Part
+from partitura import load_performance, load_score
 from partitura.performance import PerformedPart
+from partitura.score import Part
+from partitura.utils.music import performance_from_part
 from scipy.interpolate import interp1d
 
+from accompanion.config import CONFIG
 
 PPART_FIELDS = [
     ("onset_sec", "f4"),
@@ -451,8 +450,8 @@ def performance_notearray_from_score_notearray(
         and velocity.
     alignment : List[Dict[str, str]]
         If `return_alignment` is True, return the alignment between performance
-        and score. 
-    
+        and score.
+
     Notes
     -----
     * This method should be deleted when the function is updated in partitura.
@@ -543,13 +542,13 @@ def performance_notearray_from_score_notearray(
     pnote_array["pitch"] = snote_array["pitch"]
     pnote_array["id"] = snote_array["id"]
 
-    
     for ix, on in zip(unique_onset_idxs, p_onsets):
         # ix has to be cast as integer depending on the
         # numpy version...
         pnote_array["onset_sec"][ix.astype(int)] = on
 
     if return_alignment:
+
         def alignment_dict(score_id: str, perf_id: str) -> Dict[str, str]:
             output = dict(
                 label="match",
@@ -557,7 +556,11 @@ def performance_notearray_from_score_notearray(
                 performance_id=perf_id,
             )
             return output
-        alignment = [alignment_dict(sid, pid) for sid, pid in zip(snote_array["id"], pnote_array["id"])]
+
+        alignment = [
+            alignment_dict(sid, pid)
+            for sid, pid in zip(snote_array["id"], pnote_array["id"])
+        ]
         return pnote_array, alignment
     return pnote_array
 

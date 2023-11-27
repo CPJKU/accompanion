@@ -2,17 +2,17 @@
 """
 Objects for representing score information
 """
-from typing import Iterable
-import numpy as np
 import warnings
+from typing import Iterable
 
+import numpy as np
+import partitura
+from mido import Message
 # from matchmaker.io.symbolic import load_score
 from partitura import load_score
-from mido import Message
-import partitura
-from partitura.score import Part, Score as PtScore
-from partitura.performance import PerformedPart, Performance
-
+from partitura.performance import Performance, PerformedPart
+from partitura.score import Part
+from partitura.score import Score as PtScore
 from partitura.utils.music import performance_from_part
 
 
@@ -347,6 +347,9 @@ class AccompanimentScore(Score):
                 ioi_init = next_acc_onsets.min() - on
 
                 next_iois = np.r_[ioi_init, np.diff(next_acc_onsets)]
+
+                # if i == 0:
+                #     print("next_iois", np.cumsum(next_iois), on)
 
                 self.solo_score_dict[on] = (
                     self.chords[acc_idx:],

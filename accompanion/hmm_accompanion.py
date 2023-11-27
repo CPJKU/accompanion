@@ -5,33 +5,27 @@ Hidden Markov Model Accompanion.
 This module contains the HMMAccompanion class, which is the main class for following scores using an HMM.
 It mainly works when the soloist plays monophonic melodies.
 """
-from typing import Optional
-import numpy as np
-
 from os import PathLike
-import partitura
+from typing import Optional
 
+import numpy as np
+import partitura
 from basismixer.performance_codec import get_performance_codec
-from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
+from basismixer.utils.music import notewise_to_onsetwise, onsetwise_to_notewise
 from scipy.interpolate import interp1d
 
-from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
-
-from accompanion.base import ACCompanion
-from accompanion.midi_handler.midi_input import POLLING_PERIOD
-from accompanion.config import CONFIG
-from accompanion.accompanist.score import (
-    AccompanimentScore,
-    alignment_to_score,
-    part_to_score,
-)
-from accompanion.accompanist.accompaniment_decoder import (
-    moving_average_offline,
-)
-from accompanion.mtchmkr.features_midi import PitchIOIProcessor
-from accompanion.score_follower.trackers import HMMScoreFollower
 from accompanion.accompanist import tempo_models
+from accompanion.accompanist.accompaniment_decoder import \
+    moving_average_offline
+from accompanion.accompanist.score import (AccompanimentScore,
+                                           alignment_to_score, part_to_score)
+from accompanion.base import ACCompanion
+from accompanion.config import CONFIG
+from accompanion.midi_handler.midi_input import POLLING_PERIOD
 from accompanion.mtchmkr import score_hmm
+from accompanion.mtchmkr.features_midi import PitchIOIProcessor
+from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
+from accompanion.score_follower.trackers import HMMScoreFollower
 
 
 class HMMACCompanion(ACCompanion):
@@ -75,6 +69,7 @@ class HMMACCompanion(ACCompanion):
     record_midi : bool, optional
         Whether to record the MIDI, by default False.
     """
+
     def __init__(
         self,
         solo_fn: PathLike,
@@ -111,8 +106,9 @@ class HMMACCompanion(ACCompanion):
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
         bypass_audio: bool = False,  # bypass fluidsynth audio
-        test: bool = False, # bypass MIDIRouter
-        record_midi : Optional[str] = None,
+        test: bool = False,  # bypass MIDIRouter
+        record_midi: Optional[str] = None,
+        accompanist_decoder_kwargs: Optional[dict] = None,
     ) -> None:
 
         score_kwargs = dict(
@@ -137,6 +133,7 @@ class HMMACCompanion(ACCompanion):
             test=test,
             onset_tracker_type="continuous",
             record_midi=record_midi,
+            accompanist_decoder_kwargs=accompanist_decoder_kwargs,
         )
 
     def setup_scores(self):
@@ -270,16 +267,21 @@ class HMMACCompanion(ACCompanion):
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
 
         try:
-            score_follower_kwargs = self.score_follower_kwargs.pop("score_follower_kwargs")
+            score_follower_kwargs = self.score_follower_kwargs.pop(
+                "score_follower_kwargs"
+            )
         except KeyError:
             score_follower_kwargs = {}
 
         chord_pitches = [chord.pitch for chord in self.solo_score.chords]
         pitch_profiles = score_hmm.compute_pitch_profiles(
-            chord_pitches, piano_range=piano_range, inserted_states=inserted_states,
+            chord_pitches,
+            piano_range=piano_range,
+            inserted_states=inserted_states,
         )
         ioi_matrix = score_hmm.compute_ioi_matrix(
-            unique_onsets=self.solo_score.unique_onsets, inserted_states=inserted_states,
+            unique_onsets=self.solo_score.unique_onsets,
+            inserted_states=inserted_states,
         )
         state_space = ioi_matrix[0]
         n_states = len(state_space)
@@ -297,7 +299,7 @@ class HMMACCompanion(ACCompanion):
         )
         initial_probabilities = score_hmm.gumbel_init_dist(n_states=n_states)
 
-        if score_follower_type == 'PitchIOIHMM':
+        if score_follower_type == "PitchIOIHMM":
             score_follower = score_hmm.PitchIOIHMM(
                 transition_matrix=transition_matrix,
                 pitch_profiles=pitch_profiles,

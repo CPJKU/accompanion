@@ -1,14 +1,11 @@
-
 # -*- coding: utf-8 -*-
 """
 MIDI utilities
 """
 import os
-
+from os.path import dirname, realpath
 
 import mido
-
-from os.path import dirname, realpath
 
 filepath = realpath(__file__)
 dir_of_file = dirname(filepath)
@@ -33,7 +30,9 @@ def midi_file_from_midi_msg(midi_msg_list, output_path):
     mid.tracks.append(track)
 
     # filter out all messages that are not note related (e.g. pedal messages)
-    midi_msg_list = [msg for msg in midi_msg_list if msg[0].type in ("note_on", "note_off")]
+    midi_msg_list = [
+        msg for msg in midi_msg_list if msg[0].type in ("note_on", "note_off")
+    ]
     # TODO: Add support for pedal messages
     # setting starting time
     starting_time = midi_msg_list[0][1]

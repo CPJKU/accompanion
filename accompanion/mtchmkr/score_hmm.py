@@ -5,14 +5,13 @@ This module implements the specific HMM for the score follower for Accompanion.
 from typing import Optional
 
 import numpy as np
-
-from hiddenmarkov import ObservationModel, ConstantTransitionModel, HiddenMarkovModel
-from scipy.stats import gumbel_l
 import scipy.spatial.distance as sp_dist
-
-from accompanion.mtchmkr.base import OnlineAlignment
+from hiddenmarkov import (ConstantTransitionModel, HiddenMarkovModel,
+                          ObservationModel)
+from scipy.stats import gumbel_l
 
 from accompanion.accompanist.tempo_models import SyncModel
+from accompanion.mtchmkr.base import OnlineAlignment
 
 
 class PitchIOIObservationModel(ObservationModel):

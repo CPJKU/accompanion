@@ -1,17 +1,16 @@
-# Accompanion config for Four Hand Mozart Sonata piece.
+# Accompanion config for Åses Tod.
 config:
     follower : oltw
     score_follower_kwargs :
         score_follower: OnlineTimeWarping
-        window_size: 80
-        step_size: 2
-        start_window_size: 40
-        local_cost_fun : Manhattan
+        window_size: 100
+        step_size: 3
+        start_window_size: 100
         input_processor:
             processor: PianoRollProcessor
             processor_kwargs:
               piano_range: True
-        # score_follower: PitchIOIHMM
+        # score_follower: PitchIOIKHMM
         # input_processor:
         #     processor: PitchIOIProcessor
         #     processor_kwargs:
@@ -20,11 +19,11 @@ config:
         velocity_trend_ma_alpha: 0.6
         articulation_ma_alpha: 0.4
         velocity_dev_scale: 70
-        velocity_min: 40
+        velocity_min: 30
         velocity_max: 105
         velocity_solo_scale: 0.95
         timing_scale: 0.001
-        log_articulation_scale: 0.08
+        log_articulation_scale: 0.5
         mechanical_delay: 0.0
     midi_router_kwargs :
         solo_input_to_accompaniment_port_name: Silent Piano
@@ -35,13 +34,18 @@ config:
     adjust_following_rate: 0.2
     bypass_audio: False
     tempo_model_kwargs:
-        tempo_model: LTESM
-        # eta_t: 0.3
-        # eta_p: 0.8
+        tempo_model: JADAMSM # LSM
+        # eta_p: 0.9
+        # eta_t: 0.9
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm : 60
-    init_velocity : 60
-piece_dir : mozart_demo
-acc_fn : musicxml/Sonata-k381-a123_Secondo.musicxml
-accompaniment_match : basismixer/mozart_sonata_secondo.match
+    init_bpm: 70
+    init_velocity : 40
+    accompanist_decoder_kwargs:
+        rit_len: 10
+        rit_w: 1.0
+        rit_q: 2.0
+piece_dir : grieg_ases_tod
+acc_fn : musicxml/åses_tod-Secondo.musicxml
+accompaniment_match: match/cc_secondo/åses_tod-Secondo_åses_tod_v0.match
+# solo_fn: "primo.musicxml"

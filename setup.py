@@ -1,9 +1,10 @@
-import numpy
-import setuptools
-from setuptools import setup
-from Cython.Build import cythonize
 from distutils.extension import Extension
 from sys import platform
+
+import numpy
+import setuptools
+from Cython.Build import cythonize
+from setuptools import setup
 
 # Package meta-data.
 NAME = "accompanion"

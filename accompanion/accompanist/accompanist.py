@@ -8,46 +8,32 @@ import time
 
 import numpy as np
 import partitura
-
 from basismixer.performance_codec import get_performance_codec
-from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
+from basismixer.utils.music import notewise_to_onsetwise, onsetwise_to_notewise
 from scipy.interpolate import interp1d
 
-from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
-from accompanion.midi_handler.midi_file_player import get_midi_file_player
-from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
-from accompanion.midi_handler.midi_routing import MidiRouter
-
-from accompanion.mtchmkr.features_midi import PianoRollProcessor
-from accompanion.mtchmkr.alignment_online_oltw import (
-    OnlineTimeWarping,
-)
-
-from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
-
-from accompanion.accompanist.score import (
-    part_to_score,
-    alignment_to_score,
-    AccompanimentScore,
-)
-
-from accompanion.accompanist.accompaniment_decoder import (
-    OnlinePerformanceCodec,
-    Accompanist,
-    moving_average_offline,
-)
 import accompanion.accompanist.tempo_models as tempo_models
+from accompanion.accompanist.accompaniment_decoder import (
+    Accompanist, OnlinePerformanceCodec, moving_average_offline)
+from accompanion.accompanist.score import (AccompanimentScore,
+                                           alignment_to_score, part_to_score)
 from accompanion.config import CONFIG
-from accompanion.utils.partitura_utils import (
-    get_time_maps_from_alignment,
-    partitura_to_framed_midi_custom as partitura_to_framed_midi)
-
 from accompanion.midi_handler.ceus_mediator import CeusMediator
+from accompanion.midi_handler.fluid import FluidsynthPlayer
+from accompanion.midi_handler.midi_file_player import get_midi_file_player
+from accompanion.midi_handler.midi_input import (POLLING_PERIOD,
+                                                 create_midi_poll)
+from accompanion.midi_handler.midi_routing import MidiRouter
+from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
+from accompanion.mtchmkr.alignment_online_oltw import OnlineTimeWarping
+from accompanion.mtchmkr.features_midi import PianoRollProcessor
+from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 from accompanion.score_follower.note_tracker import NoteTracker
 from accompanion.score_follower.onset_tracker import OnsetTracker
 from accompanion.score_follower.trackers import MultiDTWScoreFollower
-from accompanion.midi_handler.fluid import FluidsynthPlayer
-
+from accompanion.utils.partitura_utils import get_time_maps_from_alignment
+from accompanion.utils.partitura_utils import \
+    partitura_to_framed_midi_custom as partitura_to_framed_midi
 
 ACC_PROCESS = True
 ACC_PARENT = multiprocessing.Process if ACC_PROCESS else threading.Thread
@@ -186,7 +172,6 @@ class ACCompanion(ACC_PARENT):
         self.solo_parts = []
 
         for i, fn in enumerate(self.solo_fn):
-
             if fn.endswith(".match"):
                 if i == 0:
                     solo_ppart, alignment, self.solo_spart = partitura.load_match(
@@ -282,7 +267,6 @@ class ACCompanion(ACC_PARENT):
 
             timing_scale = self.performance_codec_kwargs.get("timing_scale", 1.0)
             timing = bm_params["timing"] * timing_scale
-            print(np.mean(np.abs(timing)))
             lart_scale = self.performance_codec_kwargs.get(
                 "log_articulation_scale", 1.0
             )
@@ -342,7 +326,6 @@ class ACCompanion(ACC_PARENT):
         self.reference_features = None
 
         for part, state_to_ref_time_map, ref_to_state_time_map in self.solo_parts:
-
             if state_to_ref_time_map is not None:
                 ref_frames = partitura_to_framed_midi(
                     part_or_notearray_or_filename=part,
@@ -414,7 +397,6 @@ class ACCompanion(ACC_PARENT):
         # self.join()
 
     def terminate(self):
-
         if hasattr(super(ACCompanion, self), "terminate"):
             super(ACCompanion, self).terminate()
         else:
@@ -424,7 +406,6 @@ class ACCompanion(ACC_PARENT):
         return 60 / self.beat_period
 
     def run(self):
-
         if self.router_kwargs.get("acc_output_to_sound_port_name", None) is not None:
             try:
                 # For SynthPorts
@@ -502,7 +483,6 @@ class ACCompanion(ACC_PARENT):
 
         try:
             while self.play_accompanion and not self.seq.end_of_piece:
-
                 if self.queue.poll():
                     output = self.queue.recv()
                     # CC: moved solo_p_onset here because of the delays...
@@ -519,7 +499,7 @@ class ACCompanion(ACC_PARENT):
                     # overwrite velocities to 1 for tracking
                     # TODO think about nicer solution
                     output[output > 0] = 1.0
-                    
+
                     # # start playing the performance
                     # if not perf_start and (output > 0).any():
                     #     # Ignore messages after the tapping
@@ -541,7 +521,6 @@ class ACCompanion(ACC_PARENT):
                     decay *= CONFIG["DECAY_VALUE"]
                     for msg, msg_time in input_midi_messages:
                         if msg.type in ("note_on", "note_off"):
-
                             if msg.type == "note_on" and msg.velocity > 0:
                                 new_midi_messages = True
                             midi_msg = (msg.type, msg.note, msg.velocity, onset_time)
@@ -573,7 +552,6 @@ class ACCompanion(ACC_PARENT):
                     expected_position = expected_position + pioi / self.beat_period
 
                     if solo_s_onset is not None:
-
                         print(
                             f"performed onset {solo_s_onset}",
                             f"expected onset {expected_position}",
@@ -581,14 +559,10 @@ class ACCompanion(ACC_PARENT):
                             f"adjusted {acc_update or adjusted_sf}",
                         )
 
-
-
-
                         if not acc_update:
                             asynch = expected_position - solo_s_onset
                             # print('asynchrony', asynch)
                             expected_position = expected_position - 0.6 * asynch
-
 
                             loops_without_update = 0
                             adjusted_sf = False

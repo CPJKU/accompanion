@@ -2,19 +2,15 @@
 """
 On-line Dynamic Time Warping
 """
+from typing import Callable, ClassVar, Union
+
 import numpy as np
-
-from typing import Union, Callable, ClassVar
-
 from numpy.typing import NDArray
 
-from accompanion.mtchmkr.base import OnlineAlignment
 from accompanion.mtchmkr import distances
-from accompanion.mtchmkr.distances import vdist, Metric
-from accompanion.mtchmkr.dtw_loop import (
-    dtw_loop,
-    reset_cost_matrix,
-)
+from accompanion.mtchmkr.base import OnlineAlignment
+from accompanion.mtchmkr.distances import Metric, vdist
+from accompanion.mtchmkr.dtw_loop import dtw_loop, reset_cost_matrix
 
 DEFAULT_LOCAL_COST: str = "Manhattan"
 WINDOW_SIZE: int = 100
@@ -34,7 +30,7 @@ class OnlineTimeWarping(OnlineAlignment):
     window_size : int
         Size of the window for searching the optimal path in the cumulative
         cost matrix
-    step_size : int 
+    step_size : int
         Size of the step
     local_cost_fun : Union[str, Callable]
         Local metric for computing pairwise distances.

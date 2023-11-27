@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-import mido
 import multiprocessing
 import threading
+
+import mido
 
 
 class MidiFilePlayerThread(threading.Thread):

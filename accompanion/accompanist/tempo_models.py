@@ -2,7 +2,7 @@
 """
 Tempo Models
 """
-from typing import ClassVar, Tuple
+from typing import Tuple
 import numpy as np
 from scipy.interpolate import interp1d
 
@@ -28,13 +28,13 @@ class SyncModel(object):
         purposes.
     """
 
-    beat_period: ClassVar[float]
-    prev_score_onset: ClassVar[float]
-    prev_perf_onset: ClassVar[float]
-    est_onset: ClassVar[float]
-    asynchrony: ClassVar[float]
-    has_tempo_expectations: ClassVar[bool]
-    counter: ClassVar[int]
+    beat_period: float
+    prev_score_onset: float
+    prev_perf_onset: float
+    est_onset: float
+    asynchrony: float
+    has_tempo_expectations: bool
+    counter: int
 
     def __init__(
         self,
@@ -144,7 +144,7 @@ class MovingAverageSyncModel(SyncModel):
             self.beat_period = (
                 self.alpha * self.beat_period + (1 - self.alpha) * beat_period
             )
-            print(self.beat_period)
+            # print(self.beat_period)
         else:
             self.est_onset = performed_onset
 
@@ -204,7 +204,7 @@ class LinearSyncModel(SyncModel):
         tempo_correction_term = (
             self.asynchrony if self.asynchrony != 0 and s_ioi != 0 else 0
         )
-        print(f"tempo_correction_term {tempo_correction_term}")
+        
         self.prev_perf_onset = performed_onset
         self.prev_score_onset = score_onset
 
@@ -212,8 +212,6 @@ class LinearSyncModel(SyncModel):
             beat_period = self.beat_period - self.eta_t * tempo_correction_term
         else:
             beat_period = self.beat_period - 2 * self.eta_t * tempo_correction_term
-
-        print(f"tempo {60 / beat_period}")
 
         if beat_period > 0.25 and beat_period <= 3:
             self.beat_period = beat_period

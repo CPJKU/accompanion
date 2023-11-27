@@ -3,39 +3,30 @@
 ACCompanion!
 """
 import multiprocessing
+import os
 import threading
 import time
-import numpy as np
-import os
-from accompanion.config import CONFIG
 from typing import Optional
 
-from accompanion.midi_handler.midi_input import create_midi_poll, POLLING_PERIOD
-from accompanion.midi_handler.midi_file_player import get_midi_file_player
-from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
-from accompanion.midi_handler.midi_routing import (
-    MidiRouter,
-    DummyRouter,
-    RecordingRouter,
-)
-from accompanion.midi_handler.midi_utils import midi_file_from_midi_msg # TODO: del, import is never used
-
-from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor # TODO: del
-
-from accompanion.accompanist.score import AccompanimentScore, Score
+import numpy as np
 
 from accompanion.accompanist.accompaniment_decoder import (
-    OnlinePerformanceCodec,
-    Accompanist,
-)
-
-from accompanion.accompanist.tempo_models import SyncModel # TODO: del
+    Accompanist, OnlinePerformanceCodec)
+from accompanion.accompanist.score import AccompanimentScore, Score
+from accompanion.config import CONFIG
 from accompanion.midi_handler.ceus_mediator import CeusMediator
-from accompanion.score_follower.note_tracker import NoteTracker
-from accompanion.score_follower.onset_tracker import OnsetTracker, DiscreteOnsetTracker
-from accompanion.score_follower.trackers import AccompanimentScoreFollower
 from accompanion.midi_handler.fluid import FluidsynthPlayer
-
+from accompanion.midi_handler.midi_file_player import get_midi_file_player
+from accompanion.midi_handler.midi_input import (POLLING_PERIOD,
+                                                 create_midi_poll)
+from accompanion.midi_handler.midi_routing import (DummyRouter, MidiRouter,
+                                                   RecordingRouter)
+from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
+from accompanion.score_follower.note_tracker import NoteTracker
+from accompanion.score_follower.onset_tracker import (DiscreteOnsetTracker,
+                                                      OnsetTracker)
+from accompanion.score_follower.trackers import (AccompanimentScoreFollower,
+                                                 ExpectedPositionTracker)
 
 ACC_PARENT = multiprocessing.Process if CONFIG["ACC_PROCESS"] else threading.Thread
 
@@ -99,6 +90,7 @@ class ACCompanion(ACC_PARENT):
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # switch to Dummy MIDI ROuter for test environment
         record_midi: bool = False,
+        accompanist_decoder_kwargs: Optional[dict] = None,
     ) -> None:
         super(ACCompanion, self).__init__()
 
@@ -108,6 +100,7 @@ class ACCompanion(ACC_PARENT):
         self.tempo_model_kwargs = tempo_model_kwargs
         self.solo_score: Optional[Score] = None
         self.acc_score: Optional[AccompanimentScore] = None
+        self.accompanist_decoder_kwargs: Optional[dict] = accompanist_decoder_kwargs
         self.accompanist = None
         self.time_delays = list()
         self.alignment = list()
@@ -131,6 +124,9 @@ class ACCompanion(ACC_PARENT):
         self.tempo_model = None
         self.bypass_audio: bool = True if test else bypass_audio
         self.play_accompanion: bool = False
+
+        # Expected position tracker
+        self.expected_position_tracker: Optional[ExpectedPositionTracker] = None
         # Rate in "loops_without_update"  for adjusting the score
         self.adjust_following_rate: float = adjust_following_rate
         # follower with expected position at the current tempo.
@@ -185,6 +181,7 @@ class ACCompanion(ACC_PARENT):
 
         self.setup_scores()
         self.setup_score_follower()
+
         self.performance_codec = OnlinePerformanceCodec(
             beat_period_ave=self.init_bp,
             velocity_ave=self.velocity,
@@ -196,6 +193,7 @@ class ACCompanion(ACC_PARENT):
         self.accompanist: Accompanist = Accompanist(
             accompaniment_score=self.acc_score,
             performance_codec=self.performance_codec,
+            decoder_kwargs=self.accompanist_decoder_kwargs,
         )
 
         if self.use_mediator:
@@ -233,6 +231,11 @@ class ACCompanion(ACC_PARENT):
         # initialize note tracker
         self.note_tracker: NoteTracker = NoteTracker(self.solo_score.note_array)
         self.accompanist.pc.note_tracker = self.note_tracker
+
+        self.expected_position_tracker = ExpectedPositionTracker(
+            tempo_model=self.tempo_model,
+            first_onset=self.first_score_onset,
+        )
 
         self.pipe_out, self.queue, self.midi_input_process = create_midi_poll(
             port=self.router.solo_input_to_accompaniment_port,
@@ -332,7 +335,7 @@ class ACCompanion(ACC_PARENT):
         if self.midi_fn is not None:
             print("Start playing MIDI file")
             self.dummy_solo = get_midi_file_player(
-                port= self.router.MIDIPlayer_to_accompaniment_port,
+                port=self.router.MIDIPlayer_to_accompaniment_port,
                 file_name=self.midi_fn,
                 player_class=FluidsynthPlayer,
                 thread=CONFIG["USE_THREADS"],
@@ -340,13 +343,12 @@ class ACCompanion(ACC_PARENT):
             )
             self.dummy_solo.start()
 
-
-
         # dummy start time (see below)
         if start_time is None:
             start_time = time.time()
             if not sequencer_start:
                 self.seq.init_time = start_time
+
         expected_position = self.first_score_onset
         loops_without_update = 0
         empty_loops = 0
@@ -363,10 +365,10 @@ class ACCompanion(ACC_PARENT):
                 # vs. "self.queue.poll() is not None"
                 # (NV) actually, this should be "have a CORRECT branch (non-blocking MIDI)
                 # vs. no branch (blocking MIDI)"
-                
-                #if self.queue.poll() is not None:
-                
-                #this version of recv uses the quasi-blocking version with periodic timeouts
+
+                # if self.queue.poll() is not None:
+
+                # this version of recv uses the quasi-blocking version with periodic timeouts
                 output = self.queue.recv()
                 solo_p_onset = time.time() - start_time
                 input_midi_messages, output = output
@@ -406,13 +408,17 @@ class ACCompanion(ACC_PARENT):
 
                     print(
                         f"performed onset {solo_s_onset}",
-                        f"expected onset {expected_position}",
+                        f"expected onset {self.expected_position_tracker.expected_position}",
                         f"beat_period {self.beat_period}",
                         f"adjusted {acc_update or adjusted_sf}",
                     )
-                    self.time_delays.append([solo_s_onset, solo_p_onset, self.beat_period])
+
+                    self.time_delays.append(
+                        [solo_s_onset, solo_p_onset, self.beat_period]
+                    )
 
                     if not acc_update:
+                        self.expected_position_tracker.expected_position = solo_s_onset
                         asynch = expected_position - solo_s_onset
                         expected_position = expected_position - 0.6 * asynch
                         loops_without_update = 0
@@ -453,6 +459,7 @@ class ACCompanion(ACC_PARENT):
                     if self.score_follower.current_position < expected_position:
                         # old_sf_position = float(self.score_follower.current_position)
                         self.score_follower.update_position(expected_position)
+                        # self.score_follower.update_position(self.expected_position_tracker.expected_position)
                         adjusted_sf = True
             self.alignment = self.note_tracker.alignment
         except Exception as e:

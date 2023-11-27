@@ -1,17 +1,16 @@
-# Accompanion config for Four Hand Mozart Sonata piece.
+# Accompanion config for Morning Mood.
 config:
     follower : oltw
     score_follower_kwargs :
         score_follower: OnlineTimeWarping
-        window_size: 80
+        window_size: 200
         step_size: 2
         start_window_size: 40
-        local_cost_fun : Manhattan
         input_processor:
             processor: PianoRollProcessor
             processor_kwargs:
               piano_range: True
-        # score_follower: PitchIOIHMM
+        # score_follower: PitchIOIKHMM
         # input_processor:
         #     processor: PitchIOIProcessor
         #     processor_kwargs:
@@ -20,11 +19,11 @@ config:
         velocity_trend_ma_alpha: 0.6
         articulation_ma_alpha: 0.4
         velocity_dev_scale: 70
-        velocity_min: 40
+        velocity_min: 30
         velocity_max: 105
         velocity_solo_scale: 0.95
         timing_scale: 0.001
-        log_articulation_scale: 0.08
+        log_articulation_scale: 0.1
         mechanical_delay: 0.0
     midi_router_kwargs :
         solo_input_to_accompaniment_port_name: Silent Piano
@@ -35,13 +34,20 @@ config:
     adjust_following_rate: 0.2
     bypass_audio: False
     tempo_model_kwargs:
-        tempo_model: LTESM
-        # eta_t: 0.3
-        # eta_p: 0.8
+        tempo_model: LSM
+        # eta_p: 0.0
+        # eta_t: 0.0
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm : 60
-    init_velocity : 60
-piece_dir : mozart_demo
-acc_fn : musicxml/Sonata-k381-a123_Secondo.musicxml
-accompaniment_match : basismixer/mozart_sonata_secondo.match
+    init_bpm: 180
+    init_velocity : 40
+    accompanist_decoder_kwargs:
+        rit_len: 10
+        rit_w: 1.0
+        rit_q: 2.0
+piece_dir : grieg_morning_mood
+# accompaniment_match : "match/cc_acc/secondo_morgenstimmung_secondo_03.match"
+acc_fn : "musicxml/secondo.musicxml"
+solo_fn : "musicxml/primo.musicxml"
+# solo_fn: "primo.musicxml"
+# acc_fn: "primo.musicxml"

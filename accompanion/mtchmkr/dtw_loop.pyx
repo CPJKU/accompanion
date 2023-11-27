@@ -4,9 +4,13 @@ Cythonized main loop for online time warping.
 """
 cimport cython
 cimport numpy as np
+
 import numpy as np
+
 # from numpy.math cimport INFINITY
+
 from libc.math cimport INFINITY
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

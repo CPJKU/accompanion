@@ -1,4 +1,5 @@
-from typing import Tuple, List, Optional
+from typing import List, Optional, Tuple
+
 import numpy as np
 
 
@@ -90,6 +91,7 @@ class DiscreteOnsetTracker(object):
     unique_onsets : np.ndarray
         The unique score onsets in beats.
     """
+
     def __init__(self, unique_onsets: np.ndarray, *args, **kwargs) -> None:
         print("Using discrete onset tracker")
         self.unique_onsets = unique_onsets
@@ -121,6 +123,6 @@ class DiscreteOnsetTracker(object):
                 self.performed_onsets.append(score_time)
                 onset_index = self.current_idx
 
-                print(f'onset tracker {score_time}')
+                print(f"onset tracker {score_time}")
 
         return solo_s_onset, onset_index, acc_update
