@@ -204,11 +204,9 @@ if __name__ == "__main__":
 
     if "follower" in configurations.keys():
         if configurations["follower"] == "hmm":
-            from accompanion.hmm_accompanion import \
-                HMMACCompanion as ACCompanion
+            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
         elif configurations["follower"] == "oltw":
-            from accompanion.oltw_accompanion import \
-                OLTWACCompanion as ACCompanion
+            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
         else:
             raise ValueError(
                 f"configuration parameter 'follower' is of unknown value {configurations['follower']}"
@@ -216,8 +214,7 @@ if __name__ == "__main__":
     elif args.follower:
         # Use the version in follower only if not specified in the
         if args.follower == "hmm":
-            from accompanion.hmm_accompanion import \
-                HMMACCompanion as ACCompanion
+            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
 
             configurations["score_follower_kwargs"] = {
                 "score_follower": "PitchIOIHMM",
@@ -227,8 +224,7 @@ if __name__ == "__main__":
                 },
             }
         elif args.follower == "oltw":
-            from accompanion.oltw_accompanion import \
-                OLTWACCompanion as ACCompanion
+            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
 
             configurations["score_follower_kwargs"] = {
                 "score_follower": "OnlineTimeWarping",

@@ -2,12 +2,15 @@
 """
 Decode the performance from the accompaniment
 """
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
+from partitura.score import Part
 
 from accompanion.accompanist.score import AccompanimentScore
+from accompanion.accompanist.tempo_models import SyncModel
 from accompanion.config import CONFIG
+from accompanion.score_follower.note_tracker import NoteTracker
 from accompanion.utils.expression_tools import friberg_sundberg_rit
 
 
@@ -17,7 +20,7 @@ class OnlinePerformanceCodec(object):
 
     Parameters
     ----------
-    pass: partitura.score.Part (optional)
+    part: partitura.score.Part (optional)
         The solo part.
     note_tracker : NoteTracker (optional)
         The note tracker.
@@ -34,13 +37,14 @@ class OnlinePerformanceCodec(object):
     init_eq_onset : float (optional)
         The initial equalized onset.
     mechanical_delay : float (optional)
-        The mechanical delay of the accompaniment (to be used with a mechnaical piano).
-        This refers to the delay of the message arriving to the piano and the mechanical piano actually producing the sound.
-    tempo_model : TempoModel (optional)
+        The mechanical delay of the accompaniment (to be used with a mechanical piano).
+        This refers to the delay of the message arriving to the piano and the mechanical
+        piano actually producing the sound.
+    tempo_model : SyncModel (optional)
         The tempo model to be used from available models in accompanist tempo_models.py
     vel_prev : int (optional)
         The previous velocity.
-    articulation_prev : int (optional)
+    articulation_prev : float (optional)
         The previous articulation.
     articulation_ma_alpha: float (optional)
         The alpha parameter for the moving average of the articulation.
@@ -48,37 +52,37 @@ class OnlinePerformanceCodec(object):
 
     def __init__(
         self,
-        part=None,
-        note_tracker=None,
-        beat_period_ave=0.5,
-        velocity_ave=45,
-        vel_min=20,
-        vel_max=90,
-        velocity_ma_alpha=0.6,
-        init_eq_onset=0.0,
-        mechanical_delay=0.0,
-        tempo_model=None,
-        vel_prev=60,
-        articulation_prev=1,
-        articulation_ma_alpha=0.4,
+        part: Optional[Part] = None,
+        note_tracker: Optional[NoteTracker] = None,
+        beat_period_ave: float = 0.5,
+        velocity_ave: Union[int, float] = 45,
+        vel_min: int = 20,
+        vel_max: int = 90,
+        velocity_ma_alpha: float = 0.6,
+        init_eq_onset: float = 0.0,
+        mechanical_delay: float = 0.0,
+        tempo_model: Optional[SyncModel] = None,
+        vel_prev: float = 60,
+        articulation_prev: float = 1.0,
+        articulation_ma_alpha: float = 0.4,
         **kwargs
-    ):
-        self.velocity_ave = float(velocity_ave)
-        self.bp_ave = float(beat_period_ave)
-        self.vel_min = vel_min
-        self.vel_max = vel_max
-        self.velocity_ma_alpha = velocity_ma_alpha
-        self.articulation_ma_alpha = articulation_ma_alpha
-        self.mechanical_delay = mechanical_delay
-        self.prev_eq_onset = init_eq_onset
-        self.part = part
-        self.note_tracker = note_tracker
-        self.tempo_model = tempo_model
-        self.vel_prev = vel_prev
-        self.articulation_prev = articulation_prev
-        self.kwargs = kwargs
+    ) -> None:
+        self.velocity_ave: float = float(velocity_ave)
+        self.bp_ave: float = float(beat_period_ave)
+        self.vel_min: int = vel_min
+        self.vel_max: int = vel_max
+        self.velocity_ma_alpha: float = velocity_ma_alpha
+        self.articulation_ma_alpha: float = articulation_ma_alpha
+        self.mechanical_delay: float = mechanical_delay
+        self.prev_eq_onset: float = init_eq_onset
+        self.part: Optional[Part] = part
+        self.note_tracker: Optional[NoteTracker] = note_tracker
+        self.tempo_model: Optional[SyncModel] = tempo_model
+        self.vel_prev: float = vel_prev
+        self.articulation_prev: float = articulation_prev
+        self.kwargs: dict = kwargs
 
-    def encode_step(self):
+    def encode_step(self) -> Tuple[float, float]:
         try:
             self.vel_prev = moving_average_online(
                 np.max(self.note_tracker.velocities[-1]),
@@ -121,18 +125,23 @@ class OnlinePerformanceCodec(object):
 
     def decode_step(
         self,
-        ioi,
-        dur,
-        vt,
-        vd,
-        lbpr,
-        tim,
-        lart,
-        bp_ave,
-        vel_a,
-        art_a,
-        prev_eq_onset=None,
-    ):
+        ioi: float,
+        dur: Union[np.ndarray, float],
+        vt: Union[np.ndarray, float],
+        vd: Union[np.ndarray, float],
+        lbpr: Union[np.ndarray, float],
+        tim: Union[np.ndarray, float],
+        lart: Union[np.ndarray, float],
+        bp_ave: float,
+        vel_a: float,
+        art_a: float,
+        prev_eq_onset: Optional[float] = None,
+    ) -> Tuple[
+        Union[np.ndarray, float],
+        Union[np.ndarray, float],
+        Union[np.ndarray, int],
+        float,
+    ]:
         self.bp_ave = bp_ave
         self.velocity_ave = vel_a
         # Compute equivalent onsets
@@ -151,12 +160,24 @@ class OnlinePerformanceCodec(object):
 
         return perf_onset, perf_duration, perf_vel, eq_onset
 
-    def decode_velocity(self, vt, vd, vel_ave):
+    def decode_velocity(
+        self,
+        vt: Union[np.ndarray, float],
+        vd: Union[np.ndarray, float],
+        vel_ave: float,
+    ) -> np.ndarray:
         # Add options for normalization
         perf_vel = np.clip(vt * vel_ave - vd, self.vel_min, self.vel_max).astype(int)
         return perf_vel
 
-    def decode_duration(self, dur, lart, lbpr, art_a, bp_ave):
+    def decode_duration(
+        self,
+        dur: Union[np.ndarray, float],
+        lart: Union[np.ndarray, float],
+        lbpr: Union[np.ndarray, float],
+        art_a: float,
+        bp_ave: float,
+    ) -> np.ndarray:
         # TODO: check expected articulation in solo (legato, staccato),
         # and only use it if it is the "same" as notated in the
         # accompaniment score
@@ -180,6 +201,9 @@ class Accompanist(object):
     performance_codec : PerformanceCodec
         The performance codec.
     """
+
+    acc_score: AccompanimentScore
+    pc: OnlinePerformanceCodec
 
     def __init__(
         self,
@@ -287,26 +311,29 @@ class Accompanist(object):
                 #     print(so.onset, perf_onset, ioi, bp_ave, solo_p_onset)
 
                 if ioi != 0 or self.step_counter == 0:
-                    # print('accompaniment step')
                     so.p_onset = perf_onset
-                    if i == 0:
-                        print(
-                            "onset mmmmm",
-                            so.onset,
-                            ioi,
-                            so.p_onset,
-                            perf_onset,
-                            perf_onset - solo_p_onset,
-                        )
+                    # if i == 0:
+                    #     print(
+                    #         "accompaniment step",
+                    #         so.onset,
+                    #         ioi,
+                    #         so.p_onset,
+                    #         perf_onset,
+                    #         perf_onset - solo_p_onset,
+                    #     )
 
         self.step_counter += 1
 
 
-def moving_average_online(param_new, param_old, alpha=0.5):
+def moving_average_online(
+    param_new: Union[np.ndarray, float],
+    param_old: Union[np.ndarray, float],
+    alpha: float = 0.5,
+) -> Union[np.ndarray, float]:
     return alpha * param_old + (1 - alpha) * param_new
 
 
-def moving_average_offline(parameter, alpha=0.5):
+def moving_average_offline(parameter: np.ndarray, alpha: float = 0.5) -> np.ndarray:
     ma = np.zeros_like(parameter)
     ma[0] = parameter[0]
 

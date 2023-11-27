@@ -3,6 +3,7 @@
 import argparse
 import glob
 import multiprocessing
+
 # import tkinter as tk
 # import mido
 # from copy import deepcopy
@@ -194,8 +195,7 @@ if __name__ == "__main__":
         pass
     elif args.follower:
         if args.follower == "hmm":
-            from accompanion.hmm_accompanion import \
-                HMMACCompanion as ACCompanion
+            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
 
             configurations["score_follower_kwargs"] = {
                 "score_follower": "PitchIOIHMM",
@@ -205,8 +205,7 @@ if __name__ == "__main__":
                 },
             }
         elif args.follower == "oltw":
-            from accompanion.oltw_accompanion import \
-                OLTWACCompanion as ACCompanion
+            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
 
             configurations["score_follower_kwargs"] = {
                 "score_follower": "OnlineTimeWarping",
@@ -223,11 +222,9 @@ if __name__ == "__main__":
             )
     elif "follower" in configurations.keys():
         if configurations["follower"] == "hmm":
-            from accompanion.hmm_accompanion import \
-                HMMACCompanion as ACCompanion
+            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
         elif configurations["follower"] == "oltw":
-            from accompanion.oltw_accompanion import \
-                OLTWACCompanion as ACCompanion
+            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
         else:
             raise ValueError(
                 f"configuration parameter 'follower' is of unknown value {configurations['follower']}"

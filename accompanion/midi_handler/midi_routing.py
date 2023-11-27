@@ -14,14 +14,12 @@ import mido
 from mido.ports import BaseOutput
 
 from accompanion.midi_handler.fluid import FluidsynthPlayer
-from accompanion.midi_handler.midi_utils import (OUTPUT_MIDI_FOLDER,
-                                                 midi_file_from_midi_msg)
+from accompanion.midi_handler.midi_utils import (
+    OUTPUT_MIDI_FOLDER,
+    midi_file_from_midi_msg,
+)
 
 # import sys
-
-
-
-
 
 
 class BasePort(object):

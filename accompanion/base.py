@@ -11,22 +11,27 @@ from typing import Optional
 import numpy as np
 
 from accompanion.accompanist.accompaniment_decoder import (
-    Accompanist, OnlinePerformanceCodec)
+    Accompanist,
+    OnlinePerformanceCodec,
+)
 from accompanion.accompanist.score import AccompanimentScore, Score
 from accompanion.config import CONFIG
 from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 from accompanion.midi_handler.midi_file_player import get_midi_file_player
-from accompanion.midi_handler.midi_input import (POLLING_PERIOD,
-                                                 create_midi_poll)
-from accompanion.midi_handler.midi_routing import (DummyRouter, MidiRouter,
-                                                   RecordingRouter)
+from accompanion.midi_handler.midi_input import POLLING_PERIOD, create_midi_poll
+from accompanion.midi_handler.midi_routing import (
+    DummyRouter,
+    MidiRouter,
+    RecordingRouter,
+)
 from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
 from accompanion.score_follower.note_tracker import NoteTracker
-from accompanion.score_follower.onset_tracker import (DiscreteOnsetTracker,
-                                                      OnsetTracker)
-from accompanion.score_follower.trackers import (AccompanimentScoreFollower,
-                                                 ExpectedPositionTracker)
+from accompanion.score_follower.onset_tracker import DiscreteOnsetTracker, OnsetTracker
+from accompanion.score_follower.trackers import (
+    AccompanimentScoreFollower,
+    ExpectedPositionTracker,
+)
 
 ACC_PARENT = multiprocessing.Process if CONFIG["ACC_PROCESS"] else threading.Thread
 

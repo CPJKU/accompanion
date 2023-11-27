@@ -12,27 +12,33 @@ import numpy as np
 import partitura as pt
 from basismixer.performance_codec import get_performance_codec
 from partitura.musicanalysis.performance_codec import (
-    get_matched_notes, get_time_maps_from_alignment, notewise_to_onsetwise,
-    onsetwise_to_notewise)
+    get_matched_notes,
+    get_time_maps_from_alignment,
+    notewise_to_onsetwise,
+    onsetwise_to_notewise,
+)
 from partitura.performance import PerformedPart
+
 # from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 from scipy.interpolate import interp1d
 
 from accompanion.accompanist import tempo_models
-from accompanion.accompanist.accompaniment_decoder import \
-    moving_average_offline
-from accompanion.accompanist.score import (AccompanimentScore,
-                                           alignment_to_score, part_to_score)
+from accompanion.accompanist.accompaniment_decoder import moving_average_offline
+from accompanion.accompanist.score import (
+    AccompanimentScore,
+    alignment_to_score,
+    part_to_score,
+)
 from accompanion.base import ACCompanion
 from accompanion.midi_handler.midi_input import POLLING_PERIOD
 from accompanion.mtchmkr.alignment_online_oltw import OnlineTimeWarping
 from accompanion.mtchmkr.features_midi import PianoRollProcessor
 from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 from accompanion.score_follower.trackers import MultiDTWScoreFollower
-from accompanion.utils.partitura_utils import \
-    partitura_to_framed_midi_custom as partitura_to_framed_midi
-from accompanion.utils.partitura_utils import \
-    performance_notearray_from_score_notearray
+from accompanion.utils.partitura_utils import (
+    partitura_to_framed_midi_custom as partitura_to_framed_midi,
+)
+from accompanion.utils.partitura_utils import performance_notearray_from_score_notearray
 
 SCORE_FOLLOWER_DEFAULT_KWARGS = {
     "score_follower": "OnlineTimeWarping",

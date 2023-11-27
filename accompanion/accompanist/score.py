@@ -8,6 +8,7 @@ from typing import Iterable
 import numpy as np
 import partitura
 from mido import Message
+
 # from matchmaker.io.symbolic import load_score
 from partitura import load_score
 from partitura.performance import Performance, PerformedPart

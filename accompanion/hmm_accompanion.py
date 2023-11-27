@@ -15,10 +15,12 @@ from basismixer.utils.music import notewise_to_onsetwise, onsetwise_to_notewise
 from scipy.interpolate import interp1d
 
 from accompanion.accompanist import tempo_models
-from accompanion.accompanist.accompaniment_decoder import \
-    moving_average_offline
-from accompanion.accompanist.score import (AccompanimentScore,
-                                           alignment_to_score, part_to_score)
+from accompanion.accompanist.accompaniment_decoder import moving_average_offline
+from accompanion.accompanist.score import (
+    AccompanimentScore,
+    alignment_to_score,
+    part_to_score,
+)
 from accompanion.base import ACCompanion
 from accompanion.config import CONFIG
 from accompanion.midi_handler.midi_input import POLLING_PERIOD
