@@ -250,6 +250,22 @@ class Accompanist(object):
         solo_p_onset: float,
         tempo_expectations: Optional[Callable[[float], float]] = None,
     ) -> None:
+        """
+        Update the performance of the accompaniment part given the latest
+        information from the solo performance. This method does not
+        return the parameters of the performance, but updates the 
+        notes in the accompaniment score sequencer directly.
+
+        Parameters
+        ----------
+        solo_s_onset : float
+            Currently performed score onset (in beats)
+        solo_p_onset : float
+            Current performed score onset time (in seconds)
+        tempo_expectations: Callable
+            A callable method that outputs the tempo expectations
+            given the corresponding score onset position.
+        """
         # Get next accompaniment onsets and their
         # respective score iois with respect to the current
         # solo score onset
