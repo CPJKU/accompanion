@@ -2,7 +2,7 @@
 """
 On-line Dynamic Time Warping
 """
-from typing import Callable, ClassVar, Union
+from typing import Callable, Union, Tuple, List
 
 import numpy as np
 from numpy.typing import NDArray
@@ -61,10 +61,10 @@ class OnlineTimeWarping(OnlineAlignment):
         step_size: int = STEP_SIZE,
         local_cost_fun: Union[str, Callable] = DEFAULT_LOCAL_COST,
         start_window_size: int = START_WINDOW_SIZE,
-    ):
+    ) -> None:
         super().__init__(reference_features=reference_features)
         # self.reference_features = reference_features
-        self.input_features = []
+        self.input_features: List[NDArray[np.float64]] = []
 
         # Set local cost function
         if isinstance(local_cost_fun, str):
@@ -88,26 +88,26 @@ class OnlineTimeWarping(OnlineAlignment):
         else:
             self.vdist = lambda X, y, lcf: lcf(X, y)
 
-        self.N_ref = self.reference_features.shape[0]
-        self.window_size = window_size
-        self.step_size = step_size
-        self.start_window_size = start_window_size
-        self.current_position = 0
-        self.positions = []
-        self.warping_path = []
-        self.global_cost_matrix = (
+        self.N_ref: int = self.reference_features.shape[0]
+        self.window_size: int = window_size
+        self.step_size: int = step_size
+        self.start_window_size: int = start_window_size
+        self.current_position: int = 0
+        self.positions: List[int] = []
+        self.warping_path: List = []
+        self.global_cost_matrix: NDArray[np.float64] = (
             np.ones((reference_features.shape[0] + 1, 2)) * np.infty
         )
-        self.input_index = 0
-        self.go_backwards = False
-        self.update_window_index = False
-        self.restart = False
+        self.input_index: int = 0
+        self.go_backwards: bool = False
+        self.update_window_index: bool = False
+        self.restart: bool = False
 
-    def __call__(self, input):
+    def __call__(self, input: NDArray[np.float64]) -> int:
         self.step(input)
         return self.current_position
 
-    def get_window(self):
+    def get_window(self) -> Tuple[int, int]:
         w_size = self.window_size
         if self.window_index < self.start_window_size:
             w_size = self.start_window_size
@@ -116,10 +116,10 @@ class OnlineTimeWarping(OnlineAlignment):
         return window_start, window_end
 
     @property
-    def window_index(self):
+    def window_index(self) -> int:
         return self.current_position
 
-    def step(self, input_features):
+    def step(self, input_features: NDArray[np.float64]) -> None:
         """
         Update the current position and the warping path.
         """

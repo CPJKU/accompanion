@@ -2,7 +2,15 @@
 """
 Features from symbolic files
 """
+from typing import Dict, Tuple, List, Optional
+from mido import Message
 import numpy as np
+
+# Type hint for Input MIDI frame. A frame is a tuple
+# consisting of a list with the MIDI messages corresponding
+# to the frame (List[Tuple[Message, float]]) and the
+# time associated to the frame
+InputMIDIFrame = Tuple[List[Tuple[Message, float]], float]
 
 
 class PitchIOIProcessor(object):
@@ -15,13 +23,17 @@ class PitchIOIProcessor(object):
         If True, the pitch range will be limited to the piano range (21-108).
     """
 
-    def __init__(self, piano_range=False):
-        self.prev_time = 0
+    def __init__(self, piano_range: bool = False):
+        self.prev_time: float = 0
         self.piano_range = piano_range
 
         self.pitch_bias = 21 if piano_range else 0
 
-    def __call__(self, frame, kwargs={}):
+    def __call__(
+        self,
+        frame: InputMIDIFrame,
+        kwargs: Dict = {},
+    ) -> Tuple[Optional[np.ndarray], Dict]:
         data, f_time = frame
         pitch_obs = []
 
@@ -40,7 +52,7 @@ class PitchIOIProcessor(object):
         else:
             return None, {}
 
-    def reset(self):
+    def reset(self) -> None:
         pass
 
 
@@ -60,16 +72,23 @@ class PianoRollProcessor(object):
         The data type of the piano roll. Default is float.
     """
 
-    def __init__(self, use_velocity=False, piano_range=False, dtype=float):
-        self.active_notes = dict()
-        self.piano_roll_slices = []
-        self.use_velocity = use_velocity
-        self.piano_range = piano_range
-        self.dtype = dtype
+    def __init__(
+        self,
+        use_velocity: bool = False,
+        piano_range: bool = False,
+        dtype: type = float,
+    ):
+        self.active_notes: Dict = dict()
+        self.piano_roll_slices: List[np.ndarray] = []
+        self.use_velocity: bool = use_velocity
+        self.piano_range: bool = piano_range
+        self.dtype: type = dtype
 
-    def __call__(self, frame, kwargs={}):
+    def __call__(
+        self, frame: InputMIDIFrame, kwargs: Dict = {}
+    ) -> Tuple[np.ndarray, Dict]:
         # initialize piano roll
-        piano_roll_slice = np.zeros(128, dtype=self.dtype)
+        piano_roll_slice: np.ndarray = np.zeros(128, dtype=self.dtype)
         data, f_time = frame
         for msg, m_time in data:
             if msg.type in ("note_on", "note_off"):
@@ -93,25 +112,45 @@ class PianoRollProcessor(object):
 
         return piano_roll_slice, {}
 
-    def reset(self):
+    def reset(self) -> None:
         self.piano_roll_slices = []
         self.active_notes = dict()
 
 
 class CumSumPianoRollProcessor(object):
     """
-    A class to convert a MIDI file time slice to a piano roll representation.
-    TODO: del, never called?
+    A class to convert a MIDI file time slice to a cumulative sum piano roll
+    representation.
+
+    Parameters
+    ----------
+    use_velocity : bool
+        If True, the velocity of the note is used as the value in the piano
+        roll. Otherwise, the value is 1.
+    piano_range : bool
+        If True, the piano roll will only contain the notes in the piano.
+        Otherwise, the piano roll will contain all 128 MIDI notes.
+    dtype : type
+        The data type of the piano roll. Default is float.
     """
 
-    def __init__(self, use_velocity=False, piano_range=False, dtype=float):
-        self.active_notes = dict()
-        self.piano_roll_slices = []
-        self.use_velocity = use_velocity
-        self.piano_range = piano_range
-        self.dtype = dtype
+    def __init__(
+        self,
+        use_velocity: bool = False,
+        piano_range: bool = False,
+        dtype: type = float,
+    ) -> None:
+        self.active_notes: Dict = dict()
+        self.piano_roll_slices: List[np.ndarray] = []
+        self.use_velocity: bool = use_velocity
+        self.piano_range: bool = piano_range
+        self.dtype: type = dtype
 
-    def __call__(self, frame, kwargs={}):
+    def __call__(
+        self,
+        frame: InputMIDIFrame,
+        kwargs: Dict = {},
+    ) -> Tuple[np.ndarray, Dict]:
         # initialize piano roll
         piano_roll_slice = np.zeros(128, dtype=self.dtype)
         data, f_time = frame
@@ -137,6 +176,6 @@ class CumSumPianoRollProcessor(object):
 
         return piano_roll_slice, {}
 
-    def reset(self):
+    def reset(self) -> None:
         self.piano_roll_slices = []
         self.active_notes = dict()
