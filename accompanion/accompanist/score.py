@@ -3,13 +3,12 @@
 Objects for representing score information
 """
 import warnings
-from typing import Iterable
+from typing import Iterable, Optional, Union
 
 import numpy as np
 import partitura
 from mido import Message
 
-# from matchmaker.io.symbolic import load_score
 from partitura import load_score
 from partitura.performance import Performance, PerformedPart
 from partitura.score import Part
@@ -17,22 +16,55 @@ from partitura.score import Score as PtScore
 from partitura.utils.music import performance_from_part
 
 
+class ACCNoteError(Exception):
+    pass
+
 class Note(object):
     """
-    Class for representing notes
+    Class for representing notes.
+
+    Parameters
+    ----------
+    pitch: int
+        MIDI Pitch of the note
+    onset: float
+        Score onset of the note (in beats)
+    duration: float
+        Score duration of the note (in beats)
+    p_onset: Optional[float]
+        Performed onset time (in seconds)
+    p_duration: Optional[float]
+        Performed duration time (in seconds)
+    velocity: int
+        Performed MIDI velocity
+    id: Optional[str]
+        Note ID
+    channel: int
+        MIDI channel
     """
+
+    pitch: int
+    onset: float
+    duration: float
+    _p_onset: Optional[float]
+    p_duration: Optional[float]
+    _velocity: int
+    id: Optional[str]
+    _note_on: Message
+    _note_off: Message
+    already_performed: bool
 
     def __init__(
         self,
-        pitch,
-        onset,
-        duration,
-        p_onset=None,
-        p_duration=None,
-        velocity=64,
-        id=None,
-        channel=0,
-    ):
+        pitch: int,
+        onset: float,
+        duration: float,
+        p_onset: Optional[float] = None,
+        p_duration: Optional[float] = None,
+        velocity: int = 64,
+        id: Optional[str] = None,
+        channel: int = 0,
+    ) -> None:
         self.pitch = pitch
         self.onset = onset
         self.duration = duration
@@ -57,40 +89,40 @@ class Note(object):
             channel=channel,
         )
 
-    def __string__(self):
+    def __string__(self) -> str:
         out_string = f"Note({self.pitch}, {self.onset}, {self.p_onset})"
         return out_string
 
     @property
-    def p_onset(self):
+    def p_onset(self) -> float:
         return self._p_onset
 
     @p_onset.setter
-    def p_onset(self, onset):
+    def p_onset(self, onset: float) -> None:
         self._p_onset = onset
 
     @property
-    def note_on(self):
+    def note_on(self) -> Message:
         self._note_on.velocity = self.velocity
         self._note_on.time = self.p_onset
         return self._note_on
 
     @property
-    def note_off(self):
+    def note_off(self) -> Message:
         self._note_off.velocity = self.velocity
         self._note_off.time = self.p_offset
         return self._note_off
 
     @property
-    def p_offset(self):
+    def p_offset(self) -> float:
         return self.p_onset + self.p_duration
 
     @property
-    def velocity(self):
+    def velocity(self) -> int:
         return self._velocity
 
     @velocity.setter
-    def velocity(self, velocity):
+    def velocity(self, velocity: Union[float, int]) -> None:
         self._velocity = int(velocity)
 
 
@@ -99,10 +131,14 @@ class Chord(object):
     Class for representing Score onsets or "chords".
     """
 
-    def __init__(self, notes):
+    def __init__(self, notes: Iterable[Note]) -> None:
         if not isinstance(notes, Iterable):
             notes = [notes]
-        assert all([n.onset == notes[0].onset for n in notes])
+
+        if not all([n.onset == notes[0].onset for n in notes]):
+            raise ACCNoteError(
+                "The score onset in beats of all notes in a chord should be the same"
+                )
 
         self.notes = notes
         self.num_notes = len(notes)
