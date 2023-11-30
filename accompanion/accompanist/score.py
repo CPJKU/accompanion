@@ -3,9 +3,11 @@
 Objects for representing score information
 """
 import warnings
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Union, Callable, List, Tuple, Dict
 
 import numpy as np
+
+# from numpy.typing import NDArray
 import partitura
 from mido import Message
 
@@ -18,6 +20,7 @@ from partitura.utils.music import performance_from_part
 
 class ACCNoteError(Exception):
     pass
+
 
 class Note(object):
     """
@@ -131,6 +134,12 @@ class Chord(object):
     Class for representing Score onsets or "chords".
     """
 
+    notes: Iterable[Note]
+    num_notes: int
+    onset: float
+    pitch: np.ndarray
+    duration: np.ndarray
+
     def __init__(self, notes: Iterable[Note]) -> None:
         if not isinstance(notes, Iterable):
             notes = [notes]
@@ -138,7 +147,7 @@ class Chord(object):
         if not all([n.onset == notes[0].onset for n in notes]):
             raise ACCNoteError(
                 "The score onset in beats of all notes in a chord should be the same"
-                )
+            )
 
         self.notes = notes
         self.num_notes = len(notes)
@@ -147,24 +156,24 @@ class Chord(object):
         self.pitch = np.array([n.pitch for n in self.notes])
         self.duration = np.array([n.duration for n in self.notes])
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Note:
         return self.notes[index]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.num_notes
 
     @property
-    def p_onset(self):
+    def p_onset(self) -> float:
         if any([n.p_onset is None for n in self.notes]):
             return None
         else:
             return np.mean([n.p_onset for n in self.notes])
 
     @p_onset.setter
-    def p_onset(self, p_onset):
+    def p_onset(self, p_onset: Union[np.ndarray, float, int]) -> None:
         if isinstance(p_onset, (float, int)):
             for n in self.notes:
-                n.p_onset = p_onset
+                n.p_onset = float(p_onset)
         else:
             # Assume that self.notes and p_onset
             # have the same length (this makes a little bit
@@ -177,14 +186,14 @@ class Chord(object):
         #         n.p_onset = po
 
     @property
-    def p_duration(self):
+    def p_duration(self) -> np.ndarray:
         if any([n.p_duration is None for n in self.notes]):
             return None
         else:
             return np.mean([n.p_duration for n in self.notes])
 
     @p_duration.setter
-    def p_duration(self, p_duration):
+    def p_duration(self, p_duration: np.ndarray) -> None:
         if isinstance(p_duration, (float, int)):
             for n in self.notes:
                 n.p_duration = p_duration
@@ -194,14 +203,14 @@ class Chord(object):
                 n.p_duration = po
 
     @property
-    def velocity(self):
+    def velocity(self) -> Optional[np.ndarray]:
         if any([n.velocity is None for n in self.notes]):
             return None
         else:
             return np.max([n.velocity for n in self.notes])
 
     @velocity.setter
-    def velocity(self, velocity):
+    def velocity(self, velocity: Union[float, int, np.ndarray]) -> None:
         if isinstance(velocity, (float, int)):
             for n in self.notes:
                 n.velocity = velocity
@@ -212,12 +221,41 @@ class Chord(object):
 
 
 class Score(object):
+    """
+    Main object to represent a musical score
+
+    Parameters
+    ----------
+    notes: Iterable[Note]
+        The notes in the score
+    time_signature_map: callable or None
+        A map that relates score time (in beats) to the time signature at
+        at that position.
+    access_mode: str
+        "indexwise" or "timewise"
+    note_array: np.ndarray (optional)
+        The structured note array of the score. If not given,
+        it will be computed from the `notes`.
+    """
+
+    notes: Iterable[Note]
+    chords: List[Chord]
+    time_signature_map: Callable[[float], Tuple[int, int]]
+    _access_mode: str
+    unique_onsets: np.ndarray
+    min_onset: float
+    max_onset: float
+    unique_onset_idxs: List[np.ndarray]
+    chords: np.ndarray
+    chord_dict: Dict[float, Chord]
+    note_array: np.ndarray
+
     def __init__(
         self,
-        notes,
-        time_signature_map=None,
-        access_mode="indexwise",
-        note_array=None,
+        notes: Iterable[Note],
+        time_signature_map: Optional[Callable] = None,
+        access_mode: str = "indexwise",
+        note_array: Optional[np.ndarray] = None,
     ):
         # TODO: Seconday sort by pitch
         self.notes = np.array(sorted(notes, key=lambda x: x.pitch))
@@ -269,11 +307,11 @@ class Score(object):
         self.note_array = note_array
 
     @property
-    def access_mode(self):
+    def access_mode(self) -> str:
         return self._access_mode
 
     @access_mode.setter
-    def access_mode(self, access_mode):
+    def access_mode(self, access_mode: str) -> None:
         if access_mode not in ("indexwise", "timewise"):
             raise ValueError(
                 '`access_mode` should be "indexwise" or "timewise". '
@@ -286,19 +324,19 @@ class Score(object):
         elif self.access_mode == "timewise":
             self._getitem_ = self.getitem_timewise
 
-    def getitem_indexwise(self, index):
+    def getitem_indexwise(self, index: int) -> Chord:
         return self.chords[index]
 
-    def getitem_timewise(self, index):
+    def getitem_timewise(self, index: float) -> Chord:
         return self.chord_dict[index]
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: Union[int, float]) -> Chord:
         return self._getitem_(index)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.unique_onsets)
 
-    def export_midi(self, out_fn):
+    def export_midi(self, out_fn) -> None:
         # create note_array
         note_array = np.zeros(
             len(self.notes),
@@ -322,17 +360,52 @@ class Score(object):
 
 
 class AccompanimentScore(Score):
+    """
+    Representation of the score of the accompaniment part
+
+    Parameters
+    ----------
+    notes: Iterable[Note]
+        The notes of the accompaniment part
+    solo_score: Score
+        The score of the solo part
+    mode: str
+        Mode of access.
+    velocity_trend: Optional[np.ndarray]
+        The onset-level trend in MIDI velocity
+    velocity_dev: Optional[np.ndarray]
+        The deviation in MIDI velocity
+    log_bpr: Optional[np.ndarray]
+        Log beat period ratio
+    timing: Optional[np.ndarray]
+        The (micro-)timing deviations
+    log_articulation: Optional[np.ndarray]
+        The log articulation parameter
+    note_array: Optional[np.ndarray]
+        The structured note array of the score. If not given,
+        it will be computed from the `notes`.
+    """
+
+    ssc: Score
+    mode: str
+    solo_score_dict: Dict[float, Tuple[np.ndarray, np.ndarray, np.ndarray, int, int]]
+    velocity_trend: Dict[Chord, float]
+    velocity_dev: Dict[Chord, np.ndarray]
+    log_bpr: Dict[Chord, float]
+    timing: Dict[Chord, np.ndarray]
+    log_articulation: Dict[Chord, np.ndarray]
+
     def __init__(
         self,
-        notes,
-        solo_score,
-        mode="iter_solo",
-        velocity_trend=None,
-        velocity_dev=None,
-        log_bpr=None,
-        timing=None,
-        log_articulation=None,
-        note_array=None,
+        notes: Iterable[Note],
+        solo_score: Score,
+        mode: str = "iter_solo",
+        velocity_trend: Optional[np.ndarray] = None,
+        velocity_dev: Optional[np.ndarray] = None,
+        log_bpr: Optional[np.ndarray] = None,
+        timing: Optional[np.ndarray] = None,
+        log_articulation: Optional[np.ndarray] = None,
+        note_array: Optional[np.ndarray] = None,
     ):
         assert isinstance(solo_score, Score)
 
@@ -399,7 +472,11 @@ class AccompanimentScore(Score):
                 self.solo_score_dict[on] = (None, None, None, None, i)
 
 
-def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
+def part_to_score(
+    fn_spart_or_ppart: Union[str, Part, PerformedPart, Score],
+    bpm: float = 100,
+    velocity: int = 64,
+) -> Score:
     """
     Get a accompanion `Score` instance from a partitura `Part`, `Score` or `PerformedPart`
 
@@ -459,7 +536,11 @@ def part_to_score(fn_spart_or_ppart, bpm=100, velocity=64):
     return score
 
 
-def alignment_to_score(fn_or_spart, ppart, alignment):
+def alignment_to_score(
+    fn_or_spart: Union[str, Part, PtScore],
+    ppart: Union[Performance, PerformedPart],
+    alignment: List[Dict],
+) -> Score:
     """
     Get a `Score` instance from a partitura `Part` or `PerformedPart`
 
