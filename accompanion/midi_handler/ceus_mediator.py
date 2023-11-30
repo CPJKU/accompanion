@@ -40,7 +40,7 @@ import collections
 import threading
 
 
-class ThreadMediator:
+class ThreadMediator(object):
     """
     Mediator class for communications between ACCompanion modules running in
     concurrent threads or processes. The class ensures thread safety.
@@ -53,7 +53,7 @@ class ThreadMediator:
         buffer a deque object is used as this ensures thread safety.
     """
 
-    def __init__(self, **kwds):
+    def __init__(self, **kwargs):
         """
         The initialization method.
         """
@@ -62,7 +62,7 @@ class ThreadMediator:
         # A name variable to store the type of the mediator:
         self._mediator_type = "default"
         # Call the superconstructor:
-        super().__init__(**kwds)
+        super().__init__(**kwargs)
 
     def is_empty(self):
         """
@@ -135,7 +135,7 @@ class CeusMediator(ThreadMediator):
         buffer a deque object is used as this ensures thread safety.
     """
 
-    def __init__(self, **kwds):
+    def __init__(self, **kwargs):
         """
         The initialization method.
         """
@@ -145,7 +145,7 @@ class CeusMediator(ThreadMediator):
         # Define the Ceus filter:
         self._ceus_filter = collections.deque(maxlen=10)
         # Call the superconstructor:
-        super().__init__(**kwds)
+        super().__init__(**kwargs)
 
         # A name variable to store the type of the mediator:
         self._mediator_type = "ceus"

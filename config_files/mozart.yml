@@ -27,8 +27,8 @@ config:
         log_articulation_scale: 0.08
         mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Silent Piano
-        acc_output_to_sound_port_name: Silent Piano
+        solo_input_to_accompaniment_port_name: Logic Pro Virtual Out
+        acc_output_to_sound_port_name: Logic Pro Virtual In
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None

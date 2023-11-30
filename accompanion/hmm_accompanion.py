@@ -107,6 +107,7 @@ class HMMACCompanion(ACCompanion):
         polling_period: float = POLLING_PERIOD,
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
+        expected_position_weight: float = 0.6,
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # bypass MIDIRouter
         record_midi: Optional[str] = None,
@@ -130,6 +131,7 @@ class HMMACCompanion(ACCompanion):
             polling_period=polling_period,
             use_ceus_mediator=use_ceus_mediator,
             adjust_following_rate=adjust_following_rate,
+            expected_position_weight=expected_position_weight,
             bypass_audio=bypass_audio,
             tempo_model_kwargs=tempo_model_kwargs,
             test=test,

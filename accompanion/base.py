@@ -91,6 +91,7 @@ class ACCompanion(ACC_PARENT):
         polling_period: float = POLLING_PERIOD,
         use_ceus_mediator: bool = False,
         adjust_following_rate: float = 0.1,
+        expected_position_weight: float = 0.6,
         onset_tracker_type: str = "continuous",
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # switch to Dummy MIDI ROuter for test environment
@@ -134,6 +135,7 @@ class ACCompanion(ACC_PARENT):
         self.expected_position_tracker: Optional[ExpectedPositionTracker] = None
         # Rate in "loops_without_update"  for adjusting the score
         self.adjust_following_rate: float = adjust_following_rate
+        self.expected_position_weight: float = expected_position_weight
         # follower with expected position at the current tempo.
         self.afr: float = np.round(1 / self.polling_period * self.adjust_following_rate)
         self.input_pipeline = None
@@ -146,6 +148,8 @@ class ACCompanion(ACC_PARENT):
         self.dummy_solo = None
         self.test = test
         self.onset_tracker_type = onset_tracker_type
+
+        print("expected_position_weight", self.expected_position_weight)
 
     def setup_scores(self) -> None:
         """Method to be overwritten by the child classes."""
@@ -425,7 +429,7 @@ class ACCompanion(ACC_PARENT):
                     if not acc_update:
                         self.expected_position_tracker.expected_position = solo_s_onset
                         asynch = expected_position - solo_s_onset
-                        expected_position = expected_position - 0.6 * asynch
+                        expected_position = expected_position - self.expected_position_weight * asynch
                         loops_without_update = 0
                         adjusted_sf = False
                     else:

@@ -26,12 +26,13 @@ config:
         log_articulation_scale: 0.1
         mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Silent Piano
-        acc_output_to_sound_port_name: Silent Piano
+        solo_input_to_accompaniment_port_name: Logic Pro Virtual Out
+        acc_output_to_sound_port_name: Logic Pro Virtual In
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
     adjust_following_rate: 0.2
+    expected_position_weight: 0.7
     bypass_audio: False
     tempo_model_kwargs:
         tempo_model: LSM
@@ -39,7 +40,7 @@ config:
         # eta_t: 0.0
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm: 180
+    init_bpm: 150
     init_velocity : 40
     accompanist_decoder_kwargs:
         rit_len: 10
