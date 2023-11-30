@@ -2,20 +2,20 @@
 """
 On-line Dynamic Time Warping
 """
+from typing import Callable, List, Tuple, Union
+
 import numpy as np
+from numpy.typing import NDArray
 
-from accompanion.mtchmkr.base import OnlineAlignment
 from accompanion.mtchmkr import distances
-from accompanion.mtchmkr.distances import vdist, Metric
-from accompanion.mtchmkr.dtw_loop import (
-    dtw_loop,
-    reset_cost_matrix,
-)
+from accompanion.mtchmkr.base import OnlineAlignment
+from accompanion.mtchmkr.distances import Metric, vdist
+from accompanion.mtchmkr.dtw_loop import dtw_loop, reset_cost_matrix
 
-DEFAULT_LOCAL_COST = "Manhattan"
-WINDOW_SIZE = 100
-STEP_SIZE = 5
-START_WINDOW_SIZE = 60
+DEFAULT_LOCAL_COST: str = "Manhattan"
+WINDOW_SIZE: int = 100
+STEP_SIZE: int = 5
+START_WINDOW_SIZE: int = 60
 
 
 class OnlineTimeWarping(OnlineAlignment):
@@ -27,12 +27,15 @@ class OnlineTimeWarping(OnlineAlignment):
     reference_features : np.ndarray
         A 2D array with dimensions (n_timesteps, n_features) containing the
         features of the reference the input is going to be aligned to.
-    window_size : int (optional)
+    window_size : int
         Size of the window for searching the optimal path in the cumulative
         cost matrix
-    step_size : int (optional)
+    step_size : int
         Size of the step
-
+    local_cost_fun : Union[str, Callable]
+        Local metric for computing pairwise distances.
+    start_window_size: int
+        Size of the starting window size
     Attributes
     ----------
     reference_features : np.ndarray
@@ -49,18 +52,19 @@ class OnlineTimeWarping(OnlineAlignment):
         List of the positions for each input.
     """
 
+    local_cost_fun: Callable[[NDArray[np.float64]], NDArray[np.float64]]
+
     def __init__(
         self,
-        reference_features,
-        window_size=WINDOW_SIZE,
-        step_size=STEP_SIZE,
-        local_cost_fun=DEFAULT_LOCAL_COST,
-        start_window_size=START_WINDOW_SIZE,
-    ):
-
+        reference_features: NDArray[np.float64],
+        window_size: int = WINDOW_SIZE,
+        step_size: int = STEP_SIZE,
+        local_cost_fun: Union[str, Callable] = DEFAULT_LOCAL_COST,
+        start_window_size: int = START_WINDOW_SIZE,
+    ) -> None:
         super().__init__(reference_features=reference_features)
         # self.reference_features = reference_features
-        self.input_features = []
+        self.input_features: List[NDArray[np.float64]] = []
 
         # Set local cost function
         if isinstance(local_cost_fun, str):
@@ -84,27 +88,26 @@ class OnlineTimeWarping(OnlineAlignment):
         else:
             self.vdist = lambda X, y, lcf: lcf(X, y)
 
-        self.N_ref = self.reference_features.shape[0]
-        self.window_size = window_size
-        self.step_size = step_size
-        self.start_window_size = start_window_size
-
-        self.current_position = 0
-        self.positions = []
-        self.warping_path = []
-        self.global_cost_matrix = (
+        self.N_ref: int = self.reference_features.shape[0]
+        self.window_size: int = window_size
+        self.step_size: int = step_size
+        self.start_window_size: int = start_window_size
+        self.current_position: int = 0
+        self.positions: List[int] = []
+        self.warping_path: List = []
+        self.global_cost_matrix: NDArray[np.float64] = (
             np.ones((reference_features.shape[0] + 1, 2)) * np.infty
         )
-        self.input_index = 0
-        self.go_backwards = False
-        self.update_window_index = False
-        self.restart = False
+        self.input_index: int = 0
+        self.go_backwards: bool = False
+        self.update_window_index: bool = False
+        self.restart: bool = False
 
-    def __call__(self, input):
+    def __call__(self, input: NDArray[np.float64]) -> int:
         self.step(input)
         return self.current_position
 
-    def get_window(self):
+    def get_window(self) -> Tuple[int, int]:
         w_size = self.window_size
         if self.window_index < self.start_window_size:
             w_size = self.start_window_size
@@ -113,10 +116,10 @@ class OnlineTimeWarping(OnlineAlignment):
         return window_start, window_end
 
     @property
-    def window_index(self):
+    def window_index(self) -> int:
         return self.current_position
 
-    def step(self, input_features):
+    def step(self, input_features: NDArray[np.float64]) -> None:
         """
         Update the current position and the warping path.
         """
@@ -124,8 +127,6 @@ class OnlineTimeWarping(OnlineAlignment):
         min_index = max(self.window_index - self.step_size, 0)
 
         window_start, window_end = self.get_window()
-        # window_start = max(self.window_index - self.window_size, 0)
-        # window_end = min(self.window_index + self.window_size, self.N_ref)
         # compute local cost beforehand as it is much faster (~twice as fast)
         window_cost = self.vdist(
             self.reference_features[window_start:window_end],
@@ -161,22 +162,6 @@ class OnlineTimeWarping(OnlineAlignment):
         # update input index
         self.input_index += 1
 
-    # # TODO review that update_position method is not needed.
-    # def update_position(self, input_features, position):
-    #     """
-    #     Restart following from a new position.
-    #     This method "forgets" the pasts and starts from
-    #     scratch form a new position.
-    #     """
-    #     self.current_position = int(position)
-    #     window_start, window_end = self.get_window()
-    #     window_cost = self.vdist(
-    #         self.reference_features[window_start:window_end],
-    #         input_features,
-    #         self.local_cost_fun
-    #     )
-
 
 if __name__ == "__main__":
-
     pass

@@ -9,8 +9,7 @@ TODO
 """
 import warnings
 
-from accompanion import PLATFORM, HAS_FLUIDSYNTH
-
+from accompanion import HAS_FLUIDSYNTH, PLATFORM
 
 if PLATFORM == "Linux":
     MIDI_DRIVER = "alsa"
@@ -24,6 +23,7 @@ elif PLATFORM == "Windows":
 
 if PLATFORM in ("Linux", "Darwin") and HAS_FLUIDSYNTH:
     import fluidsynth
+
     from accompanion import SOUNDFONT
 
     class FluidsynthPlayer(object):
@@ -59,7 +59,6 @@ if PLATFORM in ("Linux", "Darwin") and HAS_FLUIDSYNTH:
         def panic(self):
             for mp in range(128):
                 self.fs.noteoff(0, mp)
-
 
 else:
 

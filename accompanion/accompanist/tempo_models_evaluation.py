@@ -1,7 +1,7 @@
-
-from misc.partitura_utils import partitura_to_framed_midi_custom
 import partitura
-if __name__ == '__main__':
+from misc.partitura_utils import partitura_to_framed_midi_custom
+
+if __name__ == "__main__":
 
     # See main.py to see how to load performances,
     # set up the score follower and all initializations
@@ -9,15 +9,16 @@ if __name__ == '__main__':
     # load scores and performances (see `setup_scores` method in main.py)
 
     # This is the midi file containing the performance of the solo part
-    midi_fn = ''
+    midi_fn = ""
 
     # the "object" holding the accompaniment score, which is an instance of
     # `AccompanimentScore`
     acc_score = None
     # Also, load the ground truth performance of the accompaniment
-    accompaniment_match = ''
-    accompaniment_ppart, accompaniment_alignment = partitura.load_match(accompaniment_match_fn,
-                                                                        first_note_at_zero=True)
+    accompaniment_match = ""
+    accompaniment_ppart, accompaniment_alignment = partitura.load_match(
+        accompaniment_match_fn, first_note_at_zero=True
+    )
     # create score follower
     pipeline = None
     score_follower = None
@@ -25,15 +26,13 @@ if __name__ == '__main__':
     polling_period = 0.01
 
     # generate frames
-    frames = partitura_to_framed_midi_custom(midi_fn,
-                                             pipeline=pipeline,
-                                             polling_period=polling_period,
-                                             is_performance=True)
-    
+    frames = partitura_to_framed_midi_custom(
+        midi_fn, pipeline=pipeline, polling_period=polling_period, is_performance=True
+    )
 
     # This code was copied and sliglty adapted from main.py, a few
     # things might need to be set up. for it to work
-    
+
     perf_start = False
     for ix, output in enumerate(frames):
         # change to corresponding time of the frames
@@ -49,21 +48,22 @@ if __name__ == '__main__':
 
             if solo_s_onset is not None:
                 if onset_index == 0:
-                        expected_solo_onset = 0
+                    expected_solo_onset = 0
                 else:
 
                     # this are the tempo models that we want
                     # to test
-                    beat_period, expected_solo_onset = \
-                        tempo_model(solo_p_onset,
-                                         solo_s_onset)
+                    beat_period, expected_solo_onset = tempo_model(
+                        solo_p_onset, solo_s_onset
+                    )
 
                 accompanist.accompaniment_step(
                     solo_s_onset=solo_s_onset,
                     solo_p_onset=expected_solo_onset,
                     velocity=60,
                     beat_period=beat_period,
-                    articulation=1.0)
+                    articulation=1.0,
+                )
 
     """
     TODO:

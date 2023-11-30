@@ -1,16 +1,20 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
+import argparse
+import glob
 import multiprocessing
+
 # import tkinter as tk
 # import mido
 # from copy import deepcopy
 # import time
 import os
-import argparse
-import glob
-from accompanion import PLATFORM
 import sys
+
 import config_gui
+
+from accompanion import PLATFORM
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 sys.path.append("..")
@@ -26,8 +30,6 @@ overridable_args = [
 ]
 
 
-
-
 if __name__ == "__main__":
 
     # This creates a RuntimeError: context has already been set.
@@ -37,9 +39,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("Configure and Launch ACCompanion")
 
     parser.add_argument(
-        "--skip_gui",
-        action="store_true",
-        help="skip configuration gui at startup"
+        "--skip_gui", action="store_true", help="skip configuration gui at startup"
     )
 
     parser.add_argument(
@@ -70,20 +70,28 @@ if __name__ == "__main__":
     )
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
-    parser.add_argument("--record-midi", action="store_true", help="Record Midi input and Output.")
-    parser.add_argument("--midi-fn", help="Midi file to play instead of real time input.")
+    parser.add_argument(
+        "--record-midi", action="store_true", help="Record Midi input and Output."
+    )
+    parser.add_argument(
+        "--midi-fn", help="Midi file to play instead of real time input."
+    )
 
     args = parser.parse_args()
 
     if not args.skip_gui:
-        configurations, ACCompanion = config_gui.accompanion_configurations_and_version_via_gui()
+        (
+            configurations,
+            ACCompanion,
+        ) = config_gui.accompanion_configurations_and_version_via_gui()
 
         if configurations is None:
             import sys
+
             sys.exit()
 
-        if 'midi_fn' in configurations.keys() and configurations['midi_fn']=='':
-            configurations['midi_fn']=None
+        if "midi_fn" in configurations.keys() and configurations["midi_fn"] == "":
+            configurations["midi_fn"] = None
     elif args.config_file:
         import yaml
 
@@ -105,17 +113,26 @@ if __name__ == "__main__":
                 "complex_pieces",
                 info_file["piece_dir"],
             )
-            configurations["acc_fn"] = os.path.join(file_dir, os.path.normpath(info_file["acc_fn"]))
-            configurations["accompaniment_match"] = os.path.join(
-                file_dir, os.path.normpath(info_file["accompaniment_match"])
-            ) if "accompaniment_match" in info_file.keys() else None
-            configurations["solo_fn"] = glob.glob(
-                os.path.join(file_dir, "match", "cc_solo", "*.match")
-            )[-5:] if "solo_fn" not in info_file.keys() else os.path.join(
-                file_dir, os.path.normpath(info_file["solo_fn"])
+            configurations["acc_fn"] = os.path.join(
+                file_dir, os.path.normpath(info_file["acc_fn"])
             )
-            configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(
-                info_file["midi_fn"])) if "midi_fn" in info_file.keys() else None
+            configurations["accompaniment_match"] = (
+                os.path.join(
+                    file_dir, os.path.normpath(info_file["accompaniment_match"])
+                )
+                if "accompaniment_match" in info_file.keys()
+                else None
+            )
+            configurations["solo_fn"] = (
+                glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match"))[-5:]
+                if "solo_fn" not in info_file.keys()
+                else os.path.join(file_dir, os.path.normpath(info_file["solo_fn"]))
+            )
+            configurations["midi_fn"] = (
+                os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
+                if "midi_fn" in info_file.keys()
+                else None
+            )
         else:
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -124,13 +141,20 @@ if __name__ == "__main__":
                 info_file["piece_dir"],
             )
             # If only one piece is available load and separate to parts
-            if os.path.join(file_dir, "primo.musicxml") not in glob.glob(os.path.join(file_dir, "*.musicxml")):
+            if os.path.join(file_dir, "primo.musicxml") not in glob.glob(
+                os.path.join(file_dir, "*.musicxml")
+            ):
                 import partitura
 
                 score = partitura.load_score(
-                    (glob.glob(os.path.join(file_dir, "*.musicxml")) + glob.glob(os.path.join(file_dir, "*.mxl")))[0])
+                    (
+                        glob.glob(os.path.join(file_dir, "*.musicxml"))
+                        + glob.glob(os.path.join(file_dir, "*.mxl"))
+                    )[0]
+                )
                 if len(score.parts) == 1:
                     from copy import deepcopy
+
                     import numpy as np
 
                     # find individual staff
@@ -140,15 +164,23 @@ if __name__ == "__main__":
                     secondo_part = deepcopy(score.parts[0])
                     for st in staff:
                         if st == 1:
-                            primo_part.notes = [note for note in primo_part.notes if note.staff == st]
+                            primo_part.notes = [
+                                note for note in primo_part.notes if note.staff == st
+                            ]
                         else:
-                            secondo_part.notes = [note for note in secondo_part.notes if note.staff == st]
+                            secondo_part.notes = [
+                                note for note in secondo_part.notes if note.staff == st
+                            ]
 
                 elif len(score.parts) == 2:
                     primo_part = score.parts[0]
-                    partitura.save_musicxml(primo_part, os.path.join(file_dir, "primo.musicxml"))
+                    partitura.save_musicxml(
+                        primo_part, os.path.join(file_dir, "primo.musicxml")
+                    )
                     secondo_part = score.parts[1]
-                    partitura.save_musicxml(secondo_part, os.path.join(file_dir, "secondo.musicxml"))
+                    partitura.save_musicxml(
+                        secondo_part, os.path.join(file_dir, "secondo.musicxml")
+                    )
                 else:
                     raise ValueError("Score has more than two parts.")
 
@@ -232,13 +264,16 @@ if __name__ == "__main__":
     configurations["midi_fn"] = args.midi_fn if args.midi_fn else None
 
     if configurations["midi_fn"] is not None:
-        configurations["midi_router_kwargs"]["solo_input_to_accompaniment_port_name"] = 0
-        configurations["midi_router_kwargs"]["MIDIPlayer_to_accompaniment_port_name"] = 0
+        configurations["midi_router_kwargs"][
+            "solo_input_to_accompaniment_port_name"
+        ] = 0
+        configurations["midi_router_kwargs"][
+            "MIDIPlayer_to_accompaniment_port_name"
+        ] = 0
 
     accompanion = ACCompanion(**configurations)
 
     accompanion.run()
-
 
 
 # This file will be used to create a GUI for the ACCompanion
@@ -579,4 +614,3 @@ if __name__ == "__main__":
 # if __name__ == "__main__":
 #     # launch the app
 #     app = ACCompanionApp()
-

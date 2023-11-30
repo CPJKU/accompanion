@@ -2,7 +2,8 @@
 """
 Tempo Models
 """
-from typing import ClassVar, Tuple
+from typing import Tuple
+
 import numpy as np
 from scipy.interpolate import interp1d
 
@@ -28,13 +29,13 @@ class SyncModel(object):
         purposes.
     """
 
-    beat_period: ClassVar[float]
-    prev_score_onset: ClassVar[float]
-    prev_perf_onset: ClassVar[float]
-    est_onset: ClassVar[float]
-    asynchrony: ClassVar[float]
-    has_tempo_expectations: ClassVar[bool]
-    counter: ClassVar[int]
+    beat_period: float
+    prev_score_onset: float
+    prev_perf_onset: float
+    est_onset: float
+    asynchrony: float
+    has_tempo_expectations: bool
+    counter: int
 
     def __init__(
         self,
@@ -144,7 +145,7 @@ class MovingAverageSyncModel(SyncModel):
             self.beat_period = (
                 self.alpha * self.beat_period + (1 - self.alpha) * beat_period
             )
-            print(self.beat_period)
+            # print(self.beat_period)
         else:
             self.est_onset = performed_onset
 
@@ -174,6 +175,7 @@ class LinearSyncModel(SyncModel):
         Learning rate for the onset
 
     """
+
     def __init__(
         self,
         init_beat_period=0.5,
@@ -204,6 +206,7 @@ class LinearSyncModel(SyncModel):
         tempo_correction_term = (
             self.asynchrony if self.asynchrony != 0 and s_ioi != 0 else 0
         )
+
         self.prev_perf_onset = performed_onset
         self.prev_score_onset = score_onset
 
@@ -219,10 +222,12 @@ class LinearSyncModel(SyncModel):
 # Alias
 LSM = LinearSyncModel
 
+
 class JointAdaptationAnticipationSyncModel(SyncModel):
     """
     Tempo Model with Joint Adaptation and Anticipation.
     """
+
     def __init__(
         self,
         init_beat_period=0.5,
@@ -424,6 +429,7 @@ class LinearTempoExpectationsSyncModel(SyncModel):
         tempo_correction_term = (
             self.asynchrony if self.asynchrony != 0 and s_ioi != 0 else 0
         )
+        print(f"tempo_correction_term {tempo_correction_term}")
         self.prev_perf_onset = performed_onset
         self.prev_score_onset = score_onset
 
@@ -500,13 +506,13 @@ class KalmanTempoSyncModel(SyncModel):
         self.prev_perf_onset = performed_onset
         # First, compute the prediction step:
         period_pred = self.beat_period * self.trans_par
-        var_pred = (self.trans_par ** 2) * self.var_est + self.trans_var
+        var_pred = (self.trans_par**2) * self.var_est + self.trans_var
 
         # Compute the error (innovation), between the estimation and obs:
         err = performed_ioi - score_ioi * period_pred
         # Compute the Kalman gain with the new predictions:
         kalman_gain = float(var_pred * score_ioi) / (
-            (score_ioi ** 2) * var_pred + self.obs_var
+            (score_ioi**2) * var_pred + self.obs_var
         )
         # Compute the estimations after the update step:
         self.beat_period = period_pred + kalman_gain * err

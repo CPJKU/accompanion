@@ -16,7 +16,7 @@ config:
         velocity_solo_scale: 0.95
         timing_scale: 0.001
         log_articulation_scale: 0.1
-        mechanical_delay: 0.125
+        mechanical_delay: 0.0
     midi_router_kwargs :
         solo_input_to_accompaniment_port_name: YAMAHA USB Device Port1
         acc_output_to_sound_port_name: YAMAHA USB Device Port1

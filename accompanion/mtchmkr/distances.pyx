@@ -4,10 +4,11 @@
 Cythonized methods for computing distances
 """
 cimport numpy as np
-import numpy as np
-cimport cython
-from libc.math cimport sqrt, abs
 
+import numpy as np
+
+cimport cython
+from libc.math cimport abs, sqrt
 
 
 cdef class Metric:

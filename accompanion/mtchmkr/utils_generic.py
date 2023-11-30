@@ -5,6 +5,7 @@ Generic utilities
 This module contains all processor related functionality.
 """
 from platform import processor
+
 import partitura
 
 

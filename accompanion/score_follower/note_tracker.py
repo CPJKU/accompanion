@@ -1,6 +1,7 @@
 import math
-import numpy as np
 from collections import defaultdict
+
+import numpy as np
 
 
 class TrackedNote(object):
@@ -28,7 +29,6 @@ class NoteTracker(object):
         "midi_id",
     ]
 
-
     def __init__(self, score):
         self.score = score
         self.open_notes = dict()
@@ -51,12 +51,14 @@ class NoteTracker(object):
             # 0: pitch, 1: duration_beat, 2: onset, 3: durations,
             # 3: index in notes,
             # 4: index of the note in sublist
-            self.note_dict[note['id']] += [
-                note['pitch'],
-                max(note['duration_beat'], 1 / 32),
-                None, None, None, None
+            self.note_dict[note["id"]] += [
+                note["pitch"],
+                max(note["duration_beat"], 1 / 32),
+                None,
+                None,
+                None,
+                None,
             ]
-
 
     def track_note(self, midi_msg):
 
@@ -142,14 +144,23 @@ class NoteTracker(object):
 
                 if score_id is None:
                     print("No match for", note)
-                    self.alignment.append({"label": "insertion", "onset": self.onset[idx], "performance_id": self.midi_id})
+                    self.alignment.append(
+                        {
+                            "label": "insertion",
+                            "onset": self.onset[idx],
+                            "performance_id": self.midi_id,
+                        }
+                    )
                 else:
                     self.note_dict[score_id][2] = self.onset[idx]
-                    self.alignment.append({
-                        "label": "match",
-                        "score_id": score_id,
-                        "onset": self.onset[idx],
-                        "performance_id": self.midi_id})
+                    self.alignment.append(
+                        {
+                            "label": "match",
+                            "score_id": score_id,
+                            "onset": self.onset[idx],
+                            "performance_id": self.midi_id,
+                        }
+                    )
                 matched_ids.append(score_id)
 
             # store matches for particular notes
@@ -167,14 +178,4 @@ class NoteTracker(object):
         #     ]
         # )
 
-        ninfo = (
-            self.notes,
-            self.onset,
-            self.durations,
-            self.velocities
-        )
-
-        
-
-
-            
+        ninfo = (self.notes, self.onset, self.durations, self.velocities)

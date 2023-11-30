@@ -7,18 +7,20 @@ TODO
 * Replace utilities with the latest version from Partitura
 """
 
+from typing import Callable, Dict, List, Tuple, Union
+
 import mido
-import partitura
 import numpy as np
+import partitura
 from basismixer.performance_codec import get_performance_codec
 from basismixer.utils import get_unique_onset_idxs, notewise_to_onsetwise
-from partitura import load_score, load_performance
-from partitura.utils.music import performance_from_part
-from accompanion.config import CONFIG
-from partitura.score import Part
+from partitura import load_performance, load_score
 from partitura.performance import PerformedPart
+from partitura.score import Part
+from partitura.utils.music import performance_from_part
 from scipy.interpolate import interp1d
 
+from accompanion.config import CONFIG
 
 PPART_FIELDS = [
     ("onset_sec", "f4"),
@@ -409,6 +411,158 @@ def get_beat_conversion(note_duration, beat_type):
     duration_quarters = float(DOT_MULTIPLIERS[dots] * LABEL_DURS[unit])
 
     return quarter_to_beat(duration_quarters, beat_type)
+
+
+def performance_notearray_from_score_notearray(
+    snote_array: np.ndarray,
+    bpm: Union[float, np.ndarray, Callable] = 100.0,
+    velocity: Union[int, np.ndarray, Callable] = 64,
+    return_alignment: bool = False,
+) -> Union[np.ndarray, Tuple[np.ndarray, List[Dict[str, str]]]]:
+    """
+    Generate a performance note array from a score note array
+
+    Parameters
+    ----------
+    snote_array : np.ndarray
+        A score note array.
+    bpm : float, np.ndarray or callable
+        Beats per minute to generate the performance. If a the value is a float,
+        the performance will be generated with a constant tempo. If the value is
+        a np.ndarray, it has to be an array with two columns where the first
+        column is score time in beats and the second column is the tempo. If a
+        callable is given, the function is assumed to map score onsets in beats
+        to tempo values. Default is 100 bpm.
+    velocity: int, np.ndarray or callable
+        MIDI velocity of the performance. If a the value is an int, the
+        performance will be generated with a constant MIDI velocity. If the
+        value is a np.ndarray, it has to be an array with two columns where
+        the first column is score time in beats and the second column is the
+        MIDI velocity. If a callable is given, the function is assumed to map
+        score time in beats to MIDI velocity. Default is 64.
+    return_alignment: bool
+        Return alignment between the score and the generated performance.
+
+    Returns
+    -------
+    pnote_array : np.ndarray
+        A performance note array based on the score with the specified tempo
+        and velocity.
+    alignment : List[Dict[str, str]]
+        If `return_alignment` is True, return the alignment between performance
+        and score.
+
+    Notes
+    -----
+    * This method should be deleted when the function is updated in partitura.
+    """
+
+    ppart_fields = [
+        ("onset_sec", "f4"),
+        ("duration_sec", "f4"),
+        ("pitch", "i4"),
+        ("velocity", "i4"),
+        ("track", "i4"),
+        ("channel", "i4"),
+        ("id", "U256"),
+    ]
+
+    pnote_array = np.zeros(len(snote_array), dtype=ppart_fields)
+
+    if isinstance(velocity, np.ndarray):
+        if velocity.ndim == 2:
+            velocity_fun = interp1d(
+                x=velocity[:, 0],
+                y=velocity[:, 1],
+                kind="previous",
+                bounds_error=False,
+                fill_value=(velocity[0, 1], velocity[-1, 1]),
+            )
+            pnote_array["velocity"] = np.round(
+                velocity_fun(snote_array["onset_beat"]),
+            ).astype(int)
+
+        else:
+            pnote_array["velocity"] = np.round(velocity).astype(int)
+
+    elif callable(velocity):
+        # The velocity parameter is a callable that returns a
+        # velocity value for each score onset
+        pnote_array["velocity"] = np.round(
+            velocity(snote_array["onset_beat"]),
+        ).astype(int)
+
+    else:
+        pnote_array["velocity"] = int(velocity)
+
+    unique_onsets = np.unique(snote_array["onset_beat"])
+    # Cast as object to avoid warnings, but seems to work well
+    # in numpy version 1.20.1
+    unique_onset_idxs = np.array(
+        [np.where(snote_array["onset_beat"] == u)[0] for u in unique_onsets],
+        dtype=object,
+    )
+
+    iois = np.diff(unique_onsets)
+
+    if callable(bpm) or isinstance(bpm, np.ndarray):
+        if callable(bpm):
+            # bpm parameter is a callable that returns a bpm value
+            # for each score onset
+            bp = 60 / bpm(unique_onsets)
+            bp_duration = (
+                60 / bpm(snote_array["onset_beat"]) * snote_array["duration_beat"]
+            )
+
+        elif isinstance(bpm, np.ndarray):
+            if bpm.ndim != 2:
+                raise ValueError("`bpm` should be a 2D array")
+
+            bpm_fun = interp1d(
+                x=bpm[:, 0],
+                y=bpm[:, 1],
+                kind="previous",
+                bounds_error=False,
+                fill_value=(bpm[0, 1], bpm[-1, 1]),
+            )
+            bp = 60 / bpm_fun(unique_onsets)
+            bp_duration = (
+                60 / bpm_fun(snote_array["onset_beat"]) * snote_array["duration_beat"]
+            )
+
+        p_onsets = np.r_[0, np.cumsum(iois * bp[:-1])]
+        pnote_array["duration_sec"] = bp_duration * snote_array["duration_beat"]
+
+    else:
+        # convert bpm to beat period
+        bp = 60 / float(bpm)
+        p_onsets = np.r_[0, np.cumsum(iois * bp)]
+        pnote_array["duration_sec"] = bp * snote_array["duration_beat"]
+
+    pnote_array["pitch"] = snote_array["pitch"]
+    pnote_array["id"] = snote_array["id"]
+
+    for ix, on in zip(unique_onset_idxs, p_onsets):
+        # ix has to be cast as integer depending on the
+        # numpy version...
+        pnote_array["onset_sec"][ix.astype(int)] = on
+
+    if return_alignment:
+
+        def alignment_dict(score_id: str, perf_id: str) -> Dict[str, str]:
+            output = dict(
+                label="match",
+                score_id=score_id,
+                performance_id=perf_id,
+            )
+            return output
+
+        alignment = [
+            alignment_dict(sid, pid)
+            for sid, pid in zip(snote_array["id"], pnote_array["id"])
+        ]
+        return pnote_array, alignment
+    return pnote_array
 
 
 if __name__ == "__main__":

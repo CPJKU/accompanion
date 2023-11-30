@@ -4,11 +4,18 @@ config:
     score_follower_kwargs :
         score_follower: OnlineTimeWarping
         window_size: 80
-        step_size: 8
+        step_size: 2
+        start_window_size: 40
+        local_cost_fun : Manhattan
         input_processor:
             processor: PianoRollProcessor
             processor_kwargs:
               piano_range: True
+        # score_follower: PitchIOIHMM
+        # input_processor:
+        #     processor: PitchIOIProcessor
+        #     processor_kwargs:
+        #       piano_range: True
     performance_codec_kwargs :
         velocity_trend_ma_alpha: 0.6
         articulation_ma_alpha: 0.4
@@ -17,23 +24,24 @@ config:
         velocity_max: 105
         velocity_solo_scale: 0.95
         timing_scale: 0.001
-        log_articulation_scale: 0.1
-        mechanical_delay: 0.125
+        log_articulation_scale: 0.08
+        mechanical_delay: 0.0
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: YAMAHA USB Device Port1
-        acc_output_to_sound_port_name: YAMAHA USB Device Port1
+        solo_input_to_accompaniment_port_name: Logic Pro Virtual Out
+        acc_output_to_sound_port_name: Logic Pro Virtual In
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
-    adjust_following_rate: 0.22
+    adjust_following_rate: 0.2
     bypass_audio: False
     tempo_model_kwargs:
         tempo_model: LTESM
+        # eta_t: 0.3
+        # eta_p: 0.8
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm : 112
+    init_bpm : 60
     init_velocity : 60
 piece_dir : mozart_demo
-#solo_fn : musicxml/Sonata-k381-a123_Primo.musicxml
 acc_fn : musicxml/Sonata-k381-a123_Secondo.musicxml
 accompaniment_match : basismixer/mozart_sonata_secondo.match

@@ -2,9 +2,10 @@
 """
 Top level of the package
 """
-import platform
-import pkg_resources
 import importlib.util
+import platform
+
+import pkg_resources
 
 # OS: Linux, Mac or Windows
 PLATFORM = platform.system()

@@ -1,12 +1,20 @@
-# Accompanion config for Bach Menuet.
+# Accompanion config for Morning Mood.
 config:
-    follower : hmm
+    follower : oltw
     score_follower_kwargs :
-        score_follower: PitchIOIKHMM
+        score_follower: OnlineTimeWarping
+        window_size: 200
+        step_size: 2
+        start_window_size: 40
         input_processor:
-            processor: PitchIOIProcessor
+            processor: PianoRollProcessor
             processor_kwargs:
               piano_range: True
+        # score_follower: PitchIOIKHMM
+        # input_processor:
+        #     processor: PitchIOIProcessor
+        #     processor_kwargs:
+        #       piano_range: True
     performance_codec_kwargs :
         velocity_trend_ma_alpha: 0.6
         articulation_ma_alpha: 0.4
@@ -24,13 +32,23 @@ config:
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
     adjust_following_rate: 0.2
+    expected_position_weight: 0.7
     bypass_audio: False
     tempo_model_kwargs:
         tempo_model: LSM
+        # eta_p: 0.0
+        # eta_t: 0.0
     use_ceus_mediator: False
     polling_period: 0.01
-    init_bpm: 110
-    init_velocity : 60
-piece_dir : bach_menuett
-acc_fn : "secondo.musicxml"
-solo_fn: "primo.musicxml"
+    init_bpm: 150
+    init_velocity : 40
+    accompanist_decoder_kwargs:
+        rit_len: 10
+        rit_w: 1.0
+        rit_q: 2.0
+piece_dir : grieg_morning_mood
+# accompaniment_match : "match/cc_acc/secondo_morgenstimmung_secondo_03.match"
+acc_fn : "musicxml/secondo.musicxml"
+solo_fn : "musicxml/primo.musicxml"
+# solo_fn: "primo.musicxml"
+# acc_fn: "primo.musicxml"

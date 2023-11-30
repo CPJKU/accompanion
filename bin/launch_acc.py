@@ -2,13 +2,19 @@
 # -*- coding: utf-8 -*-
 import multiprocessing
 import os
+import warnings
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
-import os
 import argparse
 import glob
+import os
+import sys
+
 from accompanion import PLATFORM
 
-import sys
+warnings.filterwarnings("ignore", module="partitura")
+
+
 sys.path.append("..")
 
 overridable_args = [
@@ -53,12 +59,19 @@ if __name__ == "__main__":
     parser.add_argument("--piece")
     parser.add_argument("--follower", default="hmm")
     parser.add_argument(
-        "-f", "--config_file", default="simple_pieces", help="config file to load."
+        "-f",
+        "--config_file",
+        default="simple_pieces",
+        help="config file to load.",
     )
     parser.add_argument("--input", required=False, help="Input MIDI instrument port.")
     parser.add_argument("--output", required=False, help="Output MIDI instrument port.")
-    parser.add_argument("--record-midi", action="store_true", help="Record Midi input and Output.")
-    parser.add_argument("--midi-fn", help="Midi file to play instead of real time input.")
+    parser.add_argument(
+        "--record-midi", action="store_true", help="Record Midi input and Output."
+    )
+    parser.add_argument(
+        "--midi-fn", help="Midi file to play instead of real time input."
+    )
 
     args = parser.parse_args()
 
@@ -76,25 +89,43 @@ if __name__ == "__main__":
             info_file = yaml.safe_load(f)
         configurations = info_file["config"]
         # TODO : add a configuration for the default loaded file and directories.
-        if args.config_file in ["brahms", "mozart", "schubert", "fourhands", "FH"]:
-            args.follower = "oltw"
+        if args.config_file in [
+            "brahms",
+            "mozart",
+            "schubert",
+            "fourhands",
+            "FH",
+            "grieg_morning_mood",
+            "grieg_ases_tod",
+            "grieg_mountain_king",
+        ]:
+            # args.follower = "oltw"
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "accompanion_pieces",
                 "complex_pieces",
                 info_file["piece_dir"],
             )
-            configurations["acc_fn"] = os.path.join(file_dir, os.path.normpath(info_file["acc_fn"]))
-            configurations["accompaniment_match"] = os.path.join(
-                file_dir, os.path.normpath(info_file["accompaniment_match"])
-            ) if "accompaniment_match" in info_file.keys() else None
-            configurations["solo_fn"] = glob.glob(
-                os.path.join(file_dir, "match", "cc_solo", "*.match")
-            )[-5:] if "solo_fn" not in info_file.keys() else os.path.join(
-                file_dir, os.path.normpath(info_file["solo_fn"])
+            configurations["acc_fn"] = os.path.join(
+                file_dir, os.path.normpath(info_file["acc_fn"])
             )
-            configurations["midi_fn"] = os.path.join(file_dir, os.path.normpath(
-                info_file["midi_fn"])) if "midi_fn" in info_file.keys() else None
+            configurations["accompaniment_match"] = (
+                os.path.join(
+                    file_dir, os.path.normpath(info_file["accompaniment_match"])
+                )
+                if "accompaniment_match" in info_file.keys()
+                else None
+            )
+            configurations["solo_fn"] = (
+                glob.glob(os.path.join(file_dir, "match", "cc_solo", "*.match"))[-5:]
+                if "solo_fn" not in info_file.keys()
+                else os.path.join(file_dir, os.path.normpath(info_file["solo_fn"]))
+            )
+            configurations["midi_fn"] = (
+                os.path.join(file_dir, os.path.normpath(info_file["midi_fn"]))
+                if "midi_fn" in info_file.keys()
+                else None
+            )
         else:
             file_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -103,32 +134,65 @@ if __name__ == "__main__":
                 info_file["piece_dir"],
             )
             # If only one piece is available load and separate to parts
-            if os.path.join(file_dir, "primo.musicxml") not in glob.glob(os.path.join(file_dir, "*.musicxml")):
+            if os.path.join(file_dir, "primo.musicxml") not in glob.glob(
+                os.path.join(file_dir, "*.musicxml")
+            ):
                 import partitura
-                score = partitura.load_score((glob.glob(os.path.join(file_dir, "*.musicxml")) + glob.glob(os.path.join(file_dir, "*.mxl")))[0])
+
+                score = partitura.load_score(
+                    (
+                        glob.glob(os.path.join(file_dir, "*.musicxml"))
+                        + glob.glob(os.path.join(file_dir, "*.mxl"))
+                    )[0]
+                )
                 if len(score.parts) == 1:
                     from copy import deepcopy
+
                     import numpy as np
+
                     # find individual staff
                     na = score.note_array(include_staff=True)
                     staff = np.unique(na["staff"])
-                    primo_part = deepcopy(score.parts[0])
-                    secondo_part = deepcopy(score.parts[0])
+                    primo_part = partitura.load_score(
+                        (
+                            glob.glob(os.path.join(file_dir, "*.musicxml"))
+                            + glob.glob(os.path.join(file_dir, "*.mxl"))
+                        )[0]
+                    )[0]
+                    secondo_part = partitura.load_score(
+                        (
+                            glob.glob(os.path.join(file_dir, "*.musicxml"))
+                            + glob.glob(os.path.join(file_dir, "*.mxl"))
+                        )[0]
+                    )[0]
+                    # primo_part = deepcopy(score.parts[0])
+                    # secondo_part = deepcopy(score.parts[0])
                     for st in staff:
                         if st == 1:
-                            primo_part.notes = [note for note in primo_part.notes if note.staff == st]
+                            primo_notes = primo_part.notes
+
+                            for note in primo_part.notes:
+                                if note.staff != st:
+                                    primo_part.remove(note)
+
                         else:
-                            secondo_part.notes = [note for note in secondo_part.notes if note.staff == st]
+                            secondo_notes = secondo_part.notes
+
+                            for note in secondo_notes:
+                                if note.staff == 1:
+                                    secondo_part.remove(note)
 
                 elif len(score.parts) == 2:
                     primo_part = score.parts[0]
-                    partitura.save_musicxml(primo_part, os.path.join(file_dir, "primo.musicxml"))
+                    partitura.save_musicxml(
+                        primo_part, os.path.join(file_dir, "primo.musicxml")
+                    )
                     secondo_part = score.parts[1]
-                    partitura.save_musicxml(secondo_part, os.path.join(file_dir, "secondo.musicxml"))
+                    partitura.save_musicxml(
+                        secondo_part, os.path.join(file_dir, "secondo.musicxml")
+                    )
                 else:
                     raise ValueError("Score has more than two parts.")
-
-
 
             configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
             configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
@@ -137,7 +201,18 @@ if __name__ == "__main__":
         configurations = dict()
 
     # import ACCompanion version
-    if args.follower:
+
+    if "follower" in configurations.keys():
+        if configurations["follower"] == "hmm":
+            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
+        elif configurations["follower"] == "oltw":
+            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
+        else:
+            raise ValueError(
+                f"configuration parameter 'follower' is of unknown value {configurations['follower']}"
+            )
+    elif args.follower:
+        # Use the version in follower only if not specified in the
         if args.follower == "hmm":
             from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
 
@@ -164,15 +239,6 @@ if __name__ == "__main__":
             raise ValueError(
                 f"console argument 'follower' is of unknown value {args.follower}"
             )
-    elif "follower" in configurations.keys():
-        if configurations["follower"] == "hmm":
-            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
-        elif configurations["follower"] == "oltw":
-            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
-        else:
-            raise ValueError(
-                f"configuration parameter 'follower' is of unknown value {configurations['follower']}"
-            )
     else:
         raise ValueError(
             "Neither through console arguments nor configuration file has a score follower type been specified"
@@ -180,6 +246,9 @@ if __name__ == "__main__":
 
     if "follower" in configurations.keys():
         del configurations["follower"]
+
+    if not "accompanist_decoder_kwargs" in configurations.keys():
+        configurations["accompanist_decoder_kwargs"] = None
 
     if args.input:
         configurations["midi_router_kwargs"][
@@ -209,10 +278,13 @@ if __name__ == "__main__":
     configurations["midi_fn"] = args.midi_fn if args.midi_fn else None
 
     if configurations["midi_fn"] is not None:
-        configurations["midi_router_kwargs"]["solo_input_to_accompaniment_port_name"] = 0
-        configurations["midi_router_kwargs"]["MIDIPlayer_to_accompaniment_port_name"] = 0
+        configurations["midi_router_kwargs"][
+            "solo_input_to_accompaniment_port_name"
+        ] = 0
+        configurations["midi_router_kwargs"][
+            "MIDIPlayer_to_accompaniment_port_name"
+        ] = 0
 
     accompanion = ACCompanion(**configurations)
 
     accompanion.run()
-
