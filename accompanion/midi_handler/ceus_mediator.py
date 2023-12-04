@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Module with definition for the tools used for communication between the
-different modules and subsystems of ACCompanion.
+This module contains a mediator for filtering out the MIDI messages 
+"performed" by the ACCompanion from the input MIDI. Using the mediator
+is only necessary for old instruments that do not filter the messages
+automatically. So far we have only encountered this issue with the
+Bösendorfer CEUS, and thus the name of the class.
 """
 # The thread mediator was used in the following context (which was part
 # the equivalent of our current MIDI input process/thread)
@@ -53,7 +56,10 @@ class ThreadMediator(object):
         buffer a deque object is used as this ensures thread safety.
     """
 
-    def __init__(self, **kwargs):
+    _comms_buffer: collections.deque
+    _mediator_type: str
+
+    def __init__(self, **kwargs) -> None:
         """
         The initialization method.
         """
@@ -64,7 +70,7 @@ class ThreadMediator(object):
         # Call the superconstructor:
         super().__init__(**kwargs)
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Returns True if the comms buffer is empty. False if it has at least one
         element.
@@ -81,7 +87,7 @@ class ThreadMediator(object):
         # Otherwise return false:
         return False
 
-    def get_message(self):
+    def get_message(self) -> collections.namedtuple:
         """
         Get the first from the previously sent messages from an ACCompanion
         module. Returns IndexError if there is no element in the buffer.
@@ -96,7 +102,7 @@ class ThreadMediator(object):
         # Return the first element:
         return self._comms_buffer.popleft()
 
-    def put_message(self, message):
+    def put_message(self, message: collections.namedtuple) -> None:
         """
         Put a message into the comms buffer.
         This should only be called by ACCompanion's score matching/following
@@ -110,7 +116,7 @@ class ThreadMediator(object):
         self._comms_buffer.append(message)
 
     @property
-    def mediator_type(self):
+    def mediator_type(self) -> str:
         """
         Property method to return the value of the mediator_type variable.
         """
@@ -135,6 +141,7 @@ class CeusMediator(ThreadMediator):
         buffer a deque object is used as this ensures thread safety.
     """
 
+    _ceus_lock: threading.RLock
     def __init__(self, **kwargs):
         """
         The initialization method.
@@ -150,7 +157,7 @@ class CeusMediator(ThreadMediator):
         # A name variable to store the type of the mediator:
         self._mediator_type = "ceus"
 
-    def filter_check(self, midi_pitch, delete_entry=True):
+    def filter_check(self, midi_pitch: int, delete_entry: bool=True) -> bool:
         """
         Check if the midi pitch is in the Ceus filter. Return True if yes,
         False if it is not present. Delete the filter entry if specified by
@@ -161,13 +168,13 @@ class CeusMediator(ThreadMediator):
         midi_pitch : int
             The midi pitch to be checked against the filter.
 
-        delete_entry : Boolean
+        delete_entry : bool
             Specifies whether to delete the filter entry if such is found.
             Default: True
 
         Returns
         -------
-        indicate : Boolean
+        indicate : bool
             True if pitch is in the filter, False if it is not.
         """
 
@@ -186,7 +193,7 @@ class CeusMediator(ThreadMediator):
             # If it is not, return False:
             return False
 
-    def filter_append_pitch(self, midi_pitch):
+    def filter_append_pitch(self, midi_pitch: int) -> None:
         """
         Append a MIDI pitch to the Ceus filter. This should only be called by
         the ACCompanion's accompaniment production module.
@@ -200,7 +207,7 @@ class CeusMediator(ThreadMediator):
             # Append the midi pitch to be filtered:
             self._ceus_filter.append(midi_pitch)
 
-    def filter_remove_pitch(self, midi_pitch):
+    def filter_remove_pitch(self, midi_pitch: int) -> None:
         """
         Remove a MIDI pitch from the Ceus filter. This should only be called by
         the ACCompanion's score matching/following module.
