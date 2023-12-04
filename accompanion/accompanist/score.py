@@ -24,7 +24,8 @@ class ACCNoteError(Exception):
 
 class Note(object):
     """
-    Class for representing notes.
+    Class for representing notes. This class contains both
+    score and performance information.
 
     Parameters
     ----------

@@ -2,7 +2,7 @@
 """
 Tempo Models
 """
-from typing import Tuple
+from typing import Tuple, Callable, Optional, Union
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -10,7 +10,14 @@ from scipy.interpolate import interp1d
 
 class SyncModel(object):
     """
-    Base class for synchronization models
+    Base class for synchronization models.
+
+    Parameters
+    ----------
+    init_beat_period: float
+        Initial tempo in seconds per beat
+    init_score_onset: float
+        Initial score onset time in beats.
 
     Attributes
     ----------
@@ -58,9 +65,9 @@ class SyncModel(object):
         score_onset: float,
         *args,
         **kwargs,
-    ) -> Tuple[float]:
+    ) -> Tuple[float, float]:
         """
-        Update beat period and estimated onset
+        Update beat period and compute estimated onset time
 
         Parameters
         ----------
@@ -95,14 +102,39 @@ class SyncModel(object):
 
 
 class ReactiveSyncModel(SyncModel):
-    def __init__(self, init_beat_period=0.5, init_score_onset=0):
+    """
+    Reactive tempo model.
+
+    This sync model computes the tempo as the direct (raw) value of the performed
+    ioi divided by the notated ioi. This method is mostly intended for as a baseline
+    and is generally a poor choice of a tempo model.
+
+    Parameters
+    ----------
+    init_beat_period: float
+        Initial tempo in seconds per beat
+    init_score_onset: float
+        Initial score onset time in beats.
+    """
+
+    def __init__(
+        self,
+        init_beat_period: float = 0.5,
+        init_score_onset: float = 0.0,
+    ) -> None:
         super().__init__(
             init_beat_period=init_beat_period,
             init_score_onset=init_score_onset,
         )
 
-    def update_beat_period(self, performed_onset, score_onset):
-
+    def update_beat_period(
+        self,
+        performed_onset: float,
+        score_onset: float,
+    ) -> None:
+        """
+        See documentation in SyncModel above.
+        """
         self.est_onset = performed_onset
         if self.prev_perf_onset:
             s_ioi = abs(score_onset - self.prev_score_onset)
@@ -118,21 +150,57 @@ RSM = ReactiveSyncModel
 
 
 class MovingAverageSyncModel(SyncModel):
+    """
+    Moving average tempo model
+
+    This sync model computes the tempo as moving average value of the raw tempo
+    (performed ioi divided by the notated ioi). This method is mostly intended as a
+    baseline and is generally a poor choice of a tempo model.
+
+    Parameters
+    ----------
+    init_beat_period: float
+        Initial tempo in seconds per beat
+    init_score_onset: float
+        Initial score onset time in beats.
+    alpha: float
+        Smoothing factor (must be between 0 and 1).
+        A value closer to 1 changes the MA value very slowly, while a
+        value closer to 0 "forgets" the previous estimate and
+        takes always the most recent value.
+    predict_onset: bool
+        If True, computes the expected next performed onset time using the current
+        tempo estimation. Otherwise, it takes the observed performed onset.
+        This option is for testing purposes.
+    """
+
+    alpha: float
+    predict_onset: bool
+
     def __init__(
         self,
-        init_beat_period=0.5,
-        init_score_onset=0,
-        alpha=0.5,
-        predict_onset=False,
+        init_beat_period: float = 0.5,
+        init_score_onset: float = 0,
+        alpha: float = 0.5,
+        predict_onset: bool = True,
     ):
         super().__init__(
-            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+            init_beat_period=init_beat_period,
+            init_score_onset=init_score_onset,
         )
         self.alpha = alpha
         self.predict_onset = predict_onset
 
-    def update_beat_period(self, performed_onset, score_onset):
-
+    def update_beat_period(
+        self,
+        performed_onset: float,
+        score_onset: float,
+        *args,
+        **kwargs,
+    ) -> None:
+        """
+        See documentation in SyncModel above.
+        """
         if self.prev_perf_onset:
             s_ioi = abs(score_onset - self.prev_score_onset)
             p_ioi = abs(performed_onset - self.prev_perf_onset)
@@ -161,7 +229,7 @@ class LinearSyncModel(SyncModel):
     """
     Linear synchronization model.
 
-    The Default Tempo Model.
+    The sensorimotor synch model to use if there are no tempo expectations.
 
     Parameters
     ----------
@@ -170,29 +238,38 @@ class LinearSyncModel(SyncModel):
     init_score_onset : float
         Initial score onset in beats (can be negative)
     eta_t : float
-        Learning rate for the tempo
+        Learning rate for the tempo. This parameter serves a similar function
+        to the alpha parameter in the MASM.
     eta_o : float
-        Learning rate for the onset
-
+        Learning rate for the onset. This parameter serves a similar function to
+        the alpha parameter in the MASM.
     """
+
+    eta_t: float
+    eta_p: float
 
     def __init__(
         self,
-        init_beat_period=0.5,
-        init_score_onset=0,
-        eta_t=0.3,
-        eta_p=0.7,
-    ):
+        init_beat_period: float = 0.5,
+        init_score_onset: float = 0,
+        eta_t: float = 0.3,
+        eta_p: float = 0.7,
+    ) -> None:
         super().__init__(
-            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+            init_beat_period=init_beat_period,
+            init_score_onset=init_score_onset,
         )
         self.eta_t = eta_t
         self.eta_p = eta_p
 
-    def update_beat_period(self, performed_onset, score_onset, *args, **kwargs):
-
+    def update_beat_period(
+        self,
+        performed_onset: float,
+        score_onset: float,
+        *args,
+        **kwargs,
+    ) -> None:
         if self.prev_perf_onset:
-
             s_ioi = abs(score_onset - self.prev_score_onset)
             self.est_onset = (
                 self.est_onset + self.beat_period * s_ioi - self.eta_p * self.asynchrony
@@ -228,19 +305,28 @@ class JointAdaptationAnticipationSyncModel(SyncModel):
     Tempo Model with Joint Adaptation and Anticipation.
     """
 
+    alpha: float
+    beat: float
+    delta: float
+    omdelta: float
+    gamma: float
+    rng_motor: np.random.RandomState
+    rng_timekeeper: np.random.RandomState
+
     def __init__(
         self,
-        init_beat_period=0.5,
-        init_score_onset=0.0,
-        alpha=0.5,
-        beta=0.2,
-        delta=0.8,
-        gamma=0.1,
-        rng_motor=np.random.RandomState(1984),
-        rng_timekeeper=np.random.RandomState(1984),
+        init_beat_period: float = 0.5,
+        init_score_onset: float = 0.0,
+        alpha: float = 0.5,
+        beta: float = 0.2,
+        delta: float = 0.8,
+        gamma: float = 0.1,
+        rng_motor: np.random.RandomState = np.random.RandomState(1984),
+        rng_timekeeper: np.random.RandomState = np.random.RandomState(1984),
     ):
         super().__init__(
-            init_beat_period=init_beat_period, init_score_onset=init_score_onset
+            init_beat_period=init_beat_period,
+            init_score_onset=init_score_onset,
         )
         self.alpha = alpha
         self.beta = beta
@@ -258,8 +344,13 @@ class JointAdaptationAnticipationSyncModel(SyncModel):
         self.tkns = []
         self.mns = []
 
-    def update_beat_period(self, performed_onset, score_onset):
-
+    def update_beat_period(
+        self,
+        performed_onset: float,
+        score_onset: float,
+        *args,
+        **kwargs,
+    ) -> None:
         if self.cnt > 0:
             # perf_ioi = performed_onset - self.prev_perf_onset
             self.perf_iois.append(performed_onset - self.prev_perf_onset)
@@ -344,15 +435,22 @@ JADAMSM = JointAdaptationAnticipationSyncModel
 
 
 class LinearTempoExpectationsSyncModel(SyncModel):
+    eta_t: float
+    eta_p: float
+    tempo_expectations_func: Callable[[float], float]
+    _init_beat_period: float
+    _fiso: Optional[float]
+
     def __init__(
         self,
-        init_beat_period=0.5,
-        init_score_onset=0,
-        eta_t=0.2,
-        eta_p=0.6,
-        tempo_expectations_func=None,
-    ):
-
+        init_beat_period: float = 0.5,
+        init_score_onset: float = 0,
+        eta_t: float = 0.2,
+        eta_p: float = 0.6,
+        tempo_expectations_func: Optional[
+            Union[Callable[[float], float], np.ndarray]
+        ] = None,
+    ) -> None:
         super().__init__(
             init_beat_period=init_beat_period, init_score_onset=init_score_onset
         )
@@ -387,35 +485,39 @@ class LinearTempoExpectationsSyncModel(SyncModel):
         self.init_beat_period = init_beat_period
 
     @property
-    def init_beat_period(self):
+    def init_beat_period(self) -> float:
         return self._init_beat_period
 
     @init_beat_period.setter
-    def init_beat_period(self, value):
+    def init_beat_period(self, value) -> None:
         self._init_beat_period = value
         self.scale_factor = value / self.tempo_expectations_func(self.first_score_onset)
         print("scale_factor", self.scale_factor)
         print("te_init", self.tempo_expectations_func(self.first_score_onset))
 
     @property
-    def first_score_onset(self):
+    def first_score_onset(self) -> float:
         if self._fiso is None:
             self._fiso = self.prev_score_onset
 
         return self._fiso
 
     @first_score_onset.setter
-    def first_score_onset(self, val):
+    def first_score_onset(self, val: float) -> None:
         self._fiso = val
 
-    def tempo_expectations(self, score_onset):
+    def tempo_expectations(self, score_onset: float) -> float:
         # relative to the first ioi
         return float(self.tempo_expectations_func(score_onset) * self.scale_factor)
 
-    def update_beat_period(self, performed_onset, score_onset, *args, **kwargs):
-
+    def update_beat_period(
+        self,
+        performed_onset: float,
+        score_onset: float,
+        *args,
+        **kwargs,
+    ) -> None:
         if self.prev_perf_onset:
-
             s_ioi = abs(score_onset - self.prev_score_onset)
             self.est_onset = (
                 self.est_onset + self.beat_period * s_ioi - self.eta_p * self.asynchrony
@@ -429,7 +531,7 @@ class LinearTempoExpectationsSyncModel(SyncModel):
         tempo_correction_term = (
             self.asynchrony if self.asynchrony != 0 and s_ioi != 0 else 0
         )
-        print(f"tempo_correction_term {tempo_correction_term}")
+        # print(f"tempo_correction_term {tempo_correction_term}")
         self.prev_perf_onset = performed_onset
         self.prev_score_onset = score_onset
 
@@ -455,7 +557,10 @@ class KalmanTempoSyncModel(SyncModel):
     A Tempo model using a linear Kalman filter.
     """
 
-    # The initialization function:
+    trans_par: float
+    trans_var: float
+    obs_var: float
+    var_est: float
 
     def __init__(
         self,
@@ -479,7 +584,13 @@ class KalmanTempoSyncModel(SyncModel):
         self.var_est = init_var
 
     # A function to compute one step of the predict-update cycle:
-    def update_beat_period(self, performed_onset: float, score_onset: float) -> None:
+    def update_beat_period(
+        self,
+        performed_onset: float,
+        score_onset: float,
+        *args,
+        **kwargs,
+    ) -> None:
         """
         Updates the model, when a new IOI observation is made. Computes
         one step of the predict-update cycle in the Kalman Filter.
