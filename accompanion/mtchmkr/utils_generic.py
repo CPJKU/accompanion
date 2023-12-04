@@ -6,8 +6,7 @@ This module contains all processor related functionality.
 """
 from platform import processor
 
-import partitura
-
+import partitura as pt
 
 class SequentialOutputProcessor(object):
     """
@@ -58,11 +57,11 @@ def matchfile_to_midi(fn, perf_outfile, score_outfile=None):
     """
     create_spart = score_outfile is not None
 
-    match_info = partitura.load_match(fn=fn, create_part=create_spart)
+    match_info = pt.load_match(fn=fn, create_part=create_spart)
 
     ppart, _ = match_info[0], match_info[1]
-    partitura.save_performance_midi(ppart, perf_outfile)
+    pt.save_performance_midi(ppart, perf_outfile)
 
     if create_spart:
         spart = match_info[2]
-        partitura.save_score_midi(spart, score_outfile)
+        pt.save_score_midi(spart, score_outfile)

@@ -83,6 +83,10 @@ class OnlinePerformanceCodec(object):
         self.kwargs: dict = kwargs
 
     def encode_step(self) -> Tuple[float, float]:
+        """
+        Encode the performance of the soloist into expressive
+        parameters
+        """
         try:
             self.vel_prev = moving_average_online(
                 np.max(self.note_tracker.velocities[-1]),
@@ -142,6 +146,48 @@ class OnlinePerformanceCodec(object):
         Union[np.ndarray, int],
         float,
     ]:
+        """
+        Decode the accompaniment part (in terms of performed onsets, durations)
+        and MIDI velocity
+
+        Parameters
+        ----------
+        ioi: float
+            Score inter-onset interval for the next onset (in beats)
+        dur: Union[np.ndarray, float]
+            Duration of the notes (in beats)
+        vt: Union[np.ndarray, float]
+            Trend in MIDI velocity
+        vd: Union[np.ndarray, float]
+            Deviations in MIDI velocity from the Trend
+        lbpr: Union[np.ndarray, float]
+            Logarithm of the beat period ratio (ratio of local beat period to average 
+            beat period)
+        tim: Union[np.ndarray, float]
+            Micro-timing deviations for the notes
+        lart: Union[np.ndarray, float]
+            Logarithm of the articulation ratio
+        bp_ave: float
+            Average beat period
+        vel_a: float
+            Average MIDI velocity
+        art_a: float
+            Average articulation ratio
+        prev_eq_onset: Optional[float]
+            Previous equivalent onset time (in seconds).
+
+        Returns
+        -------
+        perf_onset: np.ndarray or float
+            Performed onset time of the notes in seconds
+        perf_duration: np.ndarray or float
+            Performed duration of the notes in seconds
+        perf_vel: np.ndarray or int
+            Performed MIDI velocities of the notes
+        eq_onset: float
+            Equivalent onset time (the average value of the onset of all notes
+            in a chord).
+        """
         self.bp_ave = bp_ave
         self.velocity_ave = vel_a
         # Compute equivalent onsets
@@ -152,7 +198,7 @@ class OnlinePerformanceCodec(object):
 
         # Compute performed duration for each note
         perf_duration = self.decode_duration(
-            dur=dur, lart=lart, lbpr=lbpr, art_a=art_a, bp_ave=self.bp_ave
+            dur=dur, lart=lart, lbpr=lbpr, art_a=art_a, bp_ave=self.bp_ave,
         )
 
         # Compute velocity for each note
@@ -165,7 +211,24 @@ class OnlinePerformanceCodec(object):
         vt: Union[np.ndarray, float],
         vd: Union[np.ndarray, float],
         vel_ave: float,
-    ) -> np.ndarray:
+    ) -> Union[np.ndarray, int]:
+        """
+        Decode MIDI velocity
+        
+        Parameters
+        ----------
+        vt: Union[np.ndarray, float]
+            Trend in MIDI velocity
+        vd: Union[np.ndarray, float]
+            Deviations in MIDI velocity from the Trend
+        vel_a: float
+            Average MIDI velocity
+        
+        Return
+        ------
+        perf_vel: np.ndarray or int
+            Performed MIDI velocities of the notes
+        """
         # Add options for normalization
         perf_vel = np.clip(vt * vel_ave - vd, self.vel_min, self.vel_max).astype(int)
         return perf_vel
