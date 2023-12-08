@@ -1,7 +1,7 @@
 from distutils.extension import Extension
 from sys import platform
 
-import numpy
+import numpy as np
 import setuptools
 from Cython.Build import cythonize
 from setuptools import setup
@@ -12,11 +12,11 @@ DESCRIPTION = "An expressive accompaniment system"
 KEYWORDS = "music alignment accompaniment"
 URL = "https://github.com/CPJKU/accompanion"
 EMAIL = "carloscancinochacon@gmail.com"
-AUTHOR = "Carlos Cancino-Chacón, Silvan Peter, Florian Henkel, Martin Bonev"
-REQUIRES_PYTHON = ">=3.7"
-VERSION = "0.3.0"
+AUTHOR = "Carlos Cancino-Chacón, Silvan Peter, Florian Henkel, Martin Bonev, Emmanouil Karystinaios, Francesco Foscarin, Patricia Hu, Nimrod Varga"
+REQUIRES_PYTHON = ">=3.9"
+VERSION = "0.3.1"
 
-include_dirs = [numpy.get_include()]
+include_dirs = [np.get_include()]
 
 extensions = [
     Extension(
