@@ -562,12 +562,16 @@ def default_instance(t):
 
     if get_origin(t) is list:
         return []
+    elif get_origin(t) is None and t in (str, os.PathLike):
+        return ""
     elif get_origin(t) is Union and type(None) in get_args(t):
         a, b = get_args(t)
+        if a in (str, os.PathLike) or b in (str, os.PathLike):
+            return ""
 
-        if not a is type(None):
+        if not a is None:
             return a()
-        elif not b is type(None):
+        elif not b is None:
             return b()
         else:
             raise TypeError(
