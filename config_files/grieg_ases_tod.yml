@@ -24,10 +24,10 @@ config:
         velocity_solo_scale: 0.95
         timing_scale: 0.001
         log_articulation_scale: 0.5
-        mechanical_delay: 0.0
+        mechanical_delay: 0.13
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Logic Pro Virtual Out
-        acc_output_to_sound_port_name: Logic Pro Virtual In
+        solo_input_to_accompaniment_port_name: iM/ONE
+        acc_output_to_sound_port_name: iM/ONE
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
