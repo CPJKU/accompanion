@@ -96,6 +96,21 @@ cd Path/to/accompanion/bin
 python ./bin/launch_acc.py --input Your_MIDI_Input -out Your_MIDI_Output -f brahms
 ```
 
+### Arguments
+
+To Find out the arguments you can use with the ACCompanion, run the following command:
+```shell
+python ./bin/launch_acc.py --help
+```
+
+### MIDI Input and Output
+
+To find out which MIDI input and output ports are available on your system, run the following command:
+```shell
+python -c "import mido; print(mido.get_input_names()); print(mido.get_output_names())"
+```
+
+
 ## Using the ACCompanion with a GUI
 
 The ACCompanion can be used with a GUI. To do so, run the following command:

@@ -41,21 +41,24 @@ if __name__ == "__main__":
         help="switch on Dummy MIDI Router for test environment",
     )
 
-    parser.add_argument("--delay", type=float)
-    parser.add_argument(
-        "--live",
-        default=False,
-        action="store_true",
-    )
+    parser.add_argument("--delay", type=float, default=0.0,
+                        help="mechanical delay in seconds, in case of using a DisKlavier, this would be the delay "
+                             "between the key press and the hammer hitting the string. A value of 0.0 means no delay. "
+                             "Typically a value between 0.1 and 0.2 is a good starting point. Default: 0.0")
+    # parser.add_argument(
+    #     "--live",
+    #     default=False,
+    #     action="store_true",
+    # )
     parser.add_argument(
         "--bypass_audio",
         default=False,
         help="bypass fluidsynth audio",
         action="store_true",
     )
-    parser.add_argument(
-        "--use_mediator", default=False, help="use ceus mediator", action="store_true"
-    )
+    # parser.add_argument(
+    #     "--use_mediator", default=False, help="use ceus mediator", action="store_true"
+    # )
     parser.add_argument("--piece")
     parser.add_argument("--follower", default="hmm")
     parser.add_argument(
