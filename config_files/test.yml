@@ -18,7 +18,7 @@ config:
         velocity_solo_scale: 0.85
         timing_scale: 0.001
         log_articulation_scale: 0.1
-        mechanical_delay: 0.0
+        mechanical_delay: 0.13
     midi_router_kwargs :
         solo_input_to_accompaniment_port_name: 0
         acc_output_to_sound_port_name: "IAC Driver Web Midi"

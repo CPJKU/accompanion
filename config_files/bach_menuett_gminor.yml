@@ -16,10 +16,10 @@ config:
         velocity_solo_scale: 0.95
         timing_scale: 0.001
         log_articulation_scale: 0.1
-        mechanical_delay: 0.0
+        mechanical_delay: 0.13
     midi_router_kwargs :
-        solo_input_to_accompaniment_port_name: Logic Pro Virtual Out
-        acc_output_to_sound_port_name: Logic Pro Virtual In
+        solo_input_to_accompaniment_port_name: Disklavier
+        acc_output_to_sound_port_name: Disklavier
         MIDIPlayer_to_sound_port_name: None
         MIDIPlayer_to_accompaniment_port_name: None
         simple_button_input_port_name: None
@@ -29,7 +29,7 @@ config:
         tempo_model: LSM
     use_ceus_mediator: False
     polling_period: 0.035
-    init_bpm: 90
+    init_bpm: 110
     init_velocity : 60
 piece_dir : bach_menuett_gminor
 acc_fn : "secondo.musicxml"

@@ -8,7 +8,7 @@ from typing import Iterable, Optional, Union, Callable, List, Tuple, Dict
 import numpy as np
 
 # from numpy.typing import NDArray
-import partitura
+import partitura as pt
 from mido import Message
 
 from partitura import load_score
@@ -24,7 +24,8 @@ class ACCNoteError(Exception):
 
 class Note(object):
     """
-    Class for representing notes.
+    Class for representing notes. This class contains both
+    score and performance information.
 
     Parameters
     ----------
@@ -354,9 +355,9 @@ class Score(object):
             note_array["duration_sec"][i] = note.p_duration
             note_array["velocity"][i] = note.velocity
 
-        ppart = partitura.performance.PerformedPart.from_note_array(note_array)
+        ppart = pt.performance.PerformedPart.from_note_array(note_array)
 
-        partitura.save_performance_midi(ppart, out_fn)
+        pt.save_performance_midi(ppart, out_fn)
 
 
 class AccompanimentScore(Score):
@@ -501,7 +502,7 @@ def part_to_score(
         part = load_score(fn_spart_or_ppart)
     elif isinstance(fn_spart_or_ppart, (Part, PerformedPart)):
         part = fn_spart_or_ppart
-    elif isinstance(fn_spart_or_ppart, partitura.score.Score):
+    elif isinstance(fn_spart_or_ppart, pt.score.Score):
         if len(fn_spart_or_ppart.parts) != 1:
             warnings.warn("More than one part in the input score. Using the first one.")
         part = fn_spart_or_ppart.parts[0]
