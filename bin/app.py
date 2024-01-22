@@ -144,9 +144,8 @@ if __name__ == "__main__":
             if os.path.join(file_dir, "primo.musicxml") not in glob.glob(
                 os.path.join(file_dir, "*.musicxml")
             ):
-                import partitura
-
-                score = partitura.load_score(
+                import partitura as pt
+                score = pt.load_score(
                     (
                         glob.glob(os.path.join(file_dir, "*.musicxml"))
                         + glob.glob(os.path.join(file_dir, "*.mxl"))
@@ -174,11 +173,11 @@ if __name__ == "__main__":
 
                 elif len(score.parts) == 2:
                     primo_part = score.parts[0]
-                    partitura.save_musicxml(
+                    pt.save_musicxml(
                         primo_part, os.path.join(file_dir, "primo.musicxml")
                     )
                     secondo_part = score.parts[1]
-                    partitura.save_musicxml(
+                    pt.save_musicxml(
                         secondo_part, os.path.join(file_dir, "secondo.musicxml")
                     )
                 else:
@@ -492,9 +491,8 @@ if __name__ == "__main__":
 #                 )
 #                 # If only one piece is available load and separate to parts
 #                 if os.path.join(file_dir, "primo.musicxml") not in glob.glob(os.path.join(file_dir, "*.musicxml")):
-#                     import partitura
-#
-#                     score = partitura.load_score(
+#                     import partitura as pt#
+#                     score pt.load_score(
 #                         (glob.glob(os.path.join(file_dir, "*.musicxml")) + glob.glob(os.path.join(file_dir, "*.mxl")))[
 #                             0])
 #                     if len(score.parts) == 1:

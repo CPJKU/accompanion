@@ -3,14 +3,20 @@ import copy
 import threading
 import time
 
+from typing import Union, List, Optional
+
 import numpy as np
 
 from accompanion.config import CONFIG
+from accompanion.accompanist.score import Note, Score, AccompanimentScore
+from accompanion.midi_handler.ceus_mediator import CeusMediator
+
+from mido.backends.rtmidi import Output, Input
 
 
 class MidiInputPlayer(threading.Thread):
     # TODO: del, never init?
-    def __init__(self, in_port, out_port, chords):
+    def __init__(self, in_port: Input, out_port: Output, chords):
         threading.Thread.__init__(self)
 
         self.chords = chords
@@ -51,11 +57,19 @@ class ScoreSequencer(threading.Thread):
         The Mediator for filtering MIDI Messages (for the Bösendorfer CEUS).
     """
 
+    notes: List[Note]
+    play: bool
+    mediator: Optional[CeusMediator]
+    init_time: Optional[float]
+    performed_score_onsets: List[float]
+    end_of_piece: bool
+    last_performed_note: Optional[Note]
+
     def __init__(
         self,
-        score_or_notes,
-        outport=None,
-        mediator=None,
+        score_or_notes: Union[Score, AccompanimentScore, List[Note]],
+        outport: Optional[Output]=None,
+        mediator:Optional[CeusMediator]=None,
     ):
 
         threading.Thread.__init__(self)
@@ -73,11 +87,11 @@ class ScoreSequencer(threading.Thread):
         self.init_time = None
         # initialize performed score onsets
         self.performed_score_onsets = [-np.inf]
-        self.curr_frame = np.zeros(CONFIG["MIDI_KEYS"], dtype=np.uint8)
         self.end_of_piece = False
         self.last_performed_note = None
+        self.new_performed_onset: bool = False
 
-    def _next_notes(self, t):
+    def _next_notes(self, t: float) -> List[Note]:
         """
         List of the next notes to be played at any given time
 
@@ -95,21 +109,21 @@ class ScoreSequencer(threading.Thread):
             print("it happens here")
             print(e)
 
-    def panic_button(self):
+    def panic_button(self) -> None:
         """
         Stop playing and send note off messages for all
         MIDI pitches
         """
         # better use Mido's built-in panic button...
         try:
-            print("Trying to note off all notes.")
+            print("Trying to silence all notes.")
             self.outport.panic()
             self.outport.reset()
 
         except AttributeError:
             pass
 
-    def run(self):
+    def run(self) -> None:
         """
         Send the MIDI notes in the score through the output port in real time
         """
@@ -123,7 +137,6 @@ class ScoreSequencer(threading.Thread):
         # set playing to true
         self.play = True
 
-        self.curr_frame = np.zeros(CONFIG["MIDI_KEYS"], dtype=np.uint8)
         next_notes = self.notes
 
         while self.play:
@@ -144,12 +157,12 @@ class ScoreSequencer(threading.Thread):
                     self.outport.send(n_off.note_off)
                     # Remove note from sounding notes dict
                     del sounding_notes[n_off.pitch]
-                    self.curr_frame[n_off.pitch - 21] = 0
 
             # If there are notes to send
             for n_on in next_notes:
                 # Send note on messages is the note has not been
                 # performed already
+                self.new_performed_onset = False
                 if c_time >= n_on.p_onset and not n_on.already_performed:
 
                     if n_on.pitch in sounding_notes:
@@ -160,13 +173,13 @@ class ScoreSequencer(threading.Thread):
                     else:
                         # add note to the list
                         sounding_notes[n_on.pitch] = n_on
-                        self.curr_frame[n_on.pitch - 21] = n_on.velocity
 
                     # send note on
                     self.outport.send(n_on.note_on)
                     self.last_performed_note = n_on
                     if n_on.onset not in self.performed_score_onsets:
                         self.performed_score_onsets.append(n_on.onset)
+                        self.new_performed_onset = True
                     # set note to already performed
                     n_on.already_performed = True
 
@@ -187,13 +200,8 @@ class ScoreSequencer(threading.Thread):
                 self.play = False
                 self.panic_button()
 
-    def get_midi_frame(self):
-        """
-        Get current MIDI frame (for the visualization)
-        """
-        return self.curr_frame
 
-    def stop_playing(self):
+    def stop_playing(self) -> None:
         """
         Stop playing
         """

@@ -1,4 +1,4 @@
-import partitura
+import partitura as pt
 from misc.partitura_utils import partitura_to_framed_midi_custom
 
 if __name__ == "__main__":
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     acc_score = None
     # Also, load the ground truth performance of the accompaniment
     accompaniment_match = ""
-    accompaniment_ppart, accompaniment_alignment = partitura.load_match(
+    accompaniment_ppart, accompaniment_alignment = pt.load_match(
         accompaniment_match_fn, first_note_at_zero=True
     )
     # create score follower

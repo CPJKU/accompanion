@@ -38,10 +38,11 @@ class OnlinePerformanceCodec(object):
         The initial equalized onset.
     mechanical_delay : float (optional)
         The mechanical delay of the accompaniment (to be used with a mechanical piano).
-        This refers to the delay of the message arriving to the piano and the mechanical
-        piano actually producing the sound.
+        This refers to the delay of the message arriving to the piano and the 
+        mechanical piano actually producing the sound.
     tempo_model : SyncModel (optional)
-        The tempo model to be used from available models in accompanist tempo_models.py
+        The tempo model to be used from available models in accompanist 
+        tempo_models.py
     vel_prev : int (optional)
         The previous velocity.
     articulation_prev : float (optional)
@@ -83,6 +84,10 @@ class OnlinePerformanceCodec(object):
         self.kwargs: dict = kwargs
 
     def encode_step(self) -> Tuple[float, float]:
+        """
+        Encode the performance of the soloist into expressive
+        parameters
+        """
         try:
             self.vel_prev = moving_average_online(
                 np.max(self.note_tracker.velocities[-1]),
@@ -142,6 +147,48 @@ class OnlinePerformanceCodec(object):
         Union[np.ndarray, int],
         float,
     ]:
+        """
+        Decode the accompaniment part (in terms of performed onsets, durations)
+        and MIDI velocity
+
+        Parameters
+        ----------
+        ioi: float
+            Score inter-onset interval for the next onset (in beats)
+        dur: Union[np.ndarray, float]
+            Duration of the notes (in beats)
+        vt: Union[np.ndarray, float]
+            Trend in MIDI velocity
+        vd: Union[np.ndarray, float]
+            Deviations in MIDI velocity from the Trend
+        lbpr: Union[np.ndarray, float]
+            Logarithm of the beat period ratio (ratio of local beat period to average
+            beat period)
+        tim: Union[np.ndarray, float]
+            Micro-timing deviations for the notes
+        lart: Union[np.ndarray, float]
+            Logarithm of the articulation ratio
+        bp_ave: float
+            Average beat period
+        vel_a: float
+            Average MIDI velocity
+        art_a: float
+            Average articulation ratio
+        prev_eq_onset: Optional[float]
+            Previous equivalent onset time (in seconds).
+
+        Returns
+        -------
+        perf_onset: np.ndarray or float
+            Performed onset time of the notes in seconds
+        perf_duration: np.ndarray or float
+            Performed duration of the notes in seconds
+        perf_vel: np.ndarray or int
+            Performed MIDI velocities of the notes
+        eq_onset: float
+            Equivalent onset time (the average value of the onset of all notes
+            in a chord).
+        """
         self.bp_ave = bp_ave
         self.velocity_ave = vel_a
         # Compute equivalent onsets
@@ -152,7 +199,11 @@ class OnlinePerformanceCodec(object):
 
         # Compute performed duration for each note
         perf_duration = self.decode_duration(
-            dur=dur, lart=lart, lbpr=lbpr, art_a=art_a, bp_ave=self.bp_ave
+            dur=dur,
+            lart=lart,
+            lbpr=lbpr,
+            art_a=art_a,
+            bp_ave=self.bp_ave,
         )
 
         # Compute velocity for each note
@@ -165,7 +216,24 @@ class OnlinePerformanceCodec(object):
         vt: Union[np.ndarray, float],
         vd: Union[np.ndarray, float],
         vel_ave: float,
-    ) -> np.ndarray:
+    ) -> Union[np.ndarray, int]:
+        """
+        Decode MIDI velocity
+
+        Parameters
+        ----------
+        vt: Union[np.ndarray, float]
+            Trend in MIDI velocity
+        vd: Union[np.ndarray, float]
+            Deviations in MIDI velocity from the Trend
+        vel_a: float
+            Average MIDI velocity
+
+        Return
+        ------
+        perf_vel: np.ndarray or int
+            Performed MIDI velocities of the notes
+        """
         # Add options for normalization
         perf_vel = np.clip(vt * vel_ave - vd, self.vel_min, self.vel_max).astype(int)
         return perf_vel
@@ -177,7 +245,29 @@ class OnlinePerformanceCodec(object):
         lbpr: Union[np.ndarray, float],
         art_a: float,
         bp_ave: float,
-    ) -> np.ndarray:
+    ) -> Union[np.ndarray, float]:
+        """
+        Decode performed duration
+
+        Parameters
+        ----------
+        dur: Union[np.ndarray, float]
+            Duration of the notes (in beats)
+        lart: Union[np.ndarray, float]
+            Logarithm of the articulation ratio
+        lbpr: Union[np.ndarray, float]
+            Logarithm of the beat period ratio (ratio of local beat period to average
+            beat period)
+        art_a: float
+            Average articulation ratio
+        bp_ave: float
+            Average beat period
+
+        Returns
+        -------
+        perf_duration: np.ndarray or float
+            Performed duration of the notes in seconds
+        """
         # TODO: check expected articulation in solo (legato, staccato),
         # and only use it if it is the "same" as notated in the
         # accompaniment score
@@ -253,7 +343,7 @@ class Accompanist(object):
         """
         Update the performance of the accompaniment part given the latest
         information from the solo performance. This method does not
-        return the parameters of the performance, but updates the 
+        return the parameters of the performance, but updates the
         notes in the accompaniment score sequencer directly.
 
         Parameters
@@ -346,10 +436,53 @@ def moving_average_online(
     param_old: Union[np.ndarray, float],
     alpha: float = 0.5,
 ) -> Union[np.ndarray, float]:
-    return alpha * param_old + (1 - alpha) * param_new
+    """
+    Step of the online computation of the moving average (MA) value of
+    a time series
+
+    Parameters
+    ----------
+    param_new: Union[np.ndarray, float]
+        New observation
+    param_old: Union[np.ndarray, float]
+        Previous estimate of the moving average
+    alpha: float
+        Smoothing factor (must be between 0 and 1).
+        A value closer to 1 changes the MA value very slowly, while a
+        value closer to 0 "forgets" the previous estimate and
+        takes always the most recent value.
+
+    Returns
+    -------
+    ma: Union[np.ndarray, float]
+        New estimate of the moving average.
+    """
+    ma = alpha * param_old + (1 - alpha) * param_new
+    return ma
 
 
-def moving_average_offline(parameter: np.ndarray, alpha: float = 0.5) -> np.ndarray:
+def moving_average_offline(
+    parameter: np.ndarray,
+    alpha: float = 0.5,
+) -> np.ndarray:
+    """
+    Smooth a curve by taking its moving average.
+
+    Parameters
+    ----------
+    parameter: np.ndarray
+        The input 1D time series.
+    alpha: float
+        Smoothing factor (must be between 0 and 1).
+        A value closer to 1 changes the MA value very slowly, while a
+        value closer to 0 "forgets" the previous estimate and
+        takes always the most recent value.
+
+    Returns
+    -------
+    ma: Union[np.ndarray, float]
+        The smoothed curve.
+    """
     ma = np.zeros_like(parameter)
     ma[0] = parameter[0]
 

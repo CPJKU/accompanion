@@ -9,7 +9,7 @@ from os import PathLike
 from typing import Optional
 
 import numpy as np
-import partitura
+import partitura as pt
 from basismixer.performance_codec import get_performance_codec
 from basismixer.utils.music import notewise_to_onsetwise, onsetwise_to_notewise
 from scipy.interpolate import interp1d
@@ -113,7 +113,6 @@ class HMMACCompanion(ACCompanion):
         record_midi: Optional[str] = None,
         accompanist_decoder_kwargs: Optional[dict] = None,
     ) -> None:
-
         score_kwargs = dict(
             solo_fn=solo_fn,
             acc_fn=acc_fn,
@@ -154,19 +153,19 @@ class HMMACCompanion(ACCompanion):
 
         self.tempo_model = tempo_model_type(**self.tempo_model_kwargs)
 
-        solo_spart = partitura.load_score(self.score_kwargs["solo_fn"])
+        solo_spart = pt.load_score(self.score_kwargs["solo_fn"])
 
-        if isinstance(solo_spart, (list, partitura.score.Score)):
+        if isinstance(solo_spart, (list, pt.score.Score)):
             solo_spart = solo_spart[0]
-        elif isinstance(solo_spart, partitura.score.PartGroup):
+        elif isinstance(solo_spart, pt.score.PartGroup):
             solo_spart = solo_spart.children[0]
 
         if self.score_kwargs["accompaniment_match"] is None:
-            acc_spart = partitura.load_score(self.score_kwargs["acc_fn"])[0]
+            acc_spart = pt.load_score(self.score_kwargs["acc_fn"])[0]
 
-            if isinstance(acc_spart, (list, partitura.score.Score)):
+            if isinstance(acc_spart, (list, pt.score.Score)):
                 acc_spart = acc_spart[0]
-            elif isinstance(acc_spart, partitura.score.PartGroup):
+            elif isinstance(acc_spart, pt.score.PartGroup):
                 acc_spart = acc_spart.children[0]
             acc_notes = list(part_to_score(acc_spart, bpm=self.init_bpm).notes)
             velocity_trend = None
@@ -176,7 +175,7 @@ class HMMACCompanion(ACCompanion):
             log_bpr = None
 
         else:
-            acc_perf, acc_alignment, acc_score = partitura.load_match(
+            acc_perf, acc_alignment, acc_score = pt.load_match(
                 filename=self.score_kwargs["accompaniment_match"],
                 first_note_at_zero=True,
                 create_score=True,

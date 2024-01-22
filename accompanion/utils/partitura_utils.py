@@ -11,7 +11,7 @@ from typing import Callable, Dict, List, Tuple, Union
 
 import mido
 import numpy as np
-import partitura
+import partitura as pt
 from basismixer.performance_codec import get_performance_codec
 from basismixer.utils import get_unique_onset_idxs, notewise_to_onsetwise
 from partitura import load_performance, load_score
@@ -84,8 +84,8 @@ def get_time_maps_from_alignment(
     ppart_or_note_array, spart_or_note_array, alignment, remove_ornaments=True
 ):
 
-    perf_note_array = partitura.utils.ensure_notearray(ppart_or_note_array)
-    score_note_array = partitura.utils.ensure_notearray(spart_or_note_array)
+    perf_note_array = pt.utils.ensure_notearray(ppart_or_note_array)
+    score_note_array = pt.utils.ensure_notearray(spart_or_note_array)
 
     match_idx = get_matched_notes(score_note_array, perf_note_array, alignment)
 
@@ -179,7 +179,7 @@ def partitura_to_framed_midi_custom(
     # Allow for loading all valid representations in partitura
     if isinstance(
         part_or_notearray_or_filename,
-        (partitura.score.Part, partitura.performance.PerformedPart),
+        (pt.score.Part, pt.performance.PerformedPart),
     ):
         reference = part_or_notearray_or_filename
     elif isinstance(part_or_notearray_or_filename, np.ndarray):
@@ -194,9 +194,9 @@ def partitura_to_framed_midi_custom(
         else:
             reference = load_score(part_or_notearray_or_filename)
     # Use this for now to compute Piano rolls for references.
-    ref_notearray = partitura.utils.ensure_notearray(reference)
+    ref_notearray = pt.utils.ensure_notearray(reference)
 
-    onset_u, duration_u = partitura.utils.get_time_units_from_note_array(ref_notearray)
+    onset_u, duration_u = pt.utils.get_time_units_from_note_array(ref_notearray)
     min_ref_time = ref_notearray[onset_u].min()
     max_ref_time = (ref_notearray[onset_u] + ref_notearray[duration_u]).max()
     if is_performance:
@@ -255,7 +255,7 @@ def partitura_to_framed_midi_custom(
         onsets[frame].append(pitch - 21)
 
     # TODO: Add controls messages for performed parts
-    if isinstance(reference, partitura.performance.PerformedPart):
+    if isinstance(reference, pt.performance.PerformedPart):
         # for ctrl in reference.controls:
         #     # Do something
         pass
@@ -338,7 +338,7 @@ def match2tempo(match_path):
         score onsets and corresponding tempo curve stacked as columns
     """
 
-    ppart, alignment, part = partitura.load_match(match_path, create_part=True)
+    ppart, alignment, part = pt.load_match(match_path, create_part=True)
     all_targets = list(set(["beat_period"]))
     perf_codec = get_performance_codec(all_targets)
     ppart.sustain_pedal_threshold = 128
@@ -569,8 +569,8 @@ if __name__ == "__main__":
 
     fn = "../demo_data/twinkle_twinkle_little_star_score.musicxml"
 
-    spart = partitura.load_musicxml(fn)
+    spart = pt.load_musicxml(fn)
 
     ppart = performance_from_part(spart)
 
-    partitura.save_performance_midi(ppart, "../demo_data/test_pfp.mid")
+    pt.save_performance_midi(ppart, "../demo_data/test_pfp.mid")
