@@ -651,6 +651,7 @@ def class_init_configurations_via_gui(
 
     main_window = PySimpleGUI.Window("")
 
+
     while True:
         config_tree = configuration_tree(underlying_dict, hook_system["configuration"])
 
@@ -681,10 +682,14 @@ def class_init_configurations_via_gui(
         main_layout = [[header]] + main_layout
 
         dispose_window = main_window
-        main_window = PySimpleGUI.Window(window_title, main_layout)
+        main_window = PySimpleGUI.Window(window_title, main_layout, finalize=True)
+        # Center the window
+        screen_width, screen_height = PySimpleGUI.Window.get_screen_size()
+        window_width, window_height = main_window.size
+        main_window.move((screen_width - window_width) // 2, (screen_height - window_height) // 2)
+        # Maximize the window
+        main_window.maximize()
 
-        # print('finalize window')
-        main_window.finalize()
         # print('dispose of window')
         dispose_window.close()
         # print('done')
@@ -764,7 +769,14 @@ def accompanion_configurations_and_version_via_gui():
     for csf in _currently_supported_versions.keys():
         version_layout.append([PySimpleGUI.Button(csf)])
 
-    init_window = PySimpleGUI.Window("ACCompanion version", version_layout)
+
+    init_window = PySimpleGUI.Window("ACCompanion version", version_layout, finalize=True)
+
+
+    # Center the window
+    screen_width, screen_height = PySimpleGUI.Window.get_screen_size()
+    window_width, window_height = init_window.size
+    init_window.move((screen_width - window_width) // 2, (screen_height - window_height) // 2)
 
     event, values = init_window.read()
 
