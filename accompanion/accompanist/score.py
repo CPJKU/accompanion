@@ -87,7 +87,7 @@ class Note(object):
 
         self._note_off = Message(
             type="note_off",
-            velocity=0,  # self.velocity,
+            velocity=self.velocity,
             note=self.pitch,
             time=self.p_offset,
             channel=channel,

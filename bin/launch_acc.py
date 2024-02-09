@@ -98,6 +98,7 @@ if __name__ == "__main__":
             "grieg_morning_mood",
             "grieg_ases_tod",
             "grieg_mountain_king",
+            "test",
         ]:
             # args.follower = "oltw"
             file_dir = os.path.join(
