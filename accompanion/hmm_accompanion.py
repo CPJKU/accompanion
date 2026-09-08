@@ -14,6 +14,17 @@ from basismixer.performance_codec import get_performance_codec
 from basismixer.utils.music import notewise_to_onsetwise, onsetwise_to_notewise
 from scipy.interpolate import interp1d
 
+from hiddenmarkov import ConstantTransitionModel
+from matchmaker.features.midi import PitchProcessor
+from matchmaker.prob.hmm import (
+    ACCPitchIOIObservationModel,
+    BaseHMM,
+    compute_discrete_pitch_profiles,
+    compute_ioi_matrix,
+    gumbel_init_dist,
+    gumbel_transition_matrix,
+)
+
 from accompanion.accompanist import tempo_models
 from accompanion.accompanist.accompaniment_decoder import moving_average_offline
 from accompanion.accompanist.score import (
@@ -21,12 +32,10 @@ from accompanion.accompanist.score import (
     alignment_to_score,
     part_to_score,
 )
+from accompanion.accompanist.tempo_models import KalmanTempoSyncModel
 from accompanion.base import ACCompanion
 from accompanion.config import CONFIG
 from accompanion.midi_handler.midi_input import POLLING_PERIOD
-from accompanion.mtchmkr import score_hmm
-from accompanion.mtchmkr.features_midi import PitchIOIProcessor
-from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 from accompanion.score_follower.trackers import HMMScoreFollower
 
 
@@ -242,6 +251,11 @@ class HMMACCompanion(ACCompanion):
             log_articulation = bm_params["articulation_log"] * lart_scale
             log_bpr = None
 
+        # Kept for the followers that are built from the partitura part
+        # itself rather than from the ACCompanion `Score` (see
+        # `MatchmakerACCompanion`).
+        self.solo_spart = solo_spart
+
         self.solo_score = part_to_score(solo_spart, bpm=60 / self.init_bp, velocity=64)
 
         self.acc_score = AccompanimentScore(
@@ -259,6 +273,9 @@ class HMMACCompanion(ACCompanion):
         Setup the score follower object.
 
         This method initializes arguments used in the accompanion Base Class.
+        The score follower itself, its observation model and the pre-computed
+        pitch profiles, IOI matrix and transition matrices all come from
+        Matchmaker (`matchmaker.prob.hmm`).
         """
 
         # TODO store all parameters in a separate script or yaml file.
@@ -267,7 +284,7 @@ class HMMACCompanion(ACCompanion):
         piano_range = False
         inserted_states = True
         ioi_precision = 2
-        pipeline_kwargs = self.score_follower_kwargs.pop("input_processor")
+        self.score_follower_kwargs.pop("input_processor")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
 
         try:
@@ -278,12 +295,12 @@ class HMMACCompanion(ACCompanion):
             score_follower_kwargs = {}
 
         chord_pitches = [chord.pitch for chord in self.solo_score.chords]
-        pitch_profiles = score_hmm.compute_pitch_profiles(
-            chord_pitches,
+        pitch_profiles = compute_discrete_pitch_profiles(
+            chord_pitches=chord_pitches,
             piano_range=piano_range,
             inserted_states=inserted_states,
         )
-        ioi_matrix = score_hmm.compute_ioi_matrix(
+        ioi_matrix = compute_ioi_matrix(
             unique_onsets=self.solo_score.unique_onsets,
             inserted_states=inserted_states,
         )
@@ -296,40 +313,54 @@ class HMMACCompanion(ACCompanion):
         # The value scale=0.5 was chosen empirically during tests back in 2019.
         # In this particular case, it is similar to a standard deviation of 0.5 beats the transition is centered
         # on the next score onset with a "standard deviation" of 0.5 beats
-        transition_matrix = score_hmm.gumbel_transition_matrix(
+        transition_matrix = gumbel_transition_matrix(
             n_states=n_states,
             inserted_states=inserted_states,
             scale=CONFIG["gumbel_transition_matrix_scale"],
         )
-        initial_probabilities = score_hmm.gumbel_init_dist(n_states=n_states)
+        initial_probabilities = gumbel_init_dist(n_states=n_states)
 
         if score_follower_type == "PitchIOIHMM":
-            score_follower = score_hmm.PitchIOIHMM(
-                transition_matrix=transition_matrix,
-                pitch_profiles=pitch_profiles,
-                ioi_matrix=ioi_matrix,
-                score_onsets=state_space,
-                tempo_model=self.tempo_model,
-                ioi_precision=ioi_precision,
-                initial_probabilities=initial_probabilities,
-                **score_follower_kwargs,
-            )
+            # The tempo model is the one shared with the accompanist, and the
+            # score follower only reads the current beat period from it.
+            tempo_model = self.tempo_model
+            update_tempo_model = False
         elif score_follower_type == "PitchIOIKHMM":
-            score_follower = score_hmm.PitchIOIKHMM(
-                transition_matrix=transition_matrix,
-                pitch_profiles=pitch_profiles,
-                ioi_matrix=ioi_matrix,
-                score_onsets=state_space,
+            # The score follower keeps its own Kalman filter tempo model, which
+            # it updates on every score onset.
+            tempo_model = KalmanTempoSyncModel(
                 init_beat_period=self.init_bp,
-                ioi_precision=ioi_precision,
-                initial_probabilities=initial_probabilities,
-                **score_follower_kwargs,
+                init_score_onset=state_space[0],
             )
-
+            update_tempo_model = True
         else:
             raise ValueError(f"{score_follower_type} is not a valid score HMM")
-        self.score_follower = HMMScoreFollower(score_follower)
-        self.input_pipeline = SequentialOutputProcessor([PitchIOIProcessor()])
+
+        score_follower = BaseHMM(
+            observation_model=ACCPitchIOIObservationModel(
+                pitch_profiles=pitch_profiles,
+                ioi_matrix=ioi_matrix,
+                ioi_precision=ioi_precision,
+                piano_range=piano_range,
+            ),
+            transition_model=ConstantTransitionModel(
+                transition_probabilities=transition_matrix,
+                init_probabilities=initial_probabilities,
+            ),
+            score_positions=state_space,
+            tempo_model=tempo_model,
+            has_insertions=inserted_states,
+            **score_follower_kwargs,
+        )
+
+        self.score_follower = HMMScoreFollower(
+            score_follower,
+            update_tempo_model=update_tempo_model,
+        )
+        self.input_pipeline = PitchProcessor(
+            piano_range=piano_range,
+            return_pitch_list=True,
+        )
 
     def check_empty_frames(self, frame):
         """

@@ -55,8 +55,8 @@ class ACCompanion(ACC_PARENT):
         Tempo model object for the accompaniment part.
     performance_codec: OnlinePerformanceCodec
         Performance codec object for the accompaniment part.
-    input_pipeline: SequentialOutputProcessor
-        Input pipeline object for the accompaniment part.
+    input_pipeline: matchmaker.features.processor.Processor
+        Feature processor applied to the incoming MIDI frames.
     midi_router: MidiRouter
         Midi router object for handling MIDI messages.
     midi_fn: str (optional)
@@ -139,6 +139,9 @@ class ACCompanion(ACC_PARENT):
         # follower with expected position at the current tempo.
         self.afr: float = np.round(1 / self.polling_period * self.adjust_following_rate)
         self.input_pipeline = None
+        # Set by `setup_score_follower` for followers that align note by note
+        # and cannot take a frame holding a chord.
+        self.event_based_input: bool = False
         self.seq = None
         self.note_tracker = None
         self.pipe_out = None
@@ -248,7 +251,7 @@ class ACCompanion(ACC_PARENT):
 
         self.pipe_out, self.queue, self.midi_input_process = create_midi_poll(
             port=self.router.solo_input_to_accompaniment_port,
-            polling_period=self.polling_period,
+            polling_period=None if self.event_based_input else self.polling_period,
             # velocities only for visualization purposes
             pipeline=self.input_pipeline,
             return_midi_messages=True,

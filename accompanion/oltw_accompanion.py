@@ -22,6 +22,9 @@ from partitura.performance import PerformedPart
 # from basismixer.utils.music import onsetwise_to_notewise, notewise_to_onsetwise
 from scipy.interpolate import interp1d
 
+from matchmaker.dp.oltw_arzt import OnlineTimeWarpingArztFrame
+from matchmaker.features.midi import PianoRollProcessor
+
 from accompanion.accompanist import tempo_models
 from accompanion.accompanist.accompaniment_decoder import moving_average_offline
 from accompanion.accompanist.score import (
@@ -31,14 +34,17 @@ from accompanion.accompanist.score import (
 )
 from accompanion.base import ACCompanion
 from accompanion.midi_handler.midi_input import POLLING_PERIOD
-from accompanion.mtchmkr.alignment_online_oltw import OnlineTimeWarping
-from accompanion.mtchmkr.features_midi import PianoRollProcessor
-from accompanion.mtchmkr.utils_generic import SequentialOutputProcessor
 from accompanion.score_follower.trackers import MultiDTWScoreFollower
 from accompanion.utils.partitura_utils import (
     partitura_to_framed_midi_custom as partitura_to_framed_midi,
 )
 from accompanion.utils.partitura_utils import performance_notearray_from_score_notearray
+
+# Default sizes of the on-line time warping search window, in frames. Matchmaker
+# expresses them in seconds, the conversion happens in `setup_score_follower`.
+WINDOW_SIZE = 100
+STEP_SIZE = 5
+START_WINDOW_SIZE = 60
 
 SCORE_FOLLOWER_DEFAULT_KWARGS = {
     "score_follower": "OnlineTimeWarping",
@@ -335,14 +341,24 @@ class OLTWACCompanion(ACCompanion):
         Setup the score follower object.
 
         This method initializes arguments used in the accompanion Base Class.
+        The on-line time warping itself comes from Matchmaker
+        (`matchmaker.dp.oltw_arzt.OnlineTimeWarpingArztFrame`).
         """
         input_pipeline_kwargs = self.score_follower_kwargs.pop("input_processor")
         input_processor_type = input_pipeline_kwargs.pop("processor")
         input_processor_kwargs = input_pipeline_kwargs.pop("processor_kwargs")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
-        pipeline = SequentialOutputProcessor([PianoRollProcessor(piano_range=True)])
+        pipeline = PianoRollProcessor(piano_range=True)
 
-        state_to_ref_time_maps = []
+        # The ACCompanion configs give the window sizes in frames, Matchmaker
+        # takes them in seconds.
+        frame_rate = 1 / self.polling_period
+        window_size = self.score_follower_kwargs.pop("window_size", WINDOW_SIZE)
+        step_size = self.score_follower_kwargs.pop("step_size", STEP_SIZE)
+        start_window_size = self.score_follower_kwargs.pop(
+            "start_window_size", START_WINDOW_SIZE
+        )
+
         ref_to_state_time_maps = []
         score_followers = []
 
@@ -358,30 +374,42 @@ class OLTWACCompanion(ACCompanion):
             else:
                 raise NotImplementedError
 
-            state_to_ref_time_maps.append(state_to_ref_time_map)
             ref_to_state_time_maps.append(ref_to_state_time_map)
-            ref_features = np.array(ref_frames).astype(float)
+            ref_features = np.array(ref_frames, dtype=np.float32)
+
+            # Score position (in beats) of each frame of the reference features,
+            # which is how the follower reports its position.
+            ref_frame_to_beat = state_to_ref_time_map(
+                np.arange(len(ref_features)) * self.polling_period
+            )
 
             # setup score follower
             if score_follower_type == "OnlineTimeWarping":
-                score_follower = OnlineTimeWarping(
+                score_follower = OnlineTimeWarpingArztFrame(
                     reference_features=ref_features,
+                    score_positions=self.solo_score.unique_onsets,
+                    window_size=window_size / frame_rate,
+                    step_size=step_size,
+                    start_window_size=start_window_size / frame_rate,
+                    frame_rate=frame_rate,
+                    ref_frame_to_beat=ref_frame_to_beat,
                     **self.score_follower_kwargs,
+                )
+            else:
+                raise NotImplementedError(
+                    f"Unknown score follower: {score_follower_type}"
                 )
 
             score_followers.append(score_follower)
 
         self.score_follower = MultiDTWScoreFollower(
             score_followers,
-            state_to_ref_time_maps,
             ref_to_state_time_maps,
             self.polling_period,
         )
 
         if input_processor_type == "PianoRollProcessor":
-            self.input_pipeline = SequentialOutputProcessor(
-                [PianoRollProcessor(**input_processor_kwargs)]
-            )
+            self.input_pipeline = PianoRollProcessor(**input_processor_kwargs)
         else:
             raise NotImplementedError(f"Unknown input pipeline: {input_processor_type}")
 
@@ -391,13 +419,15 @@ class OLTWACCompanion(ACCompanion):
 
         Parameters
         ----------
-        frame : np.ndarray
-            The frame to check.
+        frame : tuple or None
+            The output of the input pipeline, i.e. a (features, performance
+            time) tuple, or None.
         Returns
         -------
         bool
         """
-        if sum(frame) > 0:
-            return False
-        else:
+        if frame is None:
             return True
+
+        features, _ = frame
+        return not features.any()

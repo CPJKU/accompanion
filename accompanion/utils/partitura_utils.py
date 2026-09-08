@@ -48,8 +48,9 @@ def midi_messages_to_framed_midi(midi_msgs, msg_times, polling_period, pipeline)
         List of times (in seconds) at which the MIDI messages were received
     polling_period:
         Polling period (in seconds) used to convert the MIDI messages
-    pipeline: function
-        Function to be applied to the MIDI messages before converting them to a MIDI frame.
+    pipeline: matchmaker.features.processor.Processor
+        Processor to be applied to the MIDI messages before converting them to a
+        MIDI frame.
 
     Returns
     -------
@@ -76,6 +77,9 @@ def midi_messages_to_framed_midi(midi_msgs, msg_times, polling_period, pipeline)
         output = pipeline(
             (list(zip(midi_msgs[idxs], msg_times[idxs])), frame_times[cursor])
         )
+        if isinstance(output, tuple):
+            # Matchmaker processors return a (features, performance time) tuple
+            output = output[0]
         frames.append(output)
     return frames
 

@@ -19,42 +19,75 @@ The ACCompanion is an expressive accompaniment system. Similarly to a musician w
 ## Setup
 
 ### Prerequisites
-To set up the ACCompanion you need a couple of dependencies ([Miniconda](https://docs.conda.io/en/latest/miniconda.html#installing) and [Git](https://git-scm.com/downloads)).
 
-Check if `git` is installed by typing in your terminal:
-```shell
-git --version
-```
-If you get an error please install `git` by following the instructions [here](https://git-scm.com/downloads) according to your OS.
-
-Check if `conda` is installed by typing in your terminal:
-
-```shell
-git --version
-```
-If you get an error please install `git` by following the instructions [here]([https://git-scm.com/downloads](https://docs.conda.io/en/latest/miniconda.html#installing)) according to your OS.
-
+* [Miniforge](https://github.com/conda-forge/miniforge) or another conda
+  distribution. Check with `conda --version`.
+* [Git](https://git-scm.com/downloads). Check with `git --version`.
+* A C compiler. The score following backend
+  ([matchmaker](https://github.com/pymatchmaker/matchmaker)) is installed from
+  source and builds Cython extensions.
+  * Linux: `sudo apt install build-essential`
+  * macOS: `xcode-select --install`
+  * Windows: the "Desktop development with C++" workload of the Visual Studio
+    Build Tools.
 
 ### Installation
 
-To install the ACCompanion copy the following steps in your terminal.
-
-Clone and install the accompanion environment:
-
 ```shell
 git clone https://github.com/CPJKU/accompanion.git
-cd ./accompanion
+cd accompanion
+git submodule update --init          # the accompanion_pieces submodule
 conda env create -f environment.yml
+conda activate accompanion
+pip install -e .
 ```
 
-Also, init the submodules if this step is not done automatically on cloning:
+`environment.yml` provides the interpreter and the handful of packages that
+need conda: the ones with a compiled or system component, and the ones whose
+version has to be held back. Everything else is declared in `setup.py` and
+installed by `pip install -e .`, including the two dependencies that come
+from git — [basismixer](https://github.com/OFAI/basismixer) and matchmaker.
+
+Expect the install to take a few minutes and about 2.5 GB, most of which is
+PyTorch and the math libraries it pulls in.
+
+### Checking the installation
+
 ```shell
-git submodule init
-git submodule update
+python ./bin/test_followers.py --list
+python ./bin/test_followers.py --piece bach_menuett
 ```
 
-After the download and install are complete:
+The first command lists the score followers your installation provides; the
+second runs all of them over a rendered performance and prints how closely each
+one tracked it. Neither needs MIDI hardware or audio. The first run of anything
+that imports partitura also downloads a ~35 MB soundfont over FTP, which some
+networks block; it is cached afterwards.
+
+### Why the versions are pinned
+
+These constraints are not obvious from the errors they produce when violated,
+so `environment.yml` pins them with a comment:
+
+| Pin | Reason |
+| --- | --- |
+| `python=3.11` | matchmaker supports 3.10 - 3.12. |
+| `numpy=1.26.*` | matchmaker requires NumPy 1.x. |
+| `scipy<1.15` | basismixer calls `scipy.misc.derivative`, removed in SciPy 1.15. |
+| `setuptools<81` | basismixer imports `pkg_resources`, removed in setuptools 81. |
+| `pytorch-cpu` | basismixer imports torch. Installing the CPU build from conda-forge keeps pip from pulling the much larger CUDA wheels. |
+
+matchmaker is currently installed from the `feature/clean_method_registration`
+branch; `setup.py` has a TODO to move to a release once it is merged.
+
+### Upgrading from an older ACCompanion
+
+Environments created before the move to matchmaker run Python 3.9, which
+matchmaker does not support. Recreate rather than update:
+
 ```shell
+conda env remove -n accompanion
+conda env create -f environment.yml
 conda activate accompanion
 pip install -e .
 ```
@@ -102,6 +135,55 @@ To Find out the arguments you can use with the ACCompanion, run the following co
 ```shell
 python ./bin/launch_acc.py --help
 ```
+
+### Score followers
+
+The ACCompanion follows the soloist with a score follower from
+[matchmaker](https://github.com/pymatchmaker/matchmaker). Which one is used is
+set by two config keys (or the equivalent command line flags): `follower`
+chooses the ACCompanion variant, `score_follower` the tracker itself.
+
+| `follower` | `score_follower` | |
+| --- | --- | --- |
+| `hmm` | `PitchIOIHMM`, `PitchIOIKHMM` | Hidden Markov models over pitch and inter-onset intervals. Best for a monophonic solo part. |
+| `oltw` | `OnlineTimeWarping` | On-line time warping against one or more reference performances. Best for dense, polyphonic parts. |
+| `matchmaker` | any matchmaker method | Every other score follower matchmaker provides. |
+
+The first two are wired up with the ACCompanion's own tuning, and are what the
+config files in `config_files/` use. The `matchmaker` variant instead builds
+whatever matchmaker's registry declares, so score followers added to matchmaker
+later are usable without any change here:
+
+```shell
+python ./bin/launch_acc.py --follower matchmaker --score-follower arzt \
+    --input Your_MIDI_Input --output Your_MIDI_Output
+```
+
+To list every score follower available in your installation:
+
+```shell
+python ./bin/test_followers.py --list
+```
+
+### Comparing score followers
+
+`bin/test_followers.py` runs a performance through the followers the same way
+the ACCompanion's main loop does, but offline: no MIDI hardware, no audio, no
+accompaniment. Use it to see which followers work on a piece and how closely
+they track it.
+
+```shell
+# every follower, on a performance rendered from the solo score itself
+python ./bin/test_followers.py --piece bach_menuett
+
+# a few followers, on a real MIDI performance
+python ./bin/test_followers.py --piece bach_menuett --followers hmm arzt OPTM \
+    --midi-fn path/to/performance.mid
+```
+
+The `mean err` and `max err` columns are the tracking error in beats, and are
+only meaningful for a rendered performance, where the true score position is
+known at every moment.
 
 ### MIDI Input and Output
 

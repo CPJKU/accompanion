@@ -216,6 +216,15 @@ if __name__ == "__main__":
                     "processor_kwargs": {"piano_range": True},
                 },
             }
+        elif args.follower == "matchmaker":
+            from accompanion.matchmaker_accompanion import (
+                MatchmakerACCompanion as ACCompanion,
+            )
+
+            configurations["score_follower_kwargs"] = {
+                "score_follower": "hmm",
+                "score_follower_kwargs": {},
+            }
         else:
             raise ValueError(
                 f"console argument 'follower' is of unknown value {args.follower}"
@@ -225,6 +234,10 @@ if __name__ == "__main__":
             from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
         elif configurations["follower"] == "oltw":
             from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
+        elif configurations["follower"] == "matchmaker":
+            from accompanion.matchmaker_accompanion import (
+                MatchmakerACCompanion as ACCompanion,
+            )
         else:
             raise ValueError(
                 f"configuration parameter 'follower' is of unknown value {configurations['follower']}"
