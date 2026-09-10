@@ -30,6 +30,13 @@ import numpy as np
 #: magnitude larger than this.
 ONSET_TOLERANCE = 1e-3
 
+#: Notes closer together than this are one attack: a rolled chord, or a pair of
+#: hands that do not quite agree. A note that follows a gap this long is a new
+#: attack, and during a wait that means the soloist has left the fermata --
+#: whereas the tail of the fermata's own chord, arriving a few frames after
+#: the wait began, does not.
+WAIT_SETTLE = 0.1
+
 #: Words that mark the start of a passage played out of time. Matched as
 #: substrings, case insensitively, against the text of every word and tempo
 #: direction in the score.
@@ -234,11 +241,23 @@ class FermataHold(object):
     onsets : iterable of float
         The waiting points, in score beats, as returned by `waiting_points`.
         An empty set makes every method a no-op.
+    solo_onsets : iterable of float
+        Every unique onset of the solo part, in beats. Only used to know how
+        far the onset that will end a wait is from the waiting point, which is
+        what `score_gap` reports.
     max_silence : float
         How long the soloist may be silent -- no key down, no note played --
         before a wait is taken for a breakdown rather than a held fermata.
         The accompaniment then resumes in tempo, which is what it would have
         done all along without this class.
+    max_lost : float
+        The other way a wait ends badly: the soloist plays on, but the score
+        follower never reports the onset they moved to, so nothing releases
+        the hold. This is how long the accompaniment goes on waiting after
+        hearing them attack a note that is not the fermata's own, before
+        giving the wait up as a lost position rather than a held note. It
+        needs only to cover the follower's own latency; without it, the
+        accompaniment can wait out the rest of the piece in silence.
     sustain_margin : float
         How far ahead of the clock the note-off of a held chord is kept, in
         seconds. Large enough that the chord cannot be cut between two input
@@ -252,13 +271,17 @@ class FermataHold(object):
         self,
         acc_notes: Iterable,
         onsets: Iterable[float] = (),
+        solo_onsets: Iterable[float] = (),
         max_silence: float = 5.0,
+        max_lost: float = 0.4,
         sustain_margin: float = 0.25,
         verbose: bool = True,
     ) -> None:
         self.notes = sorted(acc_notes, key=lambda note: note.onset)
         self.onsets = np.asarray(sorted(onsets), dtype=float)
+        self.solo_onsets = np.asarray(sorted(solo_onsets), dtype=float)
         self.max_silence = float(max_silence)
+        self.max_lost = float(max_lost)
         self.sustain_margin = float(sustain_margin)
         self.verbose = verbose
 
@@ -269,8 +292,12 @@ class FermataHold(object):
 
         self._held: List = []
         self._sustained: List[Tuple[object, float]] = []
+        self._score_gap: float = 0.0
         self._began_at: Optional[float] = None
         self._last_active: Optional[float] = None
+        self._playing_since: Optional[float] = None
+        self._last_attack: Optional[float] = None
+        self._gave_up: Optional[str] = None
 
     def __len__(self) -> int:
         return len(self.onsets)
@@ -279,6 +306,17 @@ class FermataHold(object):
     def waiting(self) -> bool:
         """Whether the accompaniment is currently stopped at a waiting point."""
         return self.onset is not None
+
+    @property
+    def score_gap(self) -> float:
+        """Beats from the current waiting point to the onset that will end it.
+
+        However long the wait turns out to last, this is the interval the
+        score writes between the fermata and what follows it -- the one a
+        score follower's timing model should be shown, in place of the wait
+        the clock actually measured.
+        """
+        return self._score_gap
 
     def waits_at(self, score_onset: float) -> bool:
         """Whether `score_onset` is a waiting point."""
@@ -313,8 +351,14 @@ class FermataHold(object):
             return False
 
         self.onset = float(score_onset)
+        later = self.solo_onsets[self.solo_onsets > self.onset + ONSET_TOLERANCE]
+        self._score_gap = float(later[0] - self.onset) if len(later) else 0.0
         self._began_at = perf_onset
         self._last_active = perf_onset
+        self._playing_since = None
+        # The fermata's own chord landed on this frame; anything that follows
+        # it closely enough is the rest of that chord.
+        self._last_attack = perf_onset
         self._held = []
         self._sustained = []
 
@@ -338,17 +382,33 @@ class FermataHold(object):
             )
         return True
 
-    def keep_waiting(self, perf_onset: float, soloist_playing: bool) -> bool:
+    def keep_waiting(
+        self,
+        perf_onset: float,
+        holding: bool,
+        new_notes: bool = False,
+    ) -> bool:
         """Sustain the held chord for another frame, and say whether to go on.
+
+        A wait is released from outside, by the soloist reaching the next
+        onset. The two things this decides are the ways that never happens:
+        the soloist stops playing altogether, or they play on and the score
+        follower does not find them. Both end the wait, and in both cases the
+        accompaniment resumes in tempo -- no worse off than an ACCompanion
+        that never waited at all.
 
         Parameters
         ----------
         perf_onset : float
             The time of this input frame, in seconds.
-        soloist_playing : bool
-            Whether the soloist is still audibly there -- holding a key down
-            or playing a new note. A wait ends by itself once they have been
-            silent for `max_silence`.
+        holding : bool
+            Whether the soloist still has a key down. This, and not the
+            elapsed time, is what says a fermata is still being held: a
+            fermata lasts as long as it lasts.
+        new_notes : bool
+            Whether a note started in this frame. After a fermata's own chord
+            has settled, a new note means the soloist has moved on, and the
+            wait is living on borrowed time.
 
         Returns
         -------
@@ -358,8 +418,16 @@ class FermataHold(object):
         if not self.waiting:
             return False
 
-        if soloist_playing:
+        if holding or new_notes:
             self._last_active = perf_onset
+        if new_notes:
+            if (
+                self._playing_since is None
+                and perf_onset - self._last_attack > WAIT_SETTLE
+            ):
+                # A fresh attack, not the tail of the chord the wait began on.
+                self._playing_since = perf_onset
+            self._last_attack = perf_onset
 
         sustain_until = perf_onset + self.sustain_margin
         for note, _ in self._sustained:
@@ -368,7 +436,16 @@ class FermataHold(object):
             if sustain_until > note.p_onset + note.p_duration:
                 note.p_duration = sustain_until - note.p_onset
 
-        return perf_onset - self._last_active <= self.max_silence
+        if perf_onset - self._last_active > self.max_silence:
+            self._gave_up = "silence"
+            return False
+        if (
+            self._playing_since is not None
+            and perf_onset - self._playing_since > self.max_lost
+        ):
+            self._gave_up = "lost"
+            return False
+        return True
 
     def resume(
         self,
@@ -399,10 +476,12 @@ class FermataHold(object):
         long the wait lasted, in seconds.
         """
         if self.verbose and self.waiting:
-            print(
-                f"no soloist for {self.max_silence:.1f}s at {self.onset}: "
-                "resuming in tempo"
+            reason = (
+                "the soloist has gone quiet"
+                if self._gave_up == "silence"
+                else "the soloist has moved on and the follower has not"
             )
+            print(f"giving up the wait at {self.onset}: {reason}")
         return self._release(perf_onset, self.onset, beat_period)
 
     def _release(
@@ -433,8 +512,12 @@ class FermataHold(object):
             print(f"waited {waited:.2f}s at {self.onset}, resuming at {resume_onset}")
 
         self.onset = None
+        self._score_gap = 0.0
         self._held = []
         self._sustained = []
         self._began_at = None
         self._last_active = None
+        self._playing_since = None
+        self._last_attack = None
+        self._gave_up = None
         return waited

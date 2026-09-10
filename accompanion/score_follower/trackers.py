@@ -41,6 +41,37 @@ class AccompanimentScoreFollower(object):
     def update_position(self, ref_time: float) -> None:
         pass
 
+    def discount_wait(self, perf_time: float, expected_ioi: float) -> None:
+        """Show a wait to the follower as the interval the score expects.
+
+        Called on every frame the accompaniment spends waiting at a fermata.
+        The gap a soloist opens there is not an inter-onset interval any tempo
+        can explain, and a follower whose observation model reads it as one
+        will place them wherever that much elapsed time would have taken them
+        -- which, after a three-second fermata, is most of a bar further on
+        than they actually are.
+
+        What the follower should see instead is the interval the score writes
+        between the fermata and the note after it: whenever the soloist gets
+        round to playing that note, the step they are making is the notated
+        one.
+
+        Parameters
+        ----------
+        perf_time : float
+            The time of this frame, in seconds.
+        expected_ioi : float
+            The notated interval to the onset that will end the wait, in
+            seconds at the current tempo.
+
+        Notes
+        -----
+        Does nothing by default: a follower that does not model timing has
+        nothing to correct, and one that measures its own inter-onset
+        intervals internally cannot be corrected from here.
+        """
+        pass
+
 
 class HMMScoreFollower(AccompanimentScoreFollower):
     """
@@ -74,6 +105,18 @@ class HMMScoreFollower(AccompanimentScoreFollower):
         self.update_tempo_model: bool = update_tempo_model
         self.current_position: float = 0
         self.prev_perf_time: Optional[float] = None
+
+    def discount_wait(self, perf_time: float, expected_ioi: float) -> None:
+        """Cap the interval the follower will be shown at the notated one.
+
+        `prev_perf_time` is only ever moved forward, so a wait longer than the
+        score asks for is trimmed back to it and a wait shorter than it is
+        left alone. The follower is never told that *more* time has passed
+        than really has -- which, at a fermata the soloist declines to hold,
+        would push it forward for nothing.
+        """
+        if self.prev_perf_time is not None:
+            self.prev_perf_time = max(self.prev_perf_time, perf_time - expected_ioi)
 
     def __call__(self, observation: ProcessorOutput) -> Optional[float]:
         if observation is None:

@@ -15,6 +15,11 @@ from accompanion.accompanist.accompaniment_decoder import (
     Accompanist,
     OnlinePerformanceCodec,
 )
+from accompanion.accompanist.fermata import (
+    FermataHold,
+    merge_sections,
+    waiting_points,
+)
 from accompanion.accompanist.score import AccompanimentScore, Score
 from accompanion.config import CONFIG
 from accompanion.midi_handler.ceus_mediator import CeusMediator
@@ -100,6 +105,12 @@ class ACCompanion(ACC_PARENT):
     test: bool = False
         switch to Dummy MIDI ROuter for test environment
     record_midi_path : str
+    fermata_kwargs: dict (optional)
+        How the accompaniment waits at fermatas and in free sections. See
+        `setup_fermata_hold` for the keys, and
+        `accompanion.accompanist.fermata` for what waiting means. Waiting is
+        on by default; ``{"enabled": False}`` counts through fermatas the way
+        the ACCompanion did before.
     """
 
     def __init__(
@@ -121,6 +132,7 @@ class ACCompanion(ACC_PARENT):
         test: bool = False,  # switch to Dummy MIDI ROuter for test environment
         record_midi: bool = False,
         accompanist_decoder_kwargs: Optional[dict] = None,
+        fermata_kwargs: Optional[dict] = None,
     ) -> None:
         super(ACCompanion, self).__init__()
 
@@ -175,6 +187,9 @@ class ACCompanion(ACC_PARENT):
         self.dummy_solo = None
         self.test = test
         self.onset_tracker_type = onset_tracker_type
+        self.fermata_kwargs: dict = fermata_kwargs or {}
+        # Built by `setup_following`, once the scores are known.
+        self.fermata_hold: Optional[FermataHold] = None
 
         print("expected_position_weight", self.expected_position_weight)
 
@@ -232,6 +247,81 @@ class ACCompanion(ACC_PARENT):
             tempo_model=self.tempo_model,
             first_onset=self.first_score_onset,
         )
+
+        self.fermata_hold = self.setup_fermata_hold()
+
+    def setup_fermata_hold(self) -> FermataHold:
+        """Work out where the accompaniment waits for the soloist.
+
+        The score is the first source: partitura reads both the fermatas and
+        the words that mark a passage as free, and `part_to_score` puts them
+        on the solo `Score`. `fermata_kwargs` adds to what the score says, for
+        an engraving that leaves a fermata out, or a free passage marked only
+        in the part the ACCompanion never sees.
+
+        Recognised keys, all optional:
+
+        ``enabled``
+            Whether to wait at all. Default True.
+        ``fermata_onsets``
+            Extra waiting points, in score beats.
+        ``free_sections``
+            Extra free spans, as ``[start, end]`` pairs in score beats. Every
+            solo onset in the span becomes a waiting point, so the passage is
+            taken one note at a time.
+        ``detect_free_sections``
+            Whether to read free sections off the words in the score, which is
+            a guess at what a marking such as *cadenza* covers. Default True.
+            The fermatas themselves are never guessed.
+        ``max_silence``, ``max_lost``, ``sustain_margin``, ``verbose``
+            Passed to `FermataHold`.
+        """
+        kwargs = dict(self.fermata_kwargs)
+        enabled = kwargs.pop("enabled", True)
+        extra_fermatas = kwargs.pop("fermata_onsets", None) or []
+        extra_sections = kwargs.pop("free_sections", None) or []
+        detect_free_sections = kwargs.pop("detect_free_sections", True)
+
+        fermata_onsets = np.r_[
+            np.asarray(self.solo_score.fermata_onsets, dtype=float),
+            np.asarray(extra_fermatas, dtype=float),
+        ]
+        free_sections = merge_sections(
+            (list(self.solo_score.free_sections) if detect_free_sections else [])
+            + [tuple(section) for section in extra_sections]
+        )
+
+        onsets = (
+            waiting_points(
+                solo_onsets=self.solo_score.unique_onsets,
+                fermata_onsets=fermata_onsets,
+                free_sections=free_sections,
+            )
+            if enabled
+            else []
+        )
+
+        hold = FermataHold(
+            acc_notes=self.acc_score.notes,
+            onsets=onsets,
+            solo_onsets=self.solo_score.unique_onsets,
+            **kwargs,
+        )
+
+        if len(hold):
+            listed = ", ".join(f"{onset:g}" for onset in hold.onsets[:12])
+            if len(hold) > 12:
+                listed += ", ..."
+            print(f"Waiting for the soloist at {len(hold)} onsets: {listed}")
+            for start, end in free_sections:
+                print(f"  free section: beats {start:g} to {end:g}")
+        elif enabled and (len(fermata_onsets) or free_sections):
+            print(
+                "This score's fermatas are all in places nothing can be "
+                "waited for: over a rest, or on the final chord"
+            )
+
+        return hold
 
     def setup_process(self):
         """
@@ -360,6 +450,11 @@ class ACCompanion(ACC_PARENT):
         offline harness (`bin/test_accompaniment.py`) drives exactly the code
         that plays live.
 
+        At a fermata, or anywhere inside a free section, score time stops
+        here: the frame is spent keeping the held chord sounding, and neither
+        the dead reckoning nor the accompaniment moves until the soloist
+        plays the next onset. See `accompanion.accompanist.fermata`.
+
         Parameters
         ----------
         input_midi_messages : list
@@ -405,7 +500,39 @@ class ACCompanion(ACC_PARENT):
             else self.polling_period
         )
         state.prev_solo_p_onset = solo_p_onset
-        state.expected_position = state.expected_position + pioi / self.beat_period
+
+        waiting = self.fermata_hold.waiting
+        if waiting and solo_s_onset is None:
+            # Still at the fermata. The soloist counts as present while a key
+            # is down or a note has just arrived; a wait that outlasts their
+            # silence is a breakdown rather than a held note.
+            if self.fermata_hold.keep_waiting(
+                perf_onset=solo_p_onset,
+                holding=bool(self.note_tracker.open_notes),
+                new_notes=new_midi_messages,
+            ):
+                # Hold the follower on the fermata too: the gap the soloist
+                # is opening up is not an inter-onset interval the score can
+                # explain, and a follower that reads it as one walks away from
+                # a soloist who has not moved at all.
+                self.score_follower.discount_wait(
+                    perf_time=solo_p_onset,
+                    expected_ioi=self.fermata_hold.score_gap * self.beat_period,
+                )
+                return start_sequencer
+            self.fermata_hold.give_up(solo_p_onset, self.beat_period)
+            waiting = False
+
+        if waiting:
+            # The soloist has moved on. Score time resumes here: the wait took
+            # no score time at all, so the dead reckoning is set down on the
+            # onset they played rather than being nudged towards it, and the
+            # tempo model is re-anchored instead of reading the wait as tempo.
+            self.fermata_hold.resume(solo_p_onset, solo_s_onset, self.beat_period)
+            self.tempo_model.resync(solo_p_onset, solo_s_onset)
+            state.expected_position = solo_s_onset
+        else:
+            state.expected_position = state.expected_position + pioi / self.beat_period
 
         if solo_s_onset is not None:
 
@@ -453,10 +580,16 @@ class ACCompanion(ACC_PARENT):
                 )
                 self.beat_period = self.accompanist.pc.bp_ave
                 state.acc_step_counter += 1
+
+            # A fermata, or a note inside a free section. The accompanist has
+            # just scheduled the whole rest of the piece from here at the
+            # tempo the soloist arrived with; everything past this onset is
+            # suspended again until they move on.
+            self.fermata_hold.begin(solo_s_onset, solo_p_onset)
         else:
             state.loops_without_update += 1
 
-        if state.loops_without_update % self.afr == 0:
+        if not self.fermata_hold.waiting and state.loops_without_update % self.afr == 0:
             # only allow forward updates
             if self.score_follower.current_position < state.expected_position:
                 self.score_follower.update_position(state.expected_position)

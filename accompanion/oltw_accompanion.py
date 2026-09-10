@@ -111,6 +111,9 @@ class OLTWACCompanion(ACCompanion):
         Whether to bypass the MIDI Router, by default False.
     record_midi : bool, optional
         Whether to record the MIDI, by default False.
+    fermata_kwargs : dict, optional
+        How the accompaniment waits at fermatas and in free sections. See
+        `accompanion.base.ACCompanion.setup_fermata_hold`.
     """
 
     def __init__(
@@ -141,6 +144,7 @@ class OLTWACCompanion(ACCompanion):
         accompanist_decoder_kwargs: Optional[
             Dict[str, Union[float, int, str, dict]]
         ] = None,
+        fermata_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         # Remember that strings are also iterables ;)
         score_kwargs = dict(
@@ -167,6 +171,7 @@ class OLTWACCompanion(ACCompanion):
             test=test,
             record_midi=record_midi,
             accompanist_decoder_kwargs=accompanist_decoder_kwargs,
+            fermata_kwargs=fermata_kwargs,
         )
 
         self.solo_parts: Optional[List] = None

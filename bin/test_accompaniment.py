@@ -40,11 +40,13 @@ from accompanion.base import FollowingState
 from accompanion.score_follower.onset_tracker import OnsetTracker
 
 
-def build(follower, solo_fn, acc_fn, polling_period, init_bpm, follower_kwargs=None):
+def build(follower, solo_fn, acc_fn, polling_period, init_bpm, follower_kwargs=None,
+          fermata_kwargs=None):
     """An ACCompanion with the whole following chain set up, minus the hardware."""
     accompanion = H.build_accompanion(
         follower, solo_fn, acc_fn, polling_period, init_bpm,
         follower_kwargs=follower_kwargs, setup=False,
+        fermata_kwargs=fermata_kwargs,
     )
     accompanion.setup_following()
     return accompanion
@@ -175,6 +177,12 @@ def main():
     parser.add_argument("--bpm", type=float, default=130.0)
     parser.add_argument("--polling-period", type=float)
     parser.add_argument("--follower-kwargs", metavar="JSON")
+    parser.add_argument(
+        "--no-fermata", action="store_true",
+        help="count through fermatas and free sections instead of waiting for "
+        "the soloist at them, as the ACCompanion did before it could wait. "
+        "Only changes anything on a piece that has them.",
+    )
     parser.add_argument("--traceback", action="store_true")
     args = parser.parse_args()
 
@@ -209,11 +217,14 @@ def main():
                 for seed in seeds:
                     messages, times, _, _, _ = H.render(
                         solo_fn, args.bpm, scenario, seed)
-                    to_time, _ = H.beat_to_time_map_for(solo_fn, args.bpm, scenario)
+                    to_time, _ = H.beat_to_time_map_for(
+                        solo_fn, args.bpm, scenario, seed)
                     with quiet():
                         accompanion = build(
                             follower, solo_fn, acc_fn, polling_period, args.bpm,
-                            follower_kwargs=follower_kwargs)
+                            follower_kwargs=follower_kwargs,
+                            fermata_kwargs={"enabled": not args.no_fermata,
+                                            "verbose": False})
                     if getattr(accompanion, "event_based_input", False):
                         frames = H.event_frames(messages, times)
                     else:

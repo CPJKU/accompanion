@@ -50,6 +50,11 @@ import partitura as pt
 
 warnings.filterwarnings("ignore", module="partitura")
 
+from accompanion.accompanist.fermata import (
+    fermata_onsets_from_part,
+    free_sections_from_part,
+    waiting_points,
+)
 from accompanion.score_follower.matchmaker_methods import (
     available_methods,
     preferred_polling_period,
@@ -110,12 +115,27 @@ class Scenario:
     missed: float = 0.0
     #: Fraction of notes followed by a spurious extra note.
     extra: float = 0.0
+    #: Seconds a fermata is held for, beyond the note's notated length. Drawn
+    #: per fermata around this value, because that is the whole point of a
+    #: fermata: how long it lasts is up to the player, and nothing in the
+    #: score or the tempo predicts it.
+    fermata_s: float = 0.0
+    #: The same, at every onset inside a section marked to be played freely.
+    free_s: float = 0.0
 
     @property
     def is_random(self) -> bool:
         """Whether repeated runs differ, i.e. whether several seeds are useful."""
         return any(
-            [self.jitter_ms, self.wrong, self.missed, self.extra, self.chord_spread_ms]
+            [
+                self.jitter_ms,
+                self.wrong,
+                self.missed,
+                self.extra,
+                self.chord_spread_ms,
+                self.fermata_s,
+                self.free_s,
+            ]
         )
 
 
@@ -141,6 +161,25 @@ SCENARIOS = {
             missed=0.02,
             extra=0.01,
         ),
+        # Otherwise metronomic, but the fermatas and any free section are
+        # taken in the player's own time. Nothing here is a following error:
+        # the score itself says the beat stops at these points, and an
+        # accompaniment that keeps counting through them is simply wrong.
+        Scenario("fermata", fermata_s=2.5, free_s=1.5),
+        # The same holds, played by the same amateur as 'human'.
+        Scenario(
+            "freehand",
+            rubato=0.10,
+            rubato_period=8.0,
+            final_rit=0.25,
+            jitter_ms=20.0,
+            chord_spread_ms=20.0,
+            wrong=0.02,
+            missed=0.02,
+            extra=0.01,
+            fermata_s=2.5,
+            free_s=1.5,
+        ),
     ]
 }
 DEFAULT_SCENARIOS = ["clean"]
@@ -163,19 +202,80 @@ def find_piece(name):
 # ---------------------------------------------------------------------------
 # Synthesising a performance
 # ---------------------------------------------------------------------------
-def beat_to_time_map(beats_min, beats_max, bpm, scenario, n=4001):
+#: How wide the step a hold makes in the beat -> time map is, in beats. Small
+#: enough to read as an instant, large enough to keep the map invertible.
+HOLD_EPSILON = 1e-6
+
+
+def score_holds(solo_fn, scenario, seed):
+    """Where the synthesised soloist stops, and for how long.
+
+    Fermatas and free sections are read from the score exactly as the
+    ACCompanion reads them, and each stop is drawn separately: how long a
+    fermata lasts is the player's own decision, and two players -- or the same
+    player twice -- will not agree.
+
+    Returns
+    -------
+    list of (float, float)
+        ``(score beat, seconds held there)``.
+    """
+    if not (scenario.fermata_s or scenario.free_s):
+        return []
+
+    part = pt.load_score(solo_fn)[0]
+    onsets = np.unique(part.note_array()["onset_beat"])
+    rng = np.random.default_rng(seed + 977)
+
+    holds = []
+    if scenario.fermata_s:
+        for beat in waiting_points(onsets, fermata_onsets_from_part(part)):
+            holds.append((float(beat), scenario.fermata_s * float(rng.uniform(0.5, 1.5))))
+    if scenario.free_s:
+        for beat in waiting_points(
+            onsets, free_sections=free_sections_from_part(part)
+        ):
+            holds.append((float(beat), scenario.free_s * float(rng.uniform(0.2, 1.8))))
+
+    # A beat that is both a fermata and inside a free section is held once.
+    longest = {}
+    for beat, seconds in holds:
+        longest[beat] = max(longest.get(beat, 0.0), seconds)
+    return sorted(longest.items())
+
+
+def beat_to_time_map(beats_min, beats_max, bpm, scenario, n=4001, holds=()):
     """Maps between score beats and performance seconds for a scenario.
 
     The tempo curve is integrated over the beat axis, so a beat position maps
     to the time it is actually played at, and the inverse gives the true score
     position at any instant -- the ground truth the followers are scored on.
 
+    A hold is a step in that map: at a fermata the clock runs on while the
+    score position does not, which is exactly what makes fermatas hard for an
+    accompaniment that dead-reckons.
+
+    Parameters
+    ----------
+    holds : iterable of (float, float)
+        ``(score beat, seconds held there)``, from `score_holds`.
+
     Returns
     -------
     to_time : callable, beats -> seconds
     to_beat : callable, seconds -> beats
     """
+    holds = list(holds)
     beats = np.linspace(beats_min, beats_max, n)
+    if holds:
+        # Sample on both sides of every hold, so the step in the map is a step
+        # rather than a ramp across a whole linspace interval.
+        beats = np.unique(
+            np.concatenate(
+                [beats] + [[beat, beat + HOLD_EPSILON] for beat, _ in holds]
+            )
+        )
+    n = len(beats)
     base = 60.0 / bpm
     period = np.full(n, base)
 
@@ -192,6 +292,11 @@ def beat_to_time_map(beats_min, beats_max, bpm, scenario, n=4001):
     # times[i] = integral of the beat period up to beats[i]
     times = np.concatenate([[0.0], np.cumsum(np.diff(beats) * period[:-1])])
 
+    for beat, seconds in holds:
+        # Everything after the hold happens that much later; the beat the
+        # hold sits on is still reached on time.
+        times = times + seconds * (beats > beat)
+
     def to_time(b):
         return np.interp(b, beats, times)
 
@@ -201,14 +306,18 @@ def beat_to_time_map(beats_min, beats_max, bpm, scenario, n=4001):
     return to_time, to_beat
 
 
-def beat_to_time_map_for(solo_fn, bpm, scenario):
-    """The `(beats -> seconds, seconds -> beats)` maps `render` plays through."""
+def beat_to_time_map_for(solo_fn, bpm, scenario, seed=0):
+    """The `(beats -> seconds, seconds -> beats)` maps `render` plays through.
+
+    Pass the same `seed` as `render`, or the holds will not line up.
+    """
     note_array = pt.load_score(solo_fn)[0].note_array()
     return beat_to_time_map(
         float(note_array["onset_beat"].min()),
         float((note_array["onset_beat"] + note_array["duration_beat"]).max()),
         bpm,
         scenario,
+        holds=score_holds(solo_fn, scenario, seed),
     )
 
 
@@ -232,6 +341,7 @@ def render(solo_fn, bpm, scenario, seed):
         float((note_array["onset_beat"] + note_array["duration_beat"]).max()),
         bpm,
         scenario,
+        holds=score_holds(solo_fn, scenario, seed),
     )
 
     messages, times = [], []
@@ -321,12 +431,14 @@ def event_frames(messages, times):
 # ---------------------------------------------------------------------------
 def build_accompanion(
     follower, solo_fn, acc_fn, polling_period, init_bpm, follower_kwargs=None,
-    setup=True,
+    setup=True, fermata_kwargs=None,
 ):
     """An ACCompanion with its scores and score follower set up, nothing else.
 
     Pass ``setup=False`` to get it unconfigured, for a caller that wants to run
     `setup_following` instead and drive the whole accompaniment chain.
+    `fermata_kwargs` reaches the accompaniment's waiting at fermatas, which
+    only `setup_following` builds.
     """
     router_kwargs = dict(
         solo_input_to_accompaniment_port_name=None,
@@ -376,6 +488,7 @@ def build_accompanion(
         polling_period=polling_period,
         init_bpm=init_bpm,
         test=True,
+        fermata_kwargs=fermata_kwargs,
     )
     if setup:
         accompanion.setup_scores()
@@ -578,6 +691,10 @@ def main():
                 bits.append(f"{sc.missed:.0%} missed")
             if sc.extra:
                 bits.append(f"{sc.extra:.0%} extra")
+            if sc.fermata_s:
+                bits.append(f"fermatas held ~{sc.fermata_s:.1f}s")
+            if sc.free_s:
+                bits.append(f"free sections ~{sc.free_s:.1f}s per note")
             print(f"  {name:16s} {', '.join(bits) if bits else 'exactly as written'}")
         return 0
 

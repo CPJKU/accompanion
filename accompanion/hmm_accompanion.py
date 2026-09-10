@@ -121,6 +121,7 @@ class HMMACCompanion(ACCompanion):
         test: bool = False,  # bypass MIDIRouter
         record_midi: Optional[str] = None,
         accompanist_decoder_kwargs: Optional[dict] = None,
+        fermata_kwargs: Optional[dict] = None,
     ) -> None:
 
         score_kwargs = dict(
@@ -147,6 +148,7 @@ class HMMACCompanion(ACCompanion):
             onset_tracker_type="continuous",
             record_midi=record_midi,
             accompanist_decoder_kwargs=accompanist_decoder_kwargs,
+            fermata_kwargs=fermata_kwargs,
         )
 
     def setup_scores(self):
