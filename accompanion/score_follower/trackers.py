@@ -161,12 +161,17 @@ class MatchmakerScoreFollower(AccompanimentScoreFollower):
         """
         Move the follower to `ref_time` after the soloist has gone silent.
 
-        Best effort: the follower is moved to the state nearest `ref_time`.
-        Followers that carry more state than a position index -- the particle
-        filter, the outer-product HMM, the parangonar matchers -- keep that
-        state and will steer back on their own, so for those this is close to
-        a no-op.
+        Matchmaker followers re-anchor themselves through `set_position`, which
+        each one implements in terms of its own state -- an HMM re-concentrates
+        its belief, an on-line time warper reseeds its cost matrix. Older
+        Matchmaker versions have no such method, in which case the follower is
+        moved to the state nearest `ref_time` and left to recover on its own.
         """
+        set_position = getattr(self.score_follower, "set_position", None)
+        if callable(set_position):
+            set_position(ref_time)
+            return
+
         positions = getattr(self.score_follower, "score_positions", None)
         if positions is None or len(positions) == 0:
             return
@@ -243,6 +248,13 @@ class MultiDTWScoreFollower(AccompanimentScoreFollower):
             Current time in the score follower
         """
         for sf, rtsm in zip(self.score_followers, self.ref_to_state_time_maps):
+            set_position = getattr(sf, "set_position", None)
+            if callable(set_position):
+                # Maps the beat back to a reference frame and reseeds the cost
+                # matrix, so the search window recenters on the next step.
+                set_position(ref_time)
+                continue
+
             frame_index = int(np.round(float(rtsm(ref_time)) * self.inv_polling_period))
             # `_current_frame` is the index into the reference features around
             # which the follower centers its search window.
