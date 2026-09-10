@@ -5,8 +5,13 @@ Offline comparison of the score followers the ACCompanion can run.
 
 Feeds a performance through a follower exactly the way the ACCompanion's main
 loop does -- MIDI frames into the input pipeline, its output into the score
-follower -- but without MIDI hardware, audio, or the accompaniment. Use it to
-see which trackers work on a piece and how closely they follow.
+follower -- but without MIDI hardware, audio, or the accompaniment.
+
+The performance is synthesised from the solo score, so the true score position
+is known at every instant. It can be synthesised *badly* on purpose: the
+scenarios below bend the tempo, smear the timing and corrupt the notes, which
+is what separates a follower that stays locked on a clean rendering from one
+that survives a real player.
 
 Examples
 --------
@@ -14,22 +19,28 @@ List every available follower::
 
     python bin/test_followers.py --list
 
-Run all of them on a sample piece, against a performance rendered from the
-solo score itself (so the true score position is known at every moment)::
+Rank the followers on a clean rendering (fast, the easiest possible input)::
 
     python bin/test_followers.py --piece bach_menuett
 
-Run a few, on a real MIDI performance::
+Rank them on more realistic playing, three random seeds per scenario::
 
-    python bin/test_followers.py --piece bach_menuett \
-        --followers hmm arzt PitchIOIHMM --midi-fn my_performance.mid
+    python bin/test_followers.py --piece bach_menuett --scenarios all --seeds 3
+
+A few followers, on a real MIDI recording (no ground truth, so only the
+coverage and latency columns are meaningful)::
+
+    python bin/test_followers.py --piece bach_menuett --followers hmm arzt \
+        --midi-fn my_performance.mid
 """
 import argparse
+import json
 import os
 import sys
 import time
 import traceback
 import warnings
+from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -62,6 +73,78 @@ DEFAULT_POLLING_PERIOD = 0.01
 # What the ACCompanion uses for a follower that wants one message per frame.
 EVENT_POLLING_PERIOD = 0.001
 
+# A follower is counted as lost while it is this far from the true position.
+LOST_THRESHOLD_BEATS = 2.0
+# How long every follower is given to react to an onset before its reported
+# position is read. Followers differ in how often they speak -- an HMM only at
+# onsets, an OLTW on every frame, holding its position in between -- so the
+# position has to be sampled at the same moment relative to the note for the
+# comparison to mean anything.
+REACTION_ALLOWANCE_S = 0.05
+
+
+# ---------------------------------------------------------------------------
+# Scenarios
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class Scenario:
+    """How the solo part is played.
+
+    Every field is something a real player does and a constant-tempo rendering
+    of the score does not.
+    """
+
+    name: str
+    #: Peak tempo deviation as a fraction, as a sine over `rubato_period` beats.
+    rubato: float = 0.0
+    rubato_period: float = 8.0
+    #: Fractional slowdown reached at the very end of the piece.
+    final_rit: float = 0.0
+    #: Standard deviation of per-note onset noise, in milliseconds.
+    jitter_ms: float = 0.0
+    #: Notes of a chord are rolled over this long, in milliseconds.
+    chord_spread_ms: float = 0.0
+    #: Fraction of notes played at the wrong pitch.
+    wrong: float = 0.0
+    #: Fraction of notes not played at all.
+    missed: float = 0.0
+    #: Fraction of notes followed by a spurious extra note.
+    extra: float = 0.0
+
+    @property
+    def is_random(self) -> bool:
+        """Whether repeated runs differ, i.e. whether several seeds are useful."""
+        return any(
+            [self.jitter_ms, self.wrong, self.missed, self.extra, self.chord_spread_ms]
+        )
+
+
+SCENARIOS = {
+    s.name: s
+    for s in [
+        Scenario("clean"),
+        # A player shaping the phrase, and slowing into the final bars.
+        Scenario("rubato", rubato=0.15, rubato_period=8.0, final_rit=0.35),
+        # Uneven hands: notes land early or late, chords are rolled.
+        Scenario("jitter", jitter_ms=30.0, chord_spread_ms=25.0),
+        # Wrong notes, dropped notes, and the odd stray one.
+        Scenario("errors", wrong=0.05, missed=0.05, extra=0.03),
+        # All of it at once, each a bit milder: roughly an amateur run-through.
+        Scenario(
+            "human",
+            rubato=0.10,
+            rubato_period=8.0,
+            final_rit=0.25,
+            jitter_ms=20.0,
+            chord_spread_ms=20.0,
+            wrong=0.02,
+            missed=0.02,
+            extra=0.01,
+        ),
+    ]
+}
+DEFAULT_SCENARIOS = ["clean"]
+
 
 def find_piece(name):
     """Locate primo.musicxml / secondo.musicxml for a named piece."""
@@ -77,20 +160,118 @@ def find_piece(name):
     )
 
 
-def messages_from_score(solo_fn, bpm):
-    """A performance of the solo score at a constant tempo."""
-    part = pt.load_score(solo_fn)[0]
-    ppart = pt.utils.music.performance_from_part(part, bpm=bpm)
-    return _messages_from_note_array(ppart.note_array())
+# ---------------------------------------------------------------------------
+# Synthesising a performance
+# ---------------------------------------------------------------------------
+def beat_to_time_map(beats_min, beats_max, bpm, scenario, n=4001):
+    """Maps between score beats and performance seconds for a scenario.
+
+    The tempo curve is integrated over the beat axis, so a beat position maps
+    to the time it is actually played at, and the inverse gives the true score
+    position at any instant -- the ground truth the followers are scored on.
+
+    Returns
+    -------
+    to_time : callable, beats -> seconds
+    to_beat : callable, seconds -> beats
+    """
+    beats = np.linspace(beats_min, beats_max, n)
+    base = 60.0 / bpm
+    period = np.full(n, base)
+
+    if scenario.rubato:
+        period = period * (
+            1.0 + scenario.rubato * np.sin(2 * np.pi * beats / scenario.rubato_period)
+        )
+    if scenario.final_rit:
+        # Ramp over the last eighth of the piece.
+        span = max((beats_max - beats_min) / 8.0, 1e-9)
+        ramp = np.clip((beats - (beats_max - span)) / span, 0.0, 1.0)
+        period = period * (1.0 + scenario.final_rit * ramp)
+
+    # times[i] = integral of the beat period up to beats[i]
+    times = np.concatenate([[0.0], np.cumsum(np.diff(beats) * period[:-1])])
+
+    def to_time(b):
+        return np.interp(b, beats, times)
+
+    def to_beat(t):
+        return np.interp(t, times, beats)
+
+    return to_time, to_beat
+
+
+def render(solo_fn, bpm, scenario, seed):
+    """Synthesise a performance of the solo part.
+
+    Returns
+    -------
+    messages : list of mido.Message
+    times : list of float, seconds
+    to_beat : callable, seconds -> true score beat
+    onsets : np.ndarray, the unique score onsets, in beats
+    onset_times : np.ndarray, when each of them is played, in seconds
+    """
+    rng = np.random.default_rng(seed)
+    note_array = pt.load_score(solo_fn)[0].note_array()
+    onsets = np.unique(note_array["onset_beat"])
+
+    to_time, to_beat = beat_to_time_map(
+        float(note_array["onset_beat"].min()),
+        float((note_array["onset_beat"] + note_array["duration_beat"]).max()),
+        bpm,
+        scenario,
+    )
+
+    messages, times = [], []
+    # Position within its chord, so a rolled chord spreads in pitch order.
+    order_in_chord = {}
+    for onset in onsets:
+        pitches = np.sort(note_array["pitch"][note_array["onset_beat"] == onset])
+        for i, p in enumerate(pitches):
+            order_in_chord[(float(onset), int(p))] = i
+
+    for note in note_array:
+        if scenario.missed and rng.random() < scenario.missed:
+            continue
+
+        pitch = int(note["pitch"])
+        if scenario.wrong and rng.random() < scenario.wrong:
+            pitch = int(np.clip(pitch + rng.choice([-2, -1, 1, 2]), 21, 108))
+
+        on = float(to_time(note["onset_beat"]))
+        off = float(to_time(note["onset_beat"] + max(note["duration_beat"], 1e-3)))
+
+        if scenario.chord_spread_ms:
+            k = order_in_chord.get((float(note["onset_beat"]), int(note["pitch"])), 0)
+            on += k * scenario.chord_spread_ms / 1000.0
+        if scenario.jitter_ms:
+            on += float(rng.normal(0.0, scenario.jitter_ms / 1000.0))
+        off = max(off, on + 0.02)
+
+        velocity = int(note["velocity"]) if "velocity" in note_array.dtype.names else 64
+        messages.append(mido.Message("note_on", note=pitch, velocity=velocity))
+        times.append(on)
+        messages.append(mido.Message("note_off", note=pitch, velocity=velocity))
+        times.append(off)
+
+        if scenario.extra and rng.random() < scenario.extra:
+            stray = int(np.clip(pitch + rng.choice([-4, -3, 3, 4]), 21, 108))
+            t0 = on + float(rng.uniform(0.02, 0.15))
+            messages.append(mido.Message("note_on", note=stray, velocity=velocity))
+            times.append(t0)
+            messages.append(mido.Message("note_off", note=stray, velocity=velocity))
+            times.append(t0 + 0.08)
+
+    order = np.argsort(times, kind="stable")
+    messages = [messages[i] for i in order]
+    times = [float(times[i]) for i in order]
+    return messages, times, to_beat, onsets, np.asarray(to_time(onsets), dtype=float)
 
 
 def messages_from_midi(midi_fn):
-    """A performance read from a MIDI file."""
-    performance = pt.load_performance(midi_fn)
-    return _messages_from_note_array(performance.note_array())
-
-
-def _messages_from_note_array(note_array):
+    """A performance read from a MIDI file. No ground truth."""
+    note_array = pt.load_performance(midi_fn).note_array()
     messages, times = [], []
     for note in note_array:
         pitch, velocity = int(note["pitch"]), int(note["velocity"])
@@ -99,9 +280,12 @@ def _messages_from_note_array(note_array):
         messages.append(mido.Message("note_off", note=pitch, velocity=velocity))
         times.append(float(note["onset_sec"] + note["duration_sec"]))
     order = np.argsort(times, kind="stable")
-    return [messages[i] for i in order], [times[i] for i in order]
+    return [messages[i] for i in order], [float(times[i]) for i in order]
 
 
+# ---------------------------------------------------------------------------
+# Framing, as the MIDI input thread does it
+# ---------------------------------------------------------------------------
 def framed(messages, times, polling_period):
     """Frames of `polling_period`, as `FramedMidiInputThread` builds them."""
     n_frames = int(np.ceil(max(times) / polling_period)) + 1
@@ -121,7 +305,12 @@ def event_frames(messages, times):
     return [([(msg, t)], t) for msg, t in zip(messages, times)]
 
 
-def build_accompanion(follower, solo_fn, acc_fn, polling_period, init_bpm):
+# ---------------------------------------------------------------------------
+# Running a follower
+# ---------------------------------------------------------------------------
+def build_accompanion(
+    follower, solo_fn, acc_fn, polling_period, init_bpm, follower_kwargs=None
+):
     """An ACCompanion with its scores and score follower set up, nothing else."""
     router_kwargs = dict(
         solo_input_to_accompaniment_port_name=None,
@@ -136,7 +325,7 @@ def build_accompanion(follower, solo_fn, acc_fn, polling_period, init_bpm):
 
         score_follower_kwargs = {
             "score_follower": follower,
-            "score_follower_kwargs": {},
+            "score_follower_kwargs": dict(follower_kwargs or {}),
             "input_processor": {
                 "processor": "PitchIOIProcessor",
                 "processor_kwargs": {},
@@ -159,7 +348,7 @@ def build_accompanion(follower, solo_fn, acc_fn, polling_period, init_bpm):
 
         score_follower_kwargs = {
             "score_follower": follower,
-            "score_follower_kwargs": {},
+            "score_follower_kwargs": dict(follower_kwargs or {}),
         }
 
     accompanion = cls(
@@ -182,6 +371,8 @@ def run_follower(accompanion, frames):
     positions, latencies = [], []
     for frame in frames:
         output = accompanion.input_pipeline(frame)
+        # base.py uses check_empty_frames only to count idle loops; the score
+        # follower is called on every frame.
         accompanion.check_empty_frames(output)
         start = time.perf_counter()
         position = accompanion.score_follower(output)
@@ -191,30 +382,101 @@ def run_follower(accompanion, frames):
     return positions, np.array(latencies)
 
 
-def evaluate(accompanion, positions, latencies, beat_period, has_ground_truth):
-    onsets = accompanion.solo_score.unique_onsets
+def polling_period_for(follower, override=None):
+    """The polling period a follower is fed at."""
+    if override is not None:
+        return override
+    wanted = (
+        DEFAULT_POLLING_PERIOD
+        if follower in ACCOMPANION_FOLLOWERS
+        else preferred_polling_period(follower)
+    )
+    # A null polling period means one message at a time; the ACCompanion still
+    # needs a number for its own loop.
+    return EVENT_POLLING_PERIOD if wanted is None else wanted
+
+
+# ---------------------------------------------------------------------------
+# Scoring
+# ---------------------------------------------------------------------------
+def score_run(positions, latencies, to_beat, onsets, onset_times):
+    """Turn one run into the numbers the table reports."""
     result = {
         "emitted": len(positions),
-        "onsets": len(onsets),
-        "latency_ms": 1000 * latencies.mean() if len(latencies) else float("nan"),
-        "max_latency_ms": 1000 * latencies.max() if len(latencies) else float("nan"),
+        "cpu_ms": 1000 * latencies.mean() if len(latencies) else float("nan"),
+        "cpu_max_ms": 1000 * latencies.max() if len(latencies) else float("nan"),
     }
     if not positions:
-        result["note"] = "no positions reported"
         return result
 
-    reported = np.array([p for _, p in positions])
-    result["monotonic"] = bool(np.all(np.diff(reported) >= -1e-9))
-    result["final"] = reported[-1]
-    result["last_onset"] = float(onsets.max())
+    t = np.array([p[0] for p in positions])
+    reported = np.array([p[1] for p in positions])
 
-    if has_ground_truth:
-        # Constant tempo, so the true position is linear in performance time.
-        true = np.array([t / beat_period + onsets.min() for t, _ in positions])
-        error = np.abs(reported - true)
-        result["mean_err"] = float(error.mean())
-        result["max_err"] = float(error.max())
+    if to_beat is not None:
+        # Error is read a fixed moment after each onset is played, so that
+        # every follower gets the same chance to react. Averaging over emitted
+        # frames instead would charge a follower that holds its position
+        # between onsets for the hold rather than for being wrong -- half a
+        # median IOI of it, enough to invert the ranking.
+        idx = np.searchsorted(t, onset_times + REACTION_ALLOWANCE_S, side="right") - 1
+        seen = idx >= 0
+        if seen.any():
+            err = np.abs(reported[idx[seen]] - onsets[seen])
+            result["err50"] = float(np.percentile(err, 50))
+            result["err95"] = float(np.percentile(err, 95))
+            result["lost"] = float(100.0 * np.mean(err > LOST_THRESHOLD_BEATS))
+
+        # How long after a score onset is actually played does the follower
+        # first report having reached it? This is what the accompanist waits on.
+        run_max = np.maximum.accumulate(reported)
+        reach_idx = np.searchsorted(run_max, onsets, side="left")
+        reached = reach_idx < len(t)
+        result["missed"] = float(100.0 * np.mean(~reached))
+        if reached.any():
+            lat = t[reach_idx[reached]] - onset_times[reached]
+            result["lat50"] = float(1000 * np.percentile(lat, 50))
+            result["lat95"] = float(1000 * np.percentile(lat, 95))
+
+    result["back"] = int(np.sum(np.diff(reported) < -1e-9))
     return result
+
+
+def aggregate(runs):
+    """Mean of each metric over seeds."""
+    out = {}
+    for key in set().union(*(r.keys() for r in runs)):
+        vals = [r[key] for r in runs if key in r]
+        out[key] = float(np.mean(vals)) if vals else float("nan")
+    return out
+
+
+HEADER = (
+    f"{'follower':<17s}{'scenario':<9s}{'err50':>7s}{'err95':>8s}"
+    f"{'lat50':>8s}{'lat95':>8s}{'miss%':>7s}{'lost%':>7s}{'back':>6s}{'cpu':>9s}"
+)
+LEGEND = """
+err50/err95  tracking error in beats, read 50 ms after each onset is played
+             so every follower gets the same chance to react
+lat50/lat95  how long after a score onset is played the follower reports
+             reaching it, in ms -- what the accompanist waits on
+miss%        score onsets the follower never reached
+lost%        share of onsets the follower was more than 2 beats away from
+back         times the reported position jumped backwards
+cpu          mean time inside the follower per input frame"""
+
+
+def format_row(follower, scenario, r):
+    def num(key, fmt, scale=1.0):
+        v = r.get(key)
+        return format(v * scale, fmt) if v is not None and np.isfinite(v) else "-"
+
+    return (
+        f"{follower:<17s}{scenario:<9s}"
+        f"{num('err50', '7.3f')}{num('err95', '8.3f')}"
+        f"{num('lat50', '8.0f')}{num('lat95', '8.0f')}"
+        f"{num('missed', '7.1f')}{num('lost', '7.1f')}"
+        f"{int(round(r.get('back', 0))):6d}{num('cpu_ms', '7.2f')}ms"
+    )
 
 
 def main():
@@ -230,21 +492,41 @@ def main():
     parser.add_argument("--solo", help="solo score file (overrides --piece)")
     parser.add_argument("--acc", help="accompaniment score file (overrides --piece)")
     parser.add_argument(
-        "--followers",
+        "--followers", nargs="+", help="followers to run. Default: all of them."
+    )
+    parser.add_argument(
+        "--scenarios",
         nargs="+",
-        help="followers to run. Default: all of them.",
+        default=DEFAULT_SCENARIOS,
+        help="how the solo part is played: "
+        + ", ".join(SCENARIOS)
+        + ", or 'all'. Default: clean",
+    )
+    parser.add_argument(
+        "--seeds",
+        type=int,
+        default=3,
+        help="random seeds per scenario, averaged. Ignored for 'clean', which "
+        "is deterministic. Default: 3",
     )
     parser.add_argument(
         "--midi-fn",
-        help="MIDI performance to follow. Without it, a performance is "
-        "rendered from the solo score at --bpm, which is what makes the "
-        "tracking error columns meaningful.",
+        help="follow a real MIDI recording instead of a synthesised "
+        "performance. There is no ground truth then, so only the coverage and "
+        "cpu columns are filled in.",
     )
     parser.add_argument("--bpm", type=float, default=110.0, help="tempo. Default: 110")
     parser.add_argument(
         "--polling-period",
         type=float,
         help="override the polling period. Default: whatever each follower asks for.",
+    )
+    parser.add_argument(
+        "--follower-kwargs",
+        metavar="JSON",
+        help="method configuration for a matchmaker follower, as JSON. For "
+        'example \'{"members": [{"method": "pthmm"}, {"method": "outerhmm"}]}\' '
+        "to choose the ensemble's members.",
     )
     parser.add_argument(
         "--traceback", action="store_true", help="print tracebacks for failures"
@@ -262,6 +544,24 @@ def main():
             pp = preferred_polling_period(name)
             unit = "event based" if pp is None else f"polling period {pp}s"
             print(f"  {name:16s} ({unit})")
+        print("\nScenarios:")
+        for name, sc in SCENARIOS.items():
+            bits = []
+            if sc.rubato:
+                bits.append(f"rubato +-{sc.rubato:.0%}")
+            if sc.final_rit:
+                bits.append(f"final rit {sc.final_rit:.0%}")
+            if sc.jitter_ms:
+                bits.append(f"jitter {sc.jitter_ms:.0f}ms")
+            if sc.chord_spread_ms:
+                bits.append(f"rolled chords {sc.chord_spread_ms:.0f}ms")
+            if sc.wrong:
+                bits.append(f"{sc.wrong:.0%} wrong")
+            if sc.missed:
+                bits.append(f"{sc.missed:.0%} missed")
+            if sc.extra:
+                bits.append(f"{sc.extra:.0%} extra")
+            print(f"  {name:16s} {', '.join(bits) if bits else 'exactly as written'}")
         return 0
 
     if args.solo and args.acc:
@@ -274,84 +574,74 @@ def main():
     followers = args.followers or all_followers
     unknown = [f for f in followers if f not in all_followers]
     if unknown:
-        parser.error(
-            f"unknown follower(s) {unknown}. Available: {all_followers}"
-        )
+        parser.error(f"unknown follower(s) {unknown}. Available: {all_followers}")
 
-    if args.midi_fn:
-        messages, times = messages_from_midi(args.midi_fn)
-        has_ground_truth = False
-        source = os.path.basename(args.midi_fn)
+    if "all" in args.scenarios:
+        scenario_names = list(SCENARIOS)
     else:
-        messages, times = messages_from_score(solo_fn, args.bpm)
-        has_ground_truth = True
-        source = f"solo score rendered at {args.bpm:g} bpm"
+        unknown = [s for s in args.scenarios if s not in SCENARIOS]
+        if unknown:
+            parser.error(f"unknown scenario(s) {unknown}. Available: {list(SCENARIOS)}")
+        scenario_names = args.scenarios
 
-    print(f"piece:       {os.path.dirname(solo_fn)}")
-    print(f"performance: {source} ({len(messages)} messages, "
-          f"{max(times):.1f}s)")
+    follower_kwargs = json.loads(args.follower_kwargs) if args.follower_kwargs else None
+    if follower_kwargs is not None and not isinstance(follower_kwargs, dict):
+        parser.error("--follower-kwargs must be a JSON object")
+
+    print(f"piece:  {os.path.dirname(solo_fn)}")
+    if args.midi_fn:
+        print(f"input:  {os.path.basename(args.midi_fn)} (no ground truth)")
+        scenario_names = ["recording"]
+    else:
+        print(f"input:  solo score played at {args.bpm:g} bpm")
+        print(f"scenarios: {', '.join(scenario_names)}   seeds: {args.seeds}")
     print()
+    print(HEADER)
+    print("-" * len(HEADER))
 
-    header = (
-        f"{'follower':16s} {'emitted':>8s} {'onsets':>7s} {'mono':>5s} "
-        f"{'mean err':>9s} {'max err':>8s} {'latency':>9s} {'max lat':>8s}"
-    )
-    print(header)
-    print("-" * len(header))
-
-    results = {}
+    failures = []
     for follower in followers:
-        polling_period = args.polling_period
-        if polling_period is None:
-            wanted = (
-                preferred_polling_period(follower)
-                if follower not in ACCOMPANION_FOLLOWERS
-                else DEFAULT_POLLING_PERIOD
+        polling_period = polling_period_for(follower, args.polling_period)
+
+        for scenario_name in scenario_names:
+            scenario = SCENARIOS.get(scenario_name)
+            seeds = [0] if scenario is None or not scenario.is_random else range(
+                args.seeds
             )
-            # A null polling period means the follower wants one message at a
-            # time; the ACCompanion still needs a number for its own loop.
-            polling_period = EVENT_POLLING_PERIOD if wanted is None else wanted
+            runs = []
+            try:
+                for seed in seeds:
+                    if args.midi_fn:
+                        messages, times = messages_from_midi(args.midi_fn)
+                        to_beat, onsets, onset_times = None, None, None
+                    else:
+                        messages, times, to_beat, onsets, onset_times = render(
+                            solo_fn, args.bpm, scenario, seed
+                        )
+                    accompanion = build_accompanion(
+                        follower, solo_fn, acc_fn, polling_period, args.bpm,
+                        follower_kwargs=follower_kwargs,
+                    )
+                    if getattr(accompanion, "event_based_input", False):
+                        frames = event_frames(messages, times)
+                    else:
+                        frames = framed(messages, times, polling_period)
+                    positions, latencies = run_follower(accompanion, frames)
+                    runs.append(
+                        score_run(positions, latencies, to_beat, onsets, onset_times)
+                    )
+            except Exception as exc:  # noqa: BLE001 - a failing follower is a result
+                if args.traceback:
+                    traceback.print_exc()
+                print(f"{follower:<17s}{scenario_name:<9s}FAILED: "
+                      f"{type(exc).__name__}: {exc}")
+                failures.append((follower, scenario_name))
+                continue
 
-        try:
-            accompanion = build_accompanion(
-                follower, solo_fn, acc_fn, polling_period, args.bpm
-            )
-            if getattr(accompanion, "event_based_input", False):
-                frames = event_frames(messages, times)
-            else:
-                frames = framed(messages, times, polling_period)
-            positions, latencies = run_follower(accompanion, frames)
-            result = evaluate(
-                accompanion, positions, latencies, 60 / args.bpm, has_ground_truth
-            )
-        except Exception as exc:  # noqa: BLE001 - a failing follower is a result
-            if args.traceback:
-                traceback.print_exc()
-            print(f"{follower:16s} FAILED: {type(exc).__name__}: {exc}")
-            results[follower] = {"error": exc}
-            continue
+            print(format_row(follower, scenario_name, aggregate(runs)), flush=True)
 
-        results[follower] = result
-        mono = "yes" if result.get("monotonic") else "no"
-        mean_err = result.get("mean_err")
-        max_err = result.get("max_err")
-        print(
-            f"{follower:16s} {result['emitted']:8d} {result['onsets']:7d} "
-            f"{mono:>5s} "
-            f"{(f'{mean_err:.3f}' if mean_err is not None else '-'):>9s} "
-            f"{(f'{max_err:.3f}' if max_err is not None else '-'):>8s} "
-            f"{result['latency_ms']:8.3f}ms {result['max_latency_ms']:7.2f}ms"
-        )
-
-    print()
-    print("emitted   score positions reported to the accompanist")
-    print("onsets    unique score onsets in the solo part")
-    print("mono      whether the reported positions never go backwards")
-    print("mean/max err   tracking error in beats, against the known true position")
-    print("latency   time spent inside the score follower per input frame")
-
-    failed = [name for name, r in results.items() if "error" in r]
-    return 1 if failed else 0
+    print(LEGEND)
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
