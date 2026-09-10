@@ -201,6 +201,17 @@ def beat_to_time_map(beats_min, beats_max, bpm, scenario, n=4001):
     return to_time, to_beat
 
 
+def beat_to_time_map_for(solo_fn, bpm, scenario):
+    """The `(beats -> seconds, seconds -> beats)` maps `render` plays through."""
+    note_array = pt.load_score(solo_fn)[0].note_array()
+    return beat_to_time_map(
+        float(note_array["onset_beat"].min()),
+        float((note_array["onset_beat"] + note_array["duration_beat"]).max()),
+        bpm,
+        scenario,
+    )
+
+
 def render(solo_fn, bpm, scenario, seed):
     """Synthesise a performance of the solo part.
 
@@ -309,9 +320,14 @@ def event_frames(messages, times):
 # Running a follower
 # ---------------------------------------------------------------------------
 def build_accompanion(
-    follower, solo_fn, acc_fn, polling_period, init_bpm, follower_kwargs=None
+    follower, solo_fn, acc_fn, polling_period, init_bpm, follower_kwargs=None,
+    setup=True,
 ):
-    """An ACCompanion with its scores and score follower set up, nothing else."""
+    """An ACCompanion with its scores and score follower set up, nothing else.
+
+    Pass ``setup=False`` to get it unconfigured, for a caller that wants to run
+    `setup_following` instead and drive the whole accompaniment chain.
+    """
     router_kwargs = dict(
         solo_input_to_accompaniment_port_name=None,
         acc_output_to_sound_port_name=None,
@@ -361,8 +377,9 @@ def build_accompanion(
         init_bpm=init_bpm,
         test=True,
     )
-    accompanion.setup_scores()
-    accompanion.setup_score_follower()
+    if setup:
+        accompanion.setup_scores()
+        accompanion.setup_score_follower()
     return accompanion
 
 
