@@ -272,11 +272,23 @@ if __name__ == "__main__":
         configurations["acc_fn"] = os.path.join(file_dir, "secondo.musicxml")
         configurations["solo_fn"] = os.path.join(file_dir, "primo.musicxml")
 
-    configurations["test"] = True if args.test else False
-    configurations["record_midi"] = args.record_midi if args.record_midi else False
-    configurations["midi_fn"] = args.midi_fn if args.midi_fn else None
+    # The command line overrides what the GUI collected, but only where a flag
+    # was actually given: the GUI asks about all three of these itself, and
+    # overwriting them unconditionally would throw those answers away.
+    if args.test:
+        configurations["test"] = True
 
-    if configurations["midi_fn"] is not None:
+    if args.record_midi:
+        configurations["record_midi"] = True
+
+    if args.midi_fn:
+        configurations["midi_fn"] = args.midi_fn
+
+    configurations.setdefault("test", False)
+    configurations.setdefault("record_midi", False)
+    configurations.setdefault("midi_fn", None)
+
+    if configurations["midi_fn"]:
         configurations["midi_router_kwargs"][
             "solo_input_to_accompaniment_port_name"
         ] = 0
