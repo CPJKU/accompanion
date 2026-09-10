@@ -283,7 +283,6 @@ class HMMACCompanion(ACCompanion):
         # but for now are here since there are no other alternatives
         piano_range = False
         inserted_states = True
-        ioi_precision = 2
         self.score_follower_kwargs.pop("input_processor")
         score_follower_type = self.score_follower_kwargs.pop("score_follower")
 
@@ -293,6 +292,16 @@ class HMMACCompanion(ACCompanion):
             )
         except KeyError:
             score_follower_kwargs = {}
+
+        # Tunable per piece from the config file. Both shape how readily the
+        # follower moves on: `transition_matrix_scale` how far it may jump,
+        # `ioi_precision` how strictly the observed inter-onset interval has to
+        # match the score. See bin/test_followers.py for measuring the effect.
+        transition_matrix_scale = score_follower_kwargs.pop(
+            "gumbel_transition_matrix_scale",
+            CONFIG["gumbel_transition_matrix_scale"],
+        )
+        ioi_precision = score_follower_kwargs.pop("ioi_precision", 2)
 
         chord_pitches = [chord.pitch for chord in self.solo_score.chords]
         pitch_profiles = compute_discrete_pitch_profiles(
@@ -307,16 +316,14 @@ class HMMACCompanion(ACCompanion):
         state_space = ioi_matrix[0]
         n_states = len(state_space)
 
-        # The choice of the gumbel_transition_matrix should be a parameter in the future
-        # The distribution was chosen because it gives more weight to the upcoming states/onsets
-        # The scale parameter is the dispersion parameter of the distribution.
-        # The value scale=0.5 was chosen empirically during tests back in 2019.
-        # In this particular case, it is similar to a standard deviation of 0.5 beats the transition is centered
-        # on the next score onset with a "standard deviation" of 0.5 beats
+        # The distribution was chosen because it gives more weight to the
+        # upcoming states/onsets. The scale parameter is its dispersion: the
+        # transition is centered on the next score onset with a "standard
+        # deviation" of `transition_matrix_scale` beats.
         transition_matrix = gumbel_transition_matrix(
             n_states=n_states,
             inserted_states=inserted_states,
-            scale=CONFIG["gumbel_transition_matrix_scale"],
+            scale=transition_matrix_scale,
         )
         initial_probabilities = gumbel_init_dist(n_states=n_states)
 
