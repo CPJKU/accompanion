@@ -17,6 +17,11 @@ from partitura.score import Part
 from partitura.score import Score as PtScore
 from partitura.utils.music import performance_from_part
 
+from accompanion.accompanist.fermata import (
+    fermata_onsets_from_part,
+    free_sections_from_part,
+)
+
 
 class ACCNoteError(Exception):
     pass
@@ -236,6 +241,11 @@ class Score(object):
     note_array: np.ndarray (optional)
         The structured note array of the score. If not given,
         it will be computed from the `notes`.
+    fermata_onsets: np.ndarray (optional)
+        Score positions (in beats) carrying a fermata.
+    free_sections: list of (float, float) (optional)
+        Half-open spans of the score (in beats) marked to be played out of
+        time -- a cadenza, an *ad libitum* passage.
     """
 
     notes: Iterable[Note]
@@ -249,6 +259,8 @@ class Score(object):
     chords: np.ndarray
     chord_dict: Dict[float, Chord]
     note_array: np.ndarray
+    fermata_onsets: np.ndarray
+    free_sections: List[Tuple[float, float]]
 
     def __init__(
         self,
@@ -256,6 +268,8 @@ class Score(object):
         time_signature_map: Optional[Callable] = None,
         access_mode: str = "indexwise",
         note_array: Optional[np.ndarray] = None,
+        fermata_onsets: Optional[np.ndarray] = None,
+        free_sections: Optional[List[Tuple[float, float]]] = None,
     ):
         # TODO: Seconday sort by pitch
         self.notes = np.array(sorted(notes, key=lambda x: x.pitch))
@@ -286,6 +300,13 @@ class Score(object):
             self.note_array_from_notes()
         else:
             self.note_array = note_array
+
+        self.fermata_onsets = (
+            np.array([], dtype=float)
+            if fermata_onsets is None
+            else np.asarray(fermata_onsets, dtype=float)
+        )
+        self.free_sections = list(free_sections) if free_sections else []
 
     def note_array_from_notes(self) -> None:
         note_array = np.zeros(
@@ -531,6 +552,10 @@ def part_to_score(
         notes,
         time_signature_map=time_signature_map,
         note_array=s_note_array,
+        # Where the beat is suspended, for an accompanist that waits at
+        # fermatas instead of counting through them.
+        fermata_onsets=fermata_onsets_from_part(part),
+        free_sections=free_sections_from_part(part),
     )
 
     return score

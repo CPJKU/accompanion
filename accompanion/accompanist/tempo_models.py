@@ -93,6 +93,34 @@ class SyncModel(object):
         """
         raise NotImplementedError
 
+    def resync(self, performed_onset: float, score_onset: float) -> None:
+        """
+        Move the model to a performed onset without learning a tempo from it.
+
+        After a fermata or a free passage, the interval since the previous
+        onset carries no tempo information at all: the soloist held for as
+        long as they felt like. Passing it to `update_beat_period` would read
+        the whole wait as one enormous beat period -- every model here derives
+        the tempo from a performed IOI over a score IOI -- and the
+        accompaniment would come out of the fermata at a tempo it was never
+        played at.
+
+        So this sets the model down at the onset the soloist has just played,
+        with no asynchrony to correct, and leaves the beat period as it was
+        before the wait.
+
+        Parameters
+        ----------
+        performed_onset : float
+            When the soloist ended the wait, in seconds.
+        score_onset : float
+            The score onset they ended it on, in beats.
+        """
+        self.prev_perf_onset = performed_onset
+        self.prev_score_onset = score_onset
+        self.est_onset = performed_onset
+        self.asynchrony = 0.0
+
 
 class ReactiveSyncModel(SyncModel):
     def __init__(self, init_beat_period=0.5, init_score_onset=0):
