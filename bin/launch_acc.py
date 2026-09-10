@@ -17,6 +17,44 @@ warnings.filterwarnings("ignore", module="partitura")
 
 sys.path.append("..")
 
+#: Score followers the ACCompanion's own variants provide. Everything else
+#: comes from matchmaker, and is looked up at run time so that a follower added
+#: there -- the ensemble, say -- needs no change here.
+ACCOMPANION_SCORE_FOLLOWERS = {
+    "hmm": ["PitchIOIHMM", "PitchIOIKHMM"],
+    "oltw": ["OnlineTimeWarping"],
+}
+
+
+def score_follower_choices():
+    """``{follower variant: [score follower names]}``."""
+    from accompanion.score_follower.matchmaker_methods import available_methods
+
+    choices = dict(ACCOMPANION_SCORE_FOLLOWERS)
+    choices["matchmaker"] = available_methods()
+    return choices
+
+
+def print_score_followers():
+    from accompanion.score_follower.matchmaker_methods import preferred_polling_period
+
+    for variant, names in score_follower_choices().items():
+        print(f"--follower {variant}")
+        for name in names:
+            note = ""
+            if variant == "matchmaker":
+                period = preferred_polling_period(name)
+                note = (
+                    "  (fed one MIDI message at a time)"
+                    if period is None
+                    else f"  (polling period {period}s)"
+                )
+            print(f"    --score-follower {name}{note}")
+        print()
+    print("Run 'python bin/test_followers.py --piece <piece> --scenarios all' to")
+    print("compare them on a piece before playing it.")
+
+
 overridable_args = [
     "use_mediator",
     "delay",
@@ -72,7 +110,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--score-follower",
         help="name of the score follower to use, overriding the config file. "
-        "Run 'python bin/test_followers.py --list' to see the options.",
+        "See --list-followers for the names the chosen --follower accepts.",
+    )
+    parser.add_argument(
+        "--list-followers",
+        action="store_true",
+        help="list the score followers available in this installation and exit",
     )
     parser.add_argument(
         "-f",
@@ -90,6 +133,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    if args.list_followers:
+        print_score_followers()
+        sys.exit(0)
 
     if args.config_file:
         import yaml
@@ -258,6 +305,13 @@ if __name__ == "__main__":
 
     # --score-follower picks the tracker within the chosen variant.
     if args.score_follower:
+        valid = score_follower_choices()[follower]
+        if args.score_follower not in valid:
+            raise SystemExit(
+                f"'{args.score_follower}' is not a score follower of "
+                f"'--follower {follower}'. Available: {', '.join(valid)}.\n"
+                "Run 'python bin/launch_acc.py --list-followers' for the full list."
+            )
         configurations["score_follower_kwargs"]["score_follower"] = args.score_follower
 
     if follower == "hmm":
