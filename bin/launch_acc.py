@@ -118,6 +118,14 @@ if __name__ == "__main__":
         help="list the score followers available in this installation and exit",
     )
     parser.add_argument(
+        "--ensemble-members",
+        nargs="+",
+        metavar="METHOD",
+        help="for '--score-follower ensemble': which followers make up the "
+        "ensemble, e.g. --ensemble-members pthmm outerhmm arzt. Defaults to "
+        "whatever matchmaker's spec declares.",
+    )
+    parser.add_argument(
         "-f",
         "--config_file",
         default="simple_pieces",
@@ -313,6 +321,20 @@ if __name__ == "__main__":
                 "Run 'python bin/launch_acc.py --list-followers' for the full list."
             )
         configurations["score_follower_kwargs"]["score_follower"] = args.score_follower
+
+    if args.ensemble_members:
+        selected = configurations["score_follower_kwargs"].get("score_follower")
+        if selected != "ensemble":
+            raise SystemExit(
+                "--ensemble-members only applies to '--score-follower ensemble' "
+                f"(the score follower here is '{selected}')."
+            )
+        method_kwargs = configurations["score_follower_kwargs"].setdefault(
+            "score_follower_kwargs", {}
+        )
+        method_kwargs["members"] = [
+            {"method": name} for name in args.ensemble_members
+        ]
 
     if follower == "hmm":
         from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion

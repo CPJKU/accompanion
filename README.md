@@ -159,6 +159,15 @@ python ./bin/launch_acc.py --follower matchmaker --score-follower arzt \
     --input Your_MIDI_Input --output Your_MIDI_Output
 ```
 
+`--score-follower` accepts any method matchmaker registers, including the
+`ensemble`, which runs several followers at once and arbitrates between them:
+
+```shell
+python ./bin/launch_acc.py --follower matchmaker --score-follower ensemble \
+    --ensemble-members pthmm outerhmm arzt \
+    --input Your_MIDI_Input --output Your_MIDI_Output
+```
+
 To list every score follower available in your installation:
 
 ```shell

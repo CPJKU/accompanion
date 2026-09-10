@@ -127,11 +127,17 @@ class MatchmakerScoreFollower(AccompanimentScoreFollower):
     score_follower: matchmaker.base.OnlineAlignment
         The follower to be driven, as built by
         `accompanion.score_follower.matchmaker_methods.build_score_follower`.
+    raw_modality: str, optional
+        Set for a composite follower, such as Matchmaker's ensemble, which is
+        handed the untouched stream frame tagged with its modality rather than
+        the features of a single processor. It applies its members' own
+        processors itself.
     """
 
-    def __init__(self, score_follower, **kwargs) -> None:
+    def __init__(self, score_follower, raw_modality=None, **kwargs) -> None:
         super().__init__()
         self.score_follower = score_follower
+        self.raw_modality: Optional[str] = raw_modality
         self.current_position: float = float(
             getattr(score_follower, "current_position", 0.0)
         )
@@ -142,6 +148,8 @@ class MatchmakerScoreFollower(AccompanimentScoreFollower):
             return None
 
         features, perf_time = observation
+        if self.raw_modality is not None:
+            features = (self.raw_modality, features)
         position = float(self.score_follower(features, perf_time))
 
         # HMM followers interleave an "insertion" state between consecutive

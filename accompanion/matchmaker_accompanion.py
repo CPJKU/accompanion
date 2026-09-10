@@ -17,6 +17,7 @@ from typing import Any, Dict, Optional
 
 from accompanion.hmm_accompanion import HMMACCompanion
 from accompanion.score_follower.matchmaker_methods import (
+    INPUT_TYPE,
     available_methods,
     build_score_follower,
     default_method,
@@ -106,6 +107,10 @@ class MatchmakerACCompanion(HMMACCompanion):
                 "(HMMACCompanion) and 'OnlineTimeWarping' (OLTWACCompanion)."
             )
 
+        solo_fn = self.score_kwargs["solo_fn"]
+        if isinstance(solo_fn, (list, tuple)):
+            solo_fn = solo_fn[0]
+
         processor, follower, info = build_score_follower(
             method=method,
             score_part=self.solo_spart,
@@ -113,6 +118,7 @@ class MatchmakerACCompanion(HMMACCompanion):
             tempo=60 / self.init_bp,
             polling_period=self.polling_period,
             config=config,
+            score_file=solo_fn,
         )
 
         # A method whose spec asks for a null polling period aligns note by
@@ -120,13 +126,23 @@ class MatchmakerACCompanion(HMMACCompanion):
         # hand it one message at a time.
         self.event_based_input = info["event_based"]
 
+        members = getattr(follower, "members", None)
+        detail = (
+            f"members {[m.name for m in members]}"
+            if members
+            else f"processor '{info['processor']}'"
+        )
         print(
-            f"Score follower: matchmaker '{info['method']}' "
-            f"(processor '{info['processor']}', "
+            f"Score follower: matchmaker '{info['method']}' ({detail}, "
             f"input {'event based' if self.event_based_input else 'framed'})"
         )
 
-        self.score_follower = MatchmakerScoreFollower(follower)
+        self.score_follower = MatchmakerScoreFollower(
+            follower,
+            # A composite follower is handed the raw frame, tagged with the
+            # modality it came from, and processes it per member.
+            raw_modality=INPUT_TYPE if info["raw_frames"] else None,
+        )
         self.input_pipeline = processor
 
     def check_empty_frames(self, frame):

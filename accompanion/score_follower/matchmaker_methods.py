@@ -18,6 +18,8 @@ then stays in Matchmaker's spec, so a method added to ``methods.yaml``
 upstream, or registered at runtime with ``register_method``, becomes usable
 here without any change to the ACCompanion.
 """
+import os
+import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -69,6 +71,21 @@ def is_event_based(method: str) -> bool:
     return bool(spec is not None and spec.event_based)
 
 
+def takes_raw_frames(method: str) -> bool:
+    """Whether the method is fed raw stream frames rather than features.
+
+    A composite method such as the ensemble declares its own input stream in
+    Matchmaker's spec (``stream: merged``), because it holds several member
+    followers that each apply their own feature processor. Matchmaker feeds
+    such a stream through a passthrough processor and hands the follower
+    ``(modality, raw_frame)``; the ACCompanion has to do the same.
+    """
+    spec = REGISTRY.methods.get(INPUT_TYPE, {}).get(method)
+    # `stream` only exists in Matchmaker versions that know about composite
+    # methods; older ones have no such method either.
+    return getattr(spec, "stream", None) is not None
+
+
 def preferred_polling_period(method: str) -> Optional[float]:
     """The polling period the method's spec asks for, in seconds.
 
@@ -80,6 +97,28 @@ def preferred_polling_period(method: str) -> Optional[float]:
     if "polling_period" in defaults:
         return defaults["polling_period"]
     return None if is_event_based(method) else MIDI_STREAM_POLLING_PERIOD
+
+
+#: Serialised solo parts, so that a part is written out at most once per
+#: process. Keyed by the file it was loaded from where that is known -- the
+#: same file always yields the same part -- and by the part object otherwise.
+_SCORE_PART_FILES: Dict[Any, str] = {}
+
+
+def _score_part_to_file(score_part, source: Optional[str] = None) -> str:
+    """Write `score_part` to a MusicXML file and return its path."""
+    key = source if source is not None else id(score_part)
+    cached = _SCORE_PART_FILES.get(key)
+    if cached is not None and os.path.exists(cached):
+        return cached
+
+    import partitura as pt
+
+    handle, path = tempfile.mkstemp(prefix="accompanion_solo_", suffix=".musicxml")
+    os.close(handle)
+    pt.save_musicxml(score_part, path)
+    _SCORE_PART_FILES[key] = path
+    return path
 
 
 class FollowerContext(object):
@@ -121,9 +160,18 @@ class FollowerContext(object):
         polling_period: Optional[float],
         tempo: float,
         config: Optional[Dict[str, Any]] = None,
+        score_file: Optional[str] = None,
+        unfold_score: bool = False,
     ) -> None:
         self.method = method
         self.score_part = score_part
+        # A composite method builds its members through their own Matchmaker,
+        # which loads the score from file. The ACCompanion does not unfold
+        # repeats, so neither should the members, or their score positions
+        # would not line up with the ACCompanion's.
+        self.score_file = score_file
+        self.unfold_score = unfold_score
+        self.device_name_or_index = None
         self._score_positions = np.asarray(score_positions)
         self.polling_period = polling_period
         self.tempo = float(tempo)
@@ -178,6 +226,7 @@ def build_score_follower(
     tempo: float,
     polling_period: Optional[float] = None,
     config: Optional[Dict[str, Any]] = None,
+    score_file: Optional[str] = None,
 ) -> Tuple[Any, Any, Dict[str, Any]]:
     """Build a Matchmaker feature processor and score follower.
 
@@ -199,6 +248,9 @@ def build_score_follower(
         is used.
     config : dict, optional
         Method configuration. Merged over the method's `default_kwargs`.
+    score_file : str, optional
+        Path to the solo score. Only needed by a composite method, whose
+        members are built through their own Matchmaker.
 
     Returns
     -------
@@ -234,6 +286,22 @@ def build_score_follower(
     if polling_period is None:
         polling_period = wanted_polling_period
 
+    raw_frames = takes_raw_frames(method)
+    custom = _custom_spec(method)
+
+    if raw_frames and score_part is not None:
+        # A composite method builds its members through their own Matchmaker,
+        # which loads the score from file rather than taking the part it is
+        # handed. Those two are not always the same music: partitura's
+        # `load_score` yields one part per score, while Matchmaker reads the
+        # file with `load_musicxml` and merges every part in it. A file holding
+        # both the solo and the accompaniment -- which the four-hand pieces do
+        # -- would leave the members aligning against twice the score the
+        # ACCompanion follows. Writing the part out first pins them to it.
+        context_score_file = _score_part_to_file(score_part, source=score_file)
+    else:
+        context_score_file = score_file
+
     context = FollowerContext(
         method=method,
         score_part=score_part,
@@ -241,11 +309,17 @@ def build_score_follower(
         polling_period=polling_period,
         tempo=tempo,
         config=merged,
+        score_file=context_score_file,
     )
 
-    custom = _custom_spec(method)
+    if raw_frames:
+        # The method applies its members' processors itself, so the pipeline
+        # in front of it must hand the frame over untouched.
+        from matchmaker.ensemble import RawProcessor
 
-    if custom is not None and custom["build_processor"] is not None:
+        processor_type = "raw"
+        context.processor = RawProcessor()
+    elif custom is not None and custom["build_processor"] is not None:
         context.processor = custom["build_processor"](context)
     else:
         context.processor = REGISTRY.build_processor(context, processor_type)
@@ -269,5 +343,7 @@ def build_score_follower(
         # to hand it one MIDI message per frame.
         "wanted_polling_period": wanted_polling_period,
         "event_based": wanted_polling_period is None,
+        # Whether the follower wants (modality, raw_frame) rather than features.
+        "raw_frames": raw_frames,
     }
     return context.processor, follower, info
