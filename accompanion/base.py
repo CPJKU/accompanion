@@ -21,6 +21,7 @@ from accompanion.accompanist.fermata import (
     waiting_points,
 )
 from accompanion.accompanist.score import AccompanimentScore, Score
+from accompanion.avatar_stream import AvatarPublisher
 from accompanion.config import CONFIG
 from accompanion.midi_handler.ceus_mediator import CeusMediator
 from accompanion.midi_handler.fluid import FluidsynthPlayer
@@ -135,6 +136,15 @@ class ACCompanion(ACC_PARENT):
         fermata_kwargs: Optional[dict] = None,
     ) -> None:
         super(ACCompanion, self).__init__()
+
+        # Optional real-time avatar feed. Off unless ACC_AVATAR_HOST is set, so
+        # a normal run is unaffected. See accompanion/avatar_stream.py.
+        _avatar_host = os.environ.get("ACC_AVATAR_HOST")
+        self.avatar_publisher = (
+            AvatarPublisher(_avatar_host, int(os.environ.get("ACC_AVATAR_PORT", "7001")))
+            if _avatar_host
+            else None
+        )
 
         self.performance_codec_kwargs = performance_codec_kwargs
         self.score_kwargs = score_kwargs
@@ -435,6 +445,24 @@ class ACCompanion(ACC_PARENT):
         """
         self.stop_playing()
 
+    def _publish_avatar_frame(self, solo_p_onset, state) -> None:
+        """Send this frame's clock and the current schedule to the avatar process.
+
+        Emitted at every frame (including fermata waits) so the avatar's clock
+        matches the ACCompanion's; the schedule lets its look-ahead match
+        training. A no-op unless ACC_AVATAR_HOST is set.
+        """
+        publisher = self.avatar_publisher
+        if publisher is None:
+            return
+        publisher.frame(
+            solo_p_onset,
+            state.expected_position,
+            self.beat_period,
+            self.fermata_hold.waiting,
+        )
+        publisher.schedule(self.acc_score.notes)
+
     def follow_step(
         self,
         input_midi_messages,
@@ -519,6 +547,7 @@ class ACCompanion(ACC_PARENT):
                     perf_time=solo_p_onset,
                     expected_ioi=self.fermata_hold.score_gap * self.beat_period,
                 )
+                self._publish_avatar_frame(solo_p_onset, state)
                 return start_sequencer
             self.fermata_hold.give_up(solo_p_onset, self.beat_period)
             waiting = False
@@ -595,6 +624,7 @@ class ACCompanion(ACC_PARENT):
                 self.score_follower.update_position(state.expected_position)
                 state.adjusted_sf = True
 
+        self._publish_avatar_frame(solo_p_onset, state)
         return start_sequencer
 
     def run(self):
