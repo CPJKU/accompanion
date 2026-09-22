@@ -16,7 +16,10 @@ from mido.ports import BaseOutput
 from accompanion.midi_handler.fluid import FluidsynthPlayer
 from accompanion.midi_handler.midi_utils import (
     OUTPUT_MIDI_FOLDER,
-    midi_file_from_midi_msg,
+    RECORDED_TYPES,
+    close_sounding_notes,
+    first_note_time,
+    write_midi,
 )
 
 # import sys
@@ -503,65 +506,177 @@ class DummyRouter(object):
         return None
 
 
-class RecordingRouter(MidiRouter):
-    """This class works like a standard MIDI router and in addition ot the MIDI input from
-    the soloist and the MIDI output of the accompaniment.
+class MidiRecorder(object):
+    """Records the soloist's input and the accompaniment's output of a session.
+
+    Both parts are timestamped against one origin -- by default the same
+    `time.time()` the sequencer and the MIDI input count from -- so the two
+    files describe a single performance rather than two takes, and can be laid
+    over each other without alignment.
+
+    The two ports are wrapped in place on whatever router is in use, so this
+    works for a real `MidiRouter` and equally for the `DummyRouter` that
+    `test=True` installs: a silent MIDI-file rehearsal is recorded just as a
+    played one is.
+
+    Parameters
+    ----------
+    output : str
+        Directory to write the session into. Created if missing; an existing
+        recording in it is overwritten.
+    origin : float, optional
+        Time zero for the recording, as `time.time()` reads it. Defaults to
+        when the recorder was made.
     """
 
-    def __init__(self, piece_name, **router_kwargs):
+    #: ``(file stem, track name, router attribute)`` per recorded part.
+    PARTS = (
+        ("soloist", "Soloist", "solo_input_to_accompaniment_port"),
+        ("accompaniment", "Accompaniment", "acc_output_to_sound_port"),
+    )
+
+    def __init__(self, output, origin=None):
+        self.output = output
+        self.origin = time.time() if origin is None else float(origin)
+        self.end = None
+        self.ports = {}
+
+    def attach(self, router):
+        """Wrap the router's soloist input and accompaniment output.
+
+        Call before the sequencer and the MIDI input are built, since both
+        take their port from the router once and keep it.
+        """
+        for stem, _, attribute in self.PARTS:
+            port = RecordingPort(getattr(router, attribute), self.origin)
+            setattr(router, attribute, port)
+            self.ports[stem] = port
+
+    def stop(self):
+        """Mark the end of the performance, before the ports are torn down."""
+        if self.end is None:
+            self.end = time.time() - self.origin
+
+    def messages(self, stem):
+        """One part's captured messages, with anything left sounding released."""
+        port = self.ports.get(stem)
+        captured = list(port.messages) if port is not None else []
+        end = max([self.end or 0.0] + [seconds for _, seconds in captured])
+        return close_sounding_notes(captured, end)
+
+    def save(self):
+        """Write each part, both parts together, and their shared offsets.
+
+        Every file is in session seconds, so the parts already line up. The
+        offsets name each part's first note on that same timeline, for a
+        reader that wants to place them itself.
+        """
+        self.stop()
+        if not os.path.exists(self.output):
+            os.makedirs(self.output)
+        parts = {stem: self.messages(stem) for stem, _, _ in self.PARTS}
+        for stem, name, _ in self.PARTS:
+            write_midi(os.path.join(self.output, f"{stem}.mid"), [(name, parts[stem])])
+        write_midi(
+            os.path.join(self.output, "duo.mid"),
+            [(name, parts[stem]) for stem, name, _ in self.PARTS],
+        )
+        onsets = {stem: first_note_time(parts[stem]) for stem, _, _ in self.PARTS}
+        with open(os.path.join(self.output, "sync.csv"), "w") as stream:
+            stream.write("filename,offset_s\n")
+            for stem, _, _ in self.PARTS:
+                onset = onsets[stem]
+                # A part that never sounded has no first note to place, and an
+                # unknown offset is left empty rather than written as zero.
+                value = "" if onset is None else f"{onset:.6f}"
+                stream.write(f"{stem}.mid,{value}\n")
+        counts = ", ".join(
+            "{} {} notes".format(
+                stem,
+                sum(
+                    message.type == "note_on" and message.velocity > 0
+                    for message, _ in parts[stem]
+                ),
+            )
+            for stem, _, _ in self.PARTS
+        )
+        print(f"Recorded {counts} in {self.output}")
+        return self.output
+
+
+class RecordingRouter(MidiRouter):
+    """A MIDI router that also records what the soloist and accompaniment play.
+
+    Kept for callers that ask for a recording router by name. New code can
+    wrap any router -- including the `DummyRouter` used for silent rehearsal,
+    which this one cannot be -- with `MidiRecorder.attach`.
+    """
+
+    def __init__(self, piece_name, output=None, origin=None, **router_kwargs):
         super(RecordingRouter, self).__init__(**router_kwargs)
         self.piece_name = piece_name
-        self.solo_input_to_accompaniment_port = RecordingPort(
-            self.solo_input_to_accompaniment_port
-        )
-        self.acc_output_to_sound_port = RecordingPort(self.acc_output_to_sound_port)
+        if output is None:
+            stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            output = os.path.join(OUTPUT_MIDI_FOLDER, f"{piece_name}_{stamp}")
+        self.recorder = MidiRecorder(output, origin)
+        self.recorder.attach(self)
 
     def close_ports(self):
+        # Before the ports go, so the silencing note offs the panic button
+        # sends are not taken for part of the performance.
+        self.recorder.stop()
         super(RecordingRouter, self).close_ports()
         self.save_midi()
 
     def save_midi(self):
-        all_msg_soloits = list(self.solo_input_to_accompaniment_port.all_msg.queue)
-        all_msg_acc = list(self.acc_output_to_sound_port.all_msg.queue)
-        # The date format is {Year}-{Month}-{Day}_{Hours}-{Minutes}-{Seconds}
-        time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        # save input soloist
-        soloist_out_path = os.path.join(
-            OUTPUT_MIDI_FOLDER, f"{self.piece_name}_soloist_{time_str}.mid"
-        )
-        midi_file_from_midi_msg(all_msg_soloits, soloist_out_path)
-        # save generated accompaniment
-        accompaniment_out_path = os.path.join(
-            OUTPUT_MIDI_FOLDER, f"{self.piece_name}_accompaniment_{time_str}.mid"
-        )
-        midi_file_from_midi_msg(all_msg_acc, accompaniment_out_path)
-        print(f"MIDI files saved in {soloist_out_path} and {accompaniment_out_path}")
+        return self.recorder.save()
 
 
 class RecordingPort(BasePort):
-    """This class acts a middleman MIDI port for recording MIDI msgs.
-    It captures messages sent and received and forward them to the wanted port
+    """A MIDI port that timestamps everything passing through it.
+
+    One upstream port is wrapped and every other attribute is delegated -- read
+    *and* written, so that a router closing `active` on the port it handed out
+    still reaches the real one. Times are seconds since the recorder's origin.
     """
 
-    def __init__(self, real_port):
+    #: Everything else belongs to the wrapped port.
+    _OWN = frozenset({"port", "origin", "messages"})
+
+    def __init__(self, real_port, origin=None):
         super().__init__()
-        self.active = True
-        self.port = real_port
-        self.all_msg = queue.Queue()
+        object.__setattr__(self, "port", real_port)
+        object.__setattr__(self, "origin", time.time() if origin is None else origin)
+        object.__setattr__(self, "messages", [])
+
+    def _capture(self, msg):
+        if msg is not None and msg.type in RECORDED_TYPES:
+            # The sequencer reuses its note messages, so keep a copy.
+            self.messages.append((msg.copy(), time.time() - self.origin))
+        return msg
 
     def send(self, msg):
-        if msg is not None:
-            self.all_msg.put((msg, time.time()))
-        self.port.send(msg)
-
-    # def panic(self):
-    #     self.active=False
+        self.port.send(self._capture(msg))
 
     def poll(self):
-        msg = self.port.poll()
-        if msg is not None:
-            self.all_msg.put((msg, time.time()))
-        return msg
+        return self._capture(self.port.poll())
 
     def panic(self):
         self.port.panic()
+
+    @property
+    def all_msg(self):
+        """The captured messages, as the queue older callers expect."""
+        held = queue.Queue()
+        for item in self.messages:
+            held.put(item)
+        return held
+
+    def __getattr__(self, name):
+        return getattr(self.port, name)
+
+    def __setattr__(self, name, value):
+        if name in self._OWN:
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self.port, name, value)

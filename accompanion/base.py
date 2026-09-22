@@ -2,6 +2,7 @@
 """
 ACCompanion!
 """
+import datetime
 import multiprocessing
 import os
 import threading
@@ -29,10 +30,11 @@ from accompanion.midi_handler.midi_file_player import get_midi_file_player
 from accompanion.midi_handler.midi_input import POLLING_PERIOD, create_midi_poll
 from accompanion.midi_handler.midi_routing import (
     DummyRouter,
+    MidiRecorder,
     MidiRouter,
-    RecordingRouter,
 )
 from accompanion.midi_handler.midi_sequencing_threads import ScoreSequencer
+from accompanion.midi_handler.midi_utils import OUTPUT_MIDI_FOLDER
 from accompanion.score_follower.note_tracker import NoteTracker
 from accompanion.score_follower.onset_tracker import DiscreteOnsetTracker, OnsetTracker
 from accompanion.score_follower.trackers import (
@@ -105,7 +107,12 @@ class ACCompanion(ACC_PARENT):
         Bypass fluidsynth audio
     test: bool = False
         switch to Dummy MIDI ROuter for test environment
-    record_midi_path : str
+    record_midi : bool or str
+        Whether to record what the soloist and the accompaniment play, and
+        where. ``True`` writes a directory under `OUTPUT_MIDI_FOLDER` named
+        after the piece and the time; a path names that directory instead.
+        Both parts are recorded on one timeline, and recording works under
+        ``test=True`` as well, so a silent rehearsal can be captured too.
     fermata_kwargs: dict (optional)
         How the accompaniment waits at fermatas and in free sections. See
         `setup_fermata_hold` for the keys, and
@@ -131,7 +138,7 @@ class ACCompanion(ACC_PARENT):
         onset_tracker_type: str = "continuous",
         bypass_audio: bool = False,  # bypass fluidsynth audio
         test: bool = False,  # switch to Dummy MIDI ROuter for test environment
-        record_midi: bool = False,
+        record_midi=False,
         accompanist_decoder_kwargs: Optional[dict] = None,
         fermata_kwargs: Optional[dict] = None,
     ) -> None:
@@ -169,6 +176,7 @@ class ACCompanion(ACC_PARENT):
         self.beat_period = self.init_bp
         self.velocity = self.init_velocity
         self.record_midi = record_midi
+        self.recorder = None
 
         # Parameters for following
         self.polling_period: float = polling_period
@@ -333,6 +341,24 @@ class ACCompanion(ACC_PARENT):
 
         return hold
 
+    def recording_path(self):
+        """Where this session's MIDI recording goes.
+
+        `record_midi` may name the directory itself. Given just ``True``, one
+        is made under `OUTPUT_MIDI_FOLDER` from the piece's own folder name and
+        the time, so repeated runs do not overwrite each other.
+        """
+        if not isinstance(self.record_midi, bool):
+            return str(self.record_midi)
+        solo_fn = self.score_kwargs["solo_fn"]
+        if isinstance(solo_fn, (list, tuple)):
+            solo_fn = solo_fn[0]
+        if not isinstance(solo_fn, str):
+            raise ValueError(f"{solo_fn} should be a string or a list")
+        piece_name = os.path.basename(os.path.dirname(solo_fn)) or "performance"
+        stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        return os.path.join(OUTPUT_MIDI_FOLDER, f"{piece_name}_{stamp}")
+
     def setup_process(self):
         """
         Setup the process for the ACCompanion.
@@ -361,19 +387,15 @@ class ACCompanion(ACC_PARENT):
 
         if self.test:
             self.router = DummyRouter(**self.router_kwargs)
-        elif self.record_midi:
-
-            if isinstance(self.score_kwargs["solo_fn"], (list, tuple)):
-                piece_name = self.score_kwargs["solo_fn"][0].split(os.path.sep)[-2]
-            elif isinstance(self.score_kwargs["solo_fn"], str):
-                piece_name = self.score_kwargs["solo_fn"].split(os.path.sep)[-2]
-            else:
-                raise ValueError(
-                    f"{self.score_kwargs['solo_fn']} should be a string or a list"
-                )
-            self.router = RecordingRouter(piece_name, **self.router_kwargs)
         else:
             self.router = MidiRouter(**self.router_kwargs)
+
+        # Recording wraps whichever router is in use, rather than being a
+        # router of its own, so that a silent MIDI-file rehearsal -- which has
+        # to use the dummy router -- is recorded exactly as a played one is.
+        if self.record_midi:
+            self.recorder = MidiRecorder(self.recording_path())
+            self.recorder.attach(self.router)
 
         self.seq: ScoreSequencer = ScoreSequencer(
             score_or_notes=self.acc_score,
@@ -431,12 +453,18 @@ class ACCompanion(ACC_PARENT):
         if self.dummy_solo is not None:
             self.dummy_solo.stop_playing()
             self.dummy_solo.join()
+        # Closed before the panic button, so the note offs that silence the
+        # instrument are not taken for part of the performance.
+        if self.recorder is not None:
+            self.recorder.stop()
         self.midi_input_process.stop_listening()
         self.seq.stop_playing()
         self.seq.panic_button()
         self.router.close_ports()
         self.seq.join()
         self.midi_input_process.join()
+        if self.recorder is not None:
+            self.recorder.save()
         print("All processes have finished")
 
     def terminate(self):
@@ -530,10 +558,16 @@ class ACCompanion(ACC_PARENT):
         state.prev_solo_p_onset = solo_p_onset
 
         waiting = self.fermata_hold.waiting
-        if waiting and solo_s_onset is None:
+        if waiting and (
+            solo_s_onset is None
+            or not self.fermata_hold.released_by(solo_p_onset)
+        ):
             # Still at the fermata. The soloist counts as present while a key
             # is down or a note has just arrived; a wait that outlasts their
-            # silence is a breakdown rather than a held note.
+            # silence is a breakdown rather than a held note. An onset
+            # reported before the fermata's own chord has finished arriving is
+            # that chord, not the soloist moving on, so it does not end the
+            # wait either.
             if self.fermata_hold.keep_waiting(
                 perf_onset=solo_p_onset,
                 holding=bool(self.note_tracker.open_notes),
@@ -613,8 +647,15 @@ class ACCompanion(ACC_PARENT):
             # A fermata, or a note inside a free section. The accompanist has
             # just scheduled the whole rest of the piece from here at the
             # tempo the soloist arrived with; everything past this onset is
-            # suspended again until they move on.
-            self.fermata_hold.begin(solo_s_onset, solo_p_onset)
+            # suspended again until they move on. The follower's own position
+            # says whether they are still there to be waited for.
+            self.fermata_hold.begin(
+                solo_s_onset,
+                solo_p_onset,
+                # Not every follower reports one; without it the wait is begun
+                # as before.
+                position=getattr(self.score_follower, "current_position", None),
+            )
         else:
             state.loops_without_update += 1
 

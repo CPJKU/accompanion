@@ -326,7 +326,35 @@ class FermataHold(object):
             np.any(np.isclose(self.onsets, float(score_onset), atol=ONSET_TOLERANCE))
         )
 
-    def begin(self, score_onset: float, perf_onset: float) -> bool:
+    def next_onset_after(self, score_onset: float) -> Optional[float]:
+        """The solo onset that would end a wait at `score_onset`."""
+        after = float(score_onset) + ONSET_TOLERANCE
+        later = self.solo_onsets[self.solo_onsets > after]
+        return float(later[0]) if len(later) else None
+
+    def released_by(self, perf_onset: float) -> bool:
+        """Whether an onset reported now is really the soloist moving on.
+
+        A chord is not struck all at once. Within `WAIT_SETTLE` of the wait
+        beginning, what is still arriving is the rest of the fermata's own
+        chord, and a follower that matches one of those notes to the onset
+        *after* the fermata -- which it will whenever the two share a pitch --
+        is reporting that chord rather than a departure. Releasing on it ends
+        the fermata a few milliseconds after it began.
+
+        Outside that window a reported onset is taken at face value: the
+        soloist is free to leave a fermata as soon as they like.
+        """
+        if self._began_at is None:
+            return True
+        return perf_onset - self._began_at >= WAIT_SETTLE
+
+    def begin(
+        self,
+        score_onset: float,
+        perf_onset: float,
+        position: Optional[float] = None,
+    ) -> bool:
         """Stop the accompaniment at `score_onset`, if it is a waiting point.
 
         Everything the accompanist has scheduled beyond this onset is parked;
@@ -341,6 +369,16 @@ class FermataHold(object):
             The score onset the soloist has just reached, in beats.
         perf_onset : float
             When they reached it, in seconds since the performance started.
+        position : float, optional
+            Where the score follower currently stands, in beats. A follower
+            that is already at or past the onset which would end this wait has
+            heard the soloist leave the fermata; the onset tracker is only now
+            walking through it, one onset per frame, several seconds late. A
+            wait begun there is released on the very next frame, and the
+            release resumes the accompaniment at the *following* onset -- so
+            the fermata is not merely not held, it is cut shorter than playing
+            straight through it would have been. Nothing is waited for
+            instead.
 
         Returns
         -------
@@ -350,9 +388,16 @@ class FermataHold(object):
         if self.waiting or not self.waits_at(score_onset):
             return False
 
+        next_onset = self.next_onset_after(score_onset)
+        if (
+            position is not None
+            and next_onset is not None
+            and float(position) >= next_onset - ONSET_TOLERANCE
+        ):
+            return False
+
         self.onset = float(score_onset)
-        later = self.solo_onsets[self.solo_onsets > self.onset + ONSET_TOLERANCE]
-        self._score_gap = float(later[0] - self.onset) if len(later) else 0.0
+        self._score_gap = 0.0 if next_onset is None else next_onset - self.onset
         self._began_at = perf_onset
         self._last_active = perf_onset
         self._playing_since = None
