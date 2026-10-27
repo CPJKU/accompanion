@@ -422,12 +422,16 @@ class MidiFilePlayerInterceptPort(object):
         self.active = False
 
     def poll(self):
-        while self.active:
-            try:
-                msg = self.queue.get(True, 1)
-                return msg
-            except queue.Empty:
-                pass
+        # Non-blocking, like a real mido port: blocking here until the next
+        # note would stop the input frames, and with them the following loop,
+        # once the MIDI file has run out, so the end of the piece was never
+        # noticed and the program did not exit.
+        if not self.active:
+            return None
+        try:
+            return self.queue.get_nowait()
+        except queue.Empty:
+            return None
 
 
 class DummyRouter(object):

@@ -5,6 +5,7 @@ ACCompanion!
 import datetime
 import multiprocessing
 import os
+import queue
 import threading
 import time
 from dataclasses import dataclass
@@ -638,6 +639,19 @@ class ACCompanion(ACC_PARENT):
 
         return start_sequencer
 
+    def _receive_frame(self, timeout: float = 1.0):
+        """The next input frame, or None if none arrives within `timeout`.
+
+        `self.queue` is a `RECVQueue` when the MIDI input runs in a thread and
+        the receiving end of a `Pipe` when it runs in a process.
+        """
+        if isinstance(self.queue, queue.Queue):
+            try:
+                return self.queue.get(timeout=timeout)
+            except queue.Empty:
+                return None
+        return self.queue.recv() if self.queue.poll(timeout) else None
+
     def run(self):
         """
         Main run method
@@ -699,9 +713,12 @@ class ACCompanion(ACC_PARENT):
                 # (NV) actually, this should be "have a CORRECT branch (non-blocking MIDI)
                 # vs. no branch (blocking MIDI)"
 
-                # this version of recv uses the quasi-blocking version with
-                # periodic timeouts
-                output = self.queue.recv()
+                # Wait for the next frame, but not indefinitely: an
+                # event-based input sends nothing once the soloist stops, and
+                # the end of the piece would then never be noticed.
+                output = self._receive_frame()
+                if output is None:
+                    continue
                 solo_p_onset = time.time() - start_time
                 input_midi_messages, output = output
 
