@@ -654,9 +654,8 @@ def main():
     parser.add_argument(
         "--follower-kwargs",
         metavar="JSON",
-        help="method configuration for a matchmaker follower, as JSON. For "
-        'example \'{"members": [{"method": "pthmm"}, {"method": "outerhmm"}]}\' '
-        "to choose the ensemble's members.",
+        help="method configuration for a matchmaker follower, as JSON, e.g. "
+        '\'{"piano_range": false}\'.',
     )
     parser.add_argument(
         "--traceback", action="store_true", help="print tracebacks for failures"

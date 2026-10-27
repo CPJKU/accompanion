@@ -21,7 +21,7 @@ Examples
     python bin/test_accompaniment.py --piece badinerie
     python bin/test_accompaniment.py --piece badinerie --scenarios all --seeds 3
     python bin/test_accompaniment.py --piece badinerie \
-        --followers PitchIOIHMM outerhmm ensemble
+        --followers PitchIOIHMM outerhmm pthmm
 """
 import argparse
 import contextlib
