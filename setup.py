@@ -14,11 +14,10 @@ AUTHOR = "Carlos Cancino-Chacón, Silvan Peter, Florian Henkel, Martin Bonev"
 REQUIRES_PYTHON = ">=3.10,<3.13"
 VERSION = "0.3.0"
 
-# Branch of pymatchmaker/matchmaker providing the score following methods.
-# The pymatchmaker 0.3.0 on PyPI predates the method registry the ACCompanion
-# uses. TODO: switch to a released version of `pymatchmaker` once one
-# includes it.
-MATCHMAKER_BRANCH = "main"
+# Branch of pymatchmaker/matchmaker providing the score following methods,
+# here the one that adds the ensemble tracker. TODO: switch to `main`, and
+# then to a released version of `pymatchmaker`, once it is merged.
+MATCHMAKER_BRANCH = "feature/ensemble_tracker"
 
 REQUIRED = [
     "mido",
