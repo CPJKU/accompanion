@@ -15,9 +15,10 @@ REQUIRES_PYTHON = ">=3.10,<3.13"
 VERSION = "0.3.0"
 
 # Branch of pymatchmaker/matchmaker providing the score following methods.
-# TODO: switch to a released version of `pymatchmaker` once this branch has
-# been merged into `develop`.
-MATCHMAKER_BRANCH = "feature/clean_method_registration"
+# The pymatchmaker 0.3.0 on PyPI predates the method registry the ACCompanion
+# uses. TODO: switch to a released version of `pymatchmaker` once one
+# includes it.
+MATCHMAKER_BRANCH = "main"
 
 REQUIRED = [
     "mido",

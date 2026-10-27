@@ -77,8 +77,9 @@ so `environment.yml` pins them with a comment:
 | `setuptools<81` | basismixer imports `pkg_resources`, removed in setuptools 81. |
 | `pytorch-cpu` | basismixer imports torch. Installing the CPU build from conda-forge keeps pip from pulling the much larger CUDA wheels. |
 
-matchmaker is currently installed from the `feature/clean_method_registration`
-branch; `setup.py` has a TODO to move to a release once it is merged.
+matchmaker is currently installed from its `main` branch on GitHub, as the
+release on PyPI predates the method registry the ACCompanion uses; `setup.py`
+has a TODO to move to a release once one includes it.
 
 ### Upgrading from an older ACCompanion
 
