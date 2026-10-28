@@ -28,6 +28,9 @@ The ACCompanion is an expressive accompaniment system. Similarly to a musician w
   ([matchmaker](https://github.com/pymatchmaker/matchmaker)) has Cython
   extensions, and PyPI has prebuilt wheels for it on Linux and macOS but not
   on Windows, where pip builds it from source.
+* On Windows, delete the `- fluidsynth` line from `environment.yml` before
+  creating the environment: conda-forge has no FluidSynth for Windows, and the
+  ACCompanion only uses it on Linux and macOS.
 
 ### Installation
 
