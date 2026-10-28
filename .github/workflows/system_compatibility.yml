@@ -42,10 +42,14 @@ jobs:
           pip install "pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@v0.4.0"
           pip install -e .
 
+      # Without --midi-fn the test router has no soloist and waits forever,
+      # so play the rendered solo part of a piece into it.
       - name: Run Accompanion
+        timeout-minutes: 10
         run: |
+          python -c "import partitura as pt; pt.save_score_midi(pt.load_score('accompanion_pieces/simple_pieces/bach_menuett/primo.musicxml'), 'solo.mid')"
           cd bin
-          python launch_acc.py --test
+          python -u launch_acc.py --test --config_file bach_menuett --midi-fn ../solo.mid
 
   ubuntu_testing:
     runs-on: ubuntu-latest
@@ -79,10 +83,14 @@ jobs:
           pip install pyfluidsynth
           pip install -e .
 
+      # Without --midi-fn the test router has no soloist and waits forever,
+      # so play the rendered solo part of a piece into it.
       - name: Run Accompanion
+        timeout-minutes: 10
         run: |
+          python -c "import partitura as pt; pt.save_score_midi(pt.load_score('accompanion_pieces/simple_pieces/bach_menuett/primo.musicxml'), 'solo.mid')"
           cd bin
-          python launch_acc.py --test
+          python -u launch_acc.py --test --config_file bach_menuett --midi-fn ../solo.mid
 
   macOS_testing:
     runs-on: macos-latest
@@ -114,7 +122,11 @@ jobs:
           pip install pyfluidsynth
           pip install -e .
 
+      # Without --midi-fn the test router has no soloist and waits forever,
+      # so play the rendered solo part of a piece into it.
       - name: Run Accompanion
+        timeout-minutes: 10
         run: |
+          python -c "import partitura as pt; pt.save_score_midi(pt.load_score('accompanion_pieces/simple_pieces/bach_menuett/primo.musicxml'), 'solo.mid')"
           cd bin
-          python launch_acc.py --test
+          python -u launch_acc.py --test --config_file bach_menuett --midi-fn ../solo.mid
