@@ -23,13 +23,11 @@ The ACCompanion is an expressive accompaniment system. Similarly to a musician w
 * [Miniforge](https://github.com/conda-forge/miniforge) or another conda
   distribution. Check with `conda --version`.
 * [Git](https://git-scm.com/downloads). Check with `git --version`.
-* A C compiler. The score following backend
-  ([matchmaker](https://github.com/pymatchmaker/matchmaker)) is installed from
-  source and builds Cython extensions.
-  * Linux: `sudo apt install build-essential`
-  * macOS: `xcode-select --install`
-  * Windows: the "Desktop development with C++" workload of the Visual Studio
-    Build Tools.
+* On Windows only, a C compiler: the "Desktop development with C++" workload
+  of the Visual Studio Build Tools. The score following backend
+  ([matchmaker](https://github.com/pymatchmaker/matchmaker)) has Cython
+  extensions, and PyPI has prebuilt wheels for it on Linux and macOS but not
+  on Windows, where pip builds it from source.
 
 ### Installation
 
@@ -45,8 +43,8 @@ pip install -e .
 `environment.yml` provides the interpreter and the handful of packages that
 need conda: the ones with a compiled or system component, and the ones whose
 version has to be held back. Everything else is declared in `setup.py` and
-installed by `pip install -e .`, including the two dependencies that come
-from git — [basismixer](https://github.com/OFAI/basismixer) and matchmaker.
+installed by `pip install -e .`, including
+[basismixer](https://github.com/OFAI/basismixer), which comes from git.
 
 Expect the install to take a few minutes and about 2.5 GB, most of which is
 PyTorch and the math libraries it pulls in.
@@ -71,15 +69,11 @@ so `environment.yml` pins them with a comment:
 
 | Pin | Reason |
 | --- | --- |
-| `python=3.11` | matchmaker supports 3.10 - 3.12. |
+| `python=3.11` | The version the ACCompanion is tested on. matchmaker supports 3.10 - 3.13. |
 | `numpy=1.26.*` | matchmaker requires NumPy 1.x. |
 | `scipy<1.15` | basismixer calls `scipy.misc.derivative`, removed in SciPy 1.15. |
 | `setuptools<81` | basismixer imports `pkg_resources`, removed in setuptools 81. |
 | `pytorch-cpu` | basismixer imports torch. Installing the CPU build from conda-forge keeps pip from pulling the much larger CUDA wheels. |
-
-matchmaker is currently installed from its `main` branch on GitHub, as the
-release on PyPI predates the method registry the ACCompanion uses; `setup.py`
-has a TODO to move to a release once one includes it.
 
 ### Upgrading from an older ACCompanion
 
