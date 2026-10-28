@@ -70,7 +70,7 @@ so `environment.yml` pins them with a comment:
 | Pin | Reason |
 | --- | --- |
 | `python=3.11` | The version the ACCompanion is tested on. matchmaker supports 3.10 - 3.13. |
-| `numpy=1.26.*` | matchmaker requires NumPy 1.x. |
+| `numpy=1.26.*` | The version this release was tested with. |
 | `scipy<1.15` | basismixer calls `scipy.misc.derivative`, removed in SciPy 1.15. |
 | `setuptools<81` | basismixer imports `pkg_resources`, removed in setuptools 81. |
 | `pytorch-cpu` | basismixer imports torch. Installing the CPU build from conda-forge keeps pip from pulling the much larger CUDA wheels. |

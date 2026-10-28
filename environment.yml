@@ -14,15 +14,15 @@ channels:
   - conda-forge
 
 dependencies:
-  # matchmaker, which provides the score followers, supports 3.10 - 3.12.
+  # The version the ACCompanion is tested on. matchmaker supports 3.10 - 3.13.
   - python=3.11
   - pip
 
   # basismixer imports pkg_resources, which setuptools removed in 81.
   - setuptools<81
 
-  # matchmaker needs numpy 1.x. basismixer calls scipy.misc.derivative, which
-  # SciPy removed in 1.15.
+  # numpy is held at 1.26, the version this release was tested with. basismixer
+  # calls scipy.misc.derivative, which SciPy removed in 1.15.
   - numpy=1.26.*
   - scipy>=1.11.4,<1.15
 
