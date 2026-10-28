@@ -13,13 +13,13 @@ AUTHOR = "Carlos Cancino-Chacón, Silvan Peter, Florian Henkel, Martin Bonev"
 # matchmaker supports 3.10 - 3.13; the rest of the ACCompanion's dependencies
 # have not been tried on 3.13 yet.
 REQUIRES_PYTHON = ">=3.10,<3.13"
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 REQUIRED = [
     "mido",
     # mido's MIDI I/O backend. Imported by mido at runtime, not by name here.
     "python-rtmidi",
-    "numpy>=1.26.3,<2",
+    "numpy>=1.26.3",
     # basismixer.performance_codec calls scipy.misc.derivative, which SciPy
     # removed in 1.15.
     "scipy>=1.11.4,<1.15",

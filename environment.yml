@@ -21,9 +21,7 @@ dependencies:
   # basismixer imports pkg_resources, which setuptools removed in 81.
   - setuptools<81
 
-  # numpy is held at 1.26, the version this release was tested with. basismixer
-  # calls scipy.misc.derivative, which SciPy removed in 1.15.
-  - numpy=1.26.*
+  # basismixer calls scipy.misc.derivative, which SciPy removed in 1.15.
   - scipy>=1.11.4,<1.15
 
   # Only needed because basismixer.utils.music imports it. Installed here as
