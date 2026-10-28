@@ -34,9 +34,12 @@ jobs:
           environment-file: environment-windows.yml
           auto-activate-base: false
 
+      # PyPI has matchmaker wheels for Linux and macOS only, and no sdist, so
+      # on Windows it is built from the release tag.
       - name: Install Accompanion
         run: |
           conda list
+          pip install "pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@v0.4.0"
           pip install -e .
 
       - name: Run Accompanion

@@ -26,8 +26,9 @@ The ACCompanion is an expressive accompaniment system. Similarly to a musician w
 * On Windows only, a C compiler: the "Desktop development with C++" workload
   of the Visual Studio Build Tools. The score following backend
   ([matchmaker](https://github.com/pymatchmaker/matchmaker)) has Cython
-  extensions, and PyPI has prebuilt wheels for it on Linux and macOS but not
-  on Windows, where pip builds it from source.
+  extensions, and PyPI has prebuilt wheels for it on Linux and macOS only.
+  On Windows, install it from its release tag before `pip install -e .`:
+  `pip install "pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@v0.4.0"`
 * On Windows, delete the `- fluidsynth` line from `environment.yml` before
   creating the environment: conda-forge has no FluidSynth for Windows, and the
   ACCompanion only uses it on Linux and macOS.
