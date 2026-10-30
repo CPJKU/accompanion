@@ -402,7 +402,7 @@ If you want to include any of these files (or a variation or modification thereo
 [*The ACCompanion v0.1: An Expressive Accompaniment System*](https://arxiv.org/abs/1711.02427). Proceedings of the Late-Breaking Demo Session of the 18th International Society for Music Information Retrieval Conference (ISMIR 2017), Suzhou, China, 2017
 
 ## Acknowledgments
-This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (["Whither Music?"](https://www.jku.at/en/institute-of-computational-perception/research/projects/whither-music/)).
+This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (["Whither Music?"](https://www.jku.at/en/institute-of-computational-perception/research/projects/whither-music/)) and by the Austrian Science Fund (FWF) grant agreement PIN 1347924 (AURA: Augmenting musical interaction via EVAs).
 
 <p align="center">
     <img src="docs/source/images/acknowledge_logo.png#gh-light-mode-only" height="200">
