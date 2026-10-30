@@ -1,0 +1,66 @@
+# Temporary: ACCompanion + matchmaker from pymatchmaker/matchmaker#76 on Windows.
+name: Windows matchmaker check
+
+on:
+  push:
+    branches: [ci/windows-matchmaker-check]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Drop FluidSynth from the conda environment
+        run: sed '/^  - fluidsynth/d' environment.yml > environment-windows.yml
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: accompanion
+          environment-file: environment-windows.yml
+          auto-activate-base: false
+
+      - name: Install matchmaker from the PR branch, then the ACCompanion
+        run: |
+          pip install "pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@feature/windows-wheels-sdist"
+          pip install -e .
+          pip check || true
+          python -c "import matchmaker, numpy; print('matchmaker', matchmaker.__file__, 'numpy', numpy.__version__)"
+
+      - name: List score followers
+        run: python bin/launch_acc.py --list-followers
+
+      - name: Score followers offline
+        run: python -u bin/test_followers.py --piece bach_menuett
+
+      - name: ACCompanion end to end with every follower
+        run: |
+          python -c "import partitura as pt; pt.save_score_midi(pt.load_score('accompanion_pieces/simple_pieces/bach_menuett/primo.musicxml'), 'solo.mid')"
+          cd bin
+          fail=""
+          run() {
+            echo "::group::$*"
+            if timeout 300 python -u launch_acc.py --test --config_file bach_menuett --midi-fn ../solo.mid "$@" > run.log 2>&1 \
+               && grep -q "End of the piece" run.log; then
+              tail -3 run.log; echo "OK: $*"
+            else
+              tail -40 run.log; echo "FAILED: $*"; fail="$fail [$*]"
+            fi
+            echo "::endgroup::"
+          }
+          run --follower hmm
+          run --follower oltw
+          for sf in $(python -c "from accompanion.score_follower.matchmaker_methods import available_methods; print(' '.join(available_methods()))"); do
+            run --follower matchmaker --score-follower "$sf"
+          done
+          run --follower matchmaker --score-follower pthmm --record-midi
+          echo "failed:${fail:- none}"
+          [ -z "$fail" ]
