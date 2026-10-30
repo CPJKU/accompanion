@@ -9,7 +9,7 @@ DESCRIPTION = "An expressive accompaniment system"
 KEYWORDS = "music alignment accompaniment"
 URL = "https://github.com/CPJKU/accompanion"
 EMAIL = "carloscancinochacon@gmail.com"
-AUTHOR = "Carlos Cancino-Chacón, Silvan Peter, Florian Henkel, Martin Bonev"
+AUTHOR = "Carlos Cancino-Chacón, Silvan Peter, Florian Henkel, Martin Bonev, Emmanouil Karystinaios, Francesco Foscarin, Patricia Hu, Nimrod Varga, Alexander Neuhauser"
 # matchmaker supports 3.10 - 3.13; the rest of the ACCompanion's dependencies
 # have not been tried on 3.13 yet.
 REQUIRES_PYTHON = ">=3.10,<3.13"
