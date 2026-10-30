@@ -17,6 +17,44 @@ warnings.filterwarnings("ignore", module="partitura")
 
 sys.path.append("..")
 
+#: Score followers the ACCompanion's own variants provide. Everything else
+#: comes from matchmaker, and is looked up at run time so that a follower added
+#: there -- the ensemble, say -- needs no change here.
+ACCOMPANION_SCORE_FOLLOWERS = {
+    "hmm": ["PitchIOIHMM", "PitchIOIKHMM"],
+    "oltw": ["OnlineTimeWarping"],
+}
+
+
+def score_follower_choices():
+    """``{follower variant: [score follower names]}``."""
+    from accompanion.score_follower.matchmaker_methods import available_methods
+
+    choices = dict(ACCOMPANION_SCORE_FOLLOWERS)
+    choices["matchmaker"] = available_methods()
+    return choices
+
+
+def print_score_followers():
+    from accompanion.score_follower.matchmaker_methods import preferred_polling_period
+
+    for variant, names in score_follower_choices().items():
+        print(f"--follower {variant}")
+        for name in names:
+            note = ""
+            if variant == "matchmaker":
+                period = preferred_polling_period(name)
+                note = (
+                    "  (fed one MIDI message at a time)"
+                    if period is None
+                    else f"  (polling period {period}s)"
+                )
+            print(f"    --score-follower {name}{note}")
+        print()
+    print("Run 'python bin/test_followers.py --piece <piece> --scenarios all' to")
+    print("compare them on a piece before playing it.")
+
+
 overridable_args = [
     "use_mediator",
     "delay",
@@ -60,7 +98,25 @@ if __name__ == "__main__":
     #     "--use_mediator", default=False, help="use ceus mediator", action="store_true"
     # )
     parser.add_argument("--piece")
-    parser.add_argument("--follower", default="hmm")
+    parser.add_argument(
+        "--follower",
+        default=None,
+        choices=["hmm", "oltw", "matchmaker"],
+        help="which ACCompanion to run: 'hmm' and 'oltw' use the ACCompanion's "
+        "own score followers, 'matchmaker' runs any score follower Matchmaker "
+        "provides (see --score-follower). Overrides the config file. "
+        "Default: whatever the config file says, else hmm.",
+    )
+    parser.add_argument(
+        "--score-follower",
+        help="name of the score follower to use, overriding the config file. "
+        "See --list-followers for the names the chosen --follower accepts.",
+    )
+    parser.add_argument(
+        "--list-followers",
+        action="store_true",
+        help="list the score followers available in this installation and exit",
+    )
     parser.add_argument(
         "-f",
         "--config_file",
@@ -77,6 +133,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    if args.list_followers:
+        print_score_followers()
+        sys.exit(0)
 
     if args.config_file:
         import yaml
@@ -205,50 +265,63 @@ if __name__ == "__main__":
 
     # import ACCompanion version
 
-    if "follower" in configurations.keys():
-        if configurations["follower"] == "hmm":
-            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
-        elif configurations["follower"] == "oltw":
-            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
-        else:
-            raise ValueError(
-                f"configuration parameter 'follower' is of unknown value {configurations['follower']}"
-            )
-    elif args.follower:
-        # Use the version in follower only if not specified in the
-        if args.follower == "hmm":
-            from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
+    # Default score follower settings per ACCompanion variant, used when the
+    # config file does not carry its own.
+    SCORE_FOLLOWER_DEFAULTS = {
+        "hmm": {
+            "score_follower": "PitchIOIHMM",
+            "input_processor": {
+                "processor": "PitchIOIProcessor",
+                "processor_kwargs": {"piano_range": True},
+            },
+        },
+        "oltw": {
+            "score_follower": "OnlineTimeWarping",
+            "window_size": 100,
+            "step_size": 10,
+            "input_processor": {
+                "processor": "PianoRollProcessor",
+                "processor_kwargs": {"piano_range": True},
+            },
+        },
+        "matchmaker": {
+            "score_follower": "hmm",
+            "score_follower_kwargs": {},
+        },
+    }
 
-            configurations["score_follower_kwargs"] = {
-                "score_follower": "PitchIOIHMM",
-                "input_processor": {
-                    "processor": "PitchIOIProcessor",
-                    "processor_kwargs": {"piano_range": True},
-                },
-            }
-        elif args.follower == "oltw":
-            from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
+    config_follower = configurations.pop("follower", None)
+    follower = args.follower or config_follower or "hmm"
+    if follower not in SCORE_FOLLOWER_DEFAULTS:
+        raise ValueError(f"'follower' is of unknown value {follower}")
 
-            configurations["score_follower_kwargs"] = {
-                "score_follower": "OnlineTimeWarping",
-                "window_size": 100,
-                "step_size": 10,
-                "input_processor": {
-                    "processor": "PianoRollProcessor",
-                    "processor_kwargs": {"piano_range": True},
-                },
-            }
-        else:
-            raise ValueError(
-                f"console argument 'follower' is of unknown value {args.follower}"
-            )
-    else:
-        raise ValueError(
-            "Neither through console arguments nor configuration file has a score follower type been specified"
+    # An explicit --follower overrides the config file, and then brings its own
+    # score follower settings: the ones in the config file belong to the
+    # follower it named.
+    if follower != config_follower or "score_follower_kwargs" not in configurations:
+        configurations["score_follower_kwargs"] = dict(
+            SCORE_FOLLOWER_DEFAULTS[follower]
         )
 
-    if "follower" in configurations.keys():
-        del configurations["follower"]
+    # --score-follower picks the tracker within the chosen variant.
+    if args.score_follower:
+        valid = score_follower_choices()[follower]
+        if args.score_follower not in valid:
+            raise SystemExit(
+                f"'{args.score_follower}' is not a score follower of "
+                f"'--follower {follower}'. Available: {', '.join(valid)}.\n"
+                "Run 'python bin/launch_acc.py --list-followers' for the full list."
+            )
+        configurations["score_follower_kwargs"]["score_follower"] = args.score_follower
+
+    if follower == "hmm":
+        from accompanion.hmm_accompanion import HMMACCompanion as ACCompanion
+    elif follower == "oltw":
+        from accompanion.oltw_accompanion import OLTWACCompanion as ACCompanion
+    else:
+        from accompanion.matchmaker_accompanion import (
+            MatchmakerACCompanion as ACCompanion,
+        )
 
     if not "accompanist_decoder_kwargs" in configurations.keys():
         configurations["accompanist_decoder_kwargs"] = None
@@ -289,5 +362,7 @@ if __name__ == "__main__":
         ] = 0
 
     accompanion = ACCompanion(**configurations)
+
+    print(configurations)
 
     accompanion.run()

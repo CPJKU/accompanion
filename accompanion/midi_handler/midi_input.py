@@ -12,6 +12,10 @@ import mido
 # Default polling period (in seconds)
 POLLING_PERIOD = 0.02
 
+# How long the event-based MIDI input waits before polling an empty port
+# again. Short enough not to add noticeable latency, long enough not to spin.
+IDLE_POLL_SLEEP = 5e-4
+
 
 def dummy_pipeline(inputs):
     return inputs
@@ -74,20 +78,24 @@ class MidiInputProcess(multiprocessing.Process):
         self.start_listening()
 
         while self.listen:
-            print("midi input listening")
             msg = self.midi_in.poll()
-            if msg is not None:
-                c_time = self.current_time
-                # Append MIDI Messages to the list to export the MIDI later
-                self.midi_messages.append((msg, c_time))
-                # To have the same output as other MidiThreads
-                # We should think of a less convoluted way to do
-                # this in general
-                output = self.pipeline([(msg, c_time)], c_time)
-                if self.return_midi_messages:
-                    self.pipe.send((msg, c_time), output)
-                else:
-                    self.pipe.send(output)
+            if msg is None:
+                # `poll` does not block on a real MIDI port, so without this
+                # the loop would spin on an idle input.
+                time.sleep(IDLE_POLL_SLEEP)
+                continue
+
+            c_time = self.current_time
+            # Append MIDI Messages to the list to export the MIDI later
+            self.midi_messages.append((msg, c_time))
+            # To have the same output as other MidiThreads
+            # We should think of a less convoluted way to do
+            # this in general
+            output = self.pipeline(([(msg, c_time)], c_time))
+            if self.return_midi_messages:
+                self.pipe.send(([(msg, c_time)], output))
+            else:
+                self.pipe.send(output)
 
     @property
     def current_time(self):
@@ -156,21 +164,26 @@ class MidiInputThread(threading.Thread):
         while self.listen:
 
             msg = self.midi_in.poll()
-            if msg is not None:
-                if (
-                    self.mediator is not None
-                    and msg.type == "note_on"
-                    and self.mediator.filter_check(msg.note)
-                ):
-                    continue
+            if msg is None:
+                # `poll` does not block on a real MIDI port, so without this
+                # the loop would spin on an idle input.
+                time.sleep(IDLE_POLL_SLEEP)
+                continue
 
-                c_time = self.current_time
-                # To have the same output as other MidiThreads
-                output = self.pipeline([(msg, c_time)], c_time)
-                if self.return_midi_messages:
-                    self.queue.put(((msg, c_time), output))
-                else:
-                    self.queue.put(output)
+            if (
+                self.mediator is not None
+                and msg.type == "note_on"
+                and self.mediator.filter_check(msg.note)
+            ):
+                continue
+
+            c_time = self.current_time
+            # To have the same output as other MidiThreads
+            output = self.pipeline(([(msg, c_time)], c_time))
+            if self.return_midi_messages:
+                self.queue.put(([(msg, c_time)], output))
+            else:
+                self.queue.put(output)
 
     @property
     def current_time(self):
@@ -367,30 +380,54 @@ def create_midi_poll(
     mediator=None,
 ):
     """
-    Helper to create a FramedMidiInputProcess and its respective pipe.
+    Helper to create a MIDI input process/thread and its respective pipe.
+
+    With a `polling_period`, MIDI messages are accumulated into frames of that
+    duration. With `polling_period=None` the input is event based: every
+    message is passed on as a frame of its own, as needed by the score
+    followers that align note by note and reject a frame holding a chord.
     """
+    event_based = polling_period is None
 
     if thread:
         p_output = None
         p_input = RECVQueue()
-        mt = FramedMidiInputThread(
-            port=port,
-            queue=p_input,
-            polling_period=polling_period,
-            pipeline=pipeline,
-            return_midi_messages=return_midi_messages,
-            mediator=mediator,
-        )
+        if event_based:
+            mt = MidiInputThread(
+                port=port,
+                queue=p_input,
+                pipeline=pipeline,
+                return_midi_messages=return_midi_messages,
+                mediator=mediator,
+            )
+        else:
+            mt = FramedMidiInputThread(
+                port=port,
+                queue=p_input,
+                polling_period=polling_period,
+                pipeline=pipeline,
+                return_midi_messages=return_midi_messages,
+                mediator=mediator,
+            )
     else:
 
         p_output, p_input = Pipe()
-        mt = FramedMidiInputProcess(
-            port=port,
-            pipe=p_output,
-            polling_period=polling_period,
-            pipeline=pipeline,
-            return_midi_messages=return_midi_messages,
-            mediator=mediator,
-        )
+        if event_based:
+            mt = MidiInputProcess(
+                port=port,
+                pipe=p_output,
+                pipeline=pipeline,
+                return_midi_messages=return_midi_messages,
+                mediator=mediator,
+            )
+        else:
+            mt = FramedMidiInputProcess(
+                port=port,
+                pipe=p_output,
+                polling_period=polling_period,
+                pipeline=pipeline,
+                return_midi_messages=return_midi_messages,
+                mediator=mediator,
+            )
 
     return p_output, p_input, mt
