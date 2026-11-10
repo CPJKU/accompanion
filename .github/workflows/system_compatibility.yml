@@ -11,58 +11,68 @@ on:
 jobs:
   windows_testing:
     runs-on: windows-latest
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # conda-forge has no FluidSynth for Windows, and the ACCompanion only
+      # uses it on Linux and macOS (see accompanion/midi_handler/fluid.py).
+      - name: Drop FluidSynth from the conda environment
+        run: sed '/^  - fluidsynth/d' environment.yml > environment-windows.yml
 
       - name: Install Conda dependencies
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
+          miniforge-version: latest
           activate-environment: accompanion
-          environment-file: environment.yml
+          environment-file: environment-windows.yml
           auto-activate-base: false
 
+      # PyPI has matchmaker wheels for Linux and macOS only, and no sdist, so
+      # on Windows it is built from the release tag.
       - name: Install Accompanion
         run: |
           conda list
-          pip install pyfluidsynth
+          pip install "pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@v0.4.0"
           pip install -e .
 
+      # Without --midi-fn the test router has no soloist and waits forever,
+      # so play the rendered solo part of a piece into it.
       - name: Run Accompanion
+        timeout-minutes: 10
         run: |
+          python -c "import partitura as pt; pt.save_score_midi(pt.load_score('accompanion_pieces/simple_pieces/bach_menuett/primo.musicxml'), 'solo.mid')"
           cd bin
-          python launch_acc.py --test -f test
+          python -u launch_acc.py --test --config_file bach_menuett --midi-fn ../solo.mid
 
   ubuntu_testing:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0
 
       - name: Install System Requirements
         run: |
-          sudo apt-get install gcc
-          sudo apt-get install libjack-dev
-          sudo apt-get install libasound2-dev
-          echo "installing Fluidsynth . . ."
-          sudo apt-get install fluidsynth
-          echo "installing g++ . . ."
-          sudo apt install g++
-          echo "installing Alsa. . ."
-          sudo apt-get -y install alsa-tools
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ libjack-dev libasound2-dev fluidsynth alsa-tools
 
       - name: Install Conda dependencies
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
+          miniforge-version: latest
           activate-environment: accompanion
           environment-file: environment.yml
           auto-activate-base: false
@@ -73,27 +83,35 @@ jobs:
           pip install pyfluidsynth
           pip install -e .
 
+      # Without --midi-fn the test router has no soloist and waits forever,
+      # so play the rendered solo part of a piece into it.
       - name: Run Accompanion
+        timeout-minutes: 10
         run: |
+          python -c "import partitura as pt; pt.save_score_midi(pt.load_score('accompanion_pieces/simple_pieces/bach_menuett/primo.musicxml'), 'solo.mid')"
           cd bin
-          python launch_acc.py --test
-          
+          python -u launch_acc.py --test --config_file bach_menuett --midi-fn ../solo.mid
+
   macOS_testing:
     runs-on: macos-latest
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install System Requirements
         run:
           brew install fluidsynth
 
       - name: Install Conda dependencies
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
+          miniforge-version: latest
           activate-environment: accompanion
           environment-file: environment.yml
           auto-activate-base: false
@@ -104,8 +122,11 @@ jobs:
           pip install pyfluidsynth
           pip install -e .
 
+      # Without --midi-fn the test router has no soloist and waits forever,
+      # so play the rendered solo part of a piece into it.
       - name: Run Accompanion
+        timeout-minutes: 10
         run: |
+          python -c "import partitura as pt; pt.save_score_midi(pt.load_score('accompanion_pieces/simple_pieces/bach_menuett/primo.musicxml'), 'solo.mid')"
           cd bin
-          python launch_acc.py --test
-
+          python -u launch_acc.py --test --config_file bach_menuett --midi-fn ../solo.mid

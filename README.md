@@ -19,42 +19,73 @@ The ACCompanion is an expressive accompaniment system. Similarly to a musician w
 ## Setup
 
 ### Prerequisites
-To set up the ACCompanion you need a couple of dependencies ([Miniconda](https://docs.conda.io/en/latest/miniconda.html#installing) and [Git](https://git-scm.com/downloads)).
 
-Check if `git` is installed by typing in your terminal:
-```shell
-git --version
-```
-If you get an error please install `git` by following the instructions [here](https://git-scm.com/downloads) according to your OS.
-
-Check if `conda` is installed by typing in your terminal:
-
-```shell
-git --version
-```
-If you get an error please install `git` by following the instructions [here]([https://git-scm.com/downloads](https://docs.conda.io/en/latest/miniconda.html#installing)) according to your OS.
-
+* [Miniforge](https://github.com/conda-forge/miniforge) or another conda
+  distribution. Check with `conda --version`.
+* [Git](https://git-scm.com/downloads). Check with `git --version`.
+* On Windows only, a C compiler: the "Desktop development with C++" workload
+  of the Visual Studio Build Tools. The score following backend
+  ([matchmaker](https://github.com/pymatchmaker/matchmaker)) has Cython
+  extensions, and PyPI has prebuilt wheels for it on Linux and macOS only.
+  On Windows, install it from its release tag before `pip install -e .`:
+  `pip install "pymatchmaker @ git+https://github.com/pymatchmaker/matchmaker.git@v0.4.0"`
+* On Windows, delete the `- fluidsynth` line from `environment.yml` before
+  creating the environment: conda-forge has no FluidSynth for Windows, and the
+  ACCompanion only uses it on Linux and macOS.
 
 ### Installation
 
-To install the ACCompanion copy the following steps in your terminal.
-
-Clone and install the accompanion environment:
-
 ```shell
 git clone https://github.com/CPJKU/accompanion.git
-cd ./accompanion
+cd accompanion
+git submodule update --init          # the accompanion_pieces submodule
 conda env create -f environment.yml
+conda activate accompanion
+pip install -e .
 ```
 
-Also, init the submodules if this step is not done automatically on cloning:
+`environment.yml` provides the interpreter and the handful of packages that
+need conda: the ones with a compiled or system component, and the ones whose
+version has to be held back. Everything else is declared in `setup.py` and
+installed by `pip install -e .`, including
+[basismixer](https://github.com/OFAI/basismixer), which comes from git.
+
+Expect the install to take a few minutes and about 2.5 GB, most of which is
+PyTorch and the math libraries it pulls in.
+
+### Checking the installation
+
 ```shell
-git submodule init
-git submodule update
+python ./bin/test_followers.py --list
+python ./bin/test_followers.py --piece bach_menuett
 ```
 
-After the download and install are complete:
+The first command lists the score followers your installation provides; the
+second runs all of them over a rendered performance and prints how closely each
+one tracked it. Neither needs MIDI hardware or audio. The first run of anything
+that imports partitura also downloads a ~35 MB soundfont over FTP, which some
+networks block; it is cached afterwards.
+
+### Why the versions are pinned
+
+These constraints are not obvious from the errors they produce when violated,
+so `environment.yml` pins them with a comment:
+
+| Pin | Reason |
+| --- | --- |
+| `python=3.11` | The version the ACCompanion is tested on. matchmaker supports 3.10 - 3.13. |
+| `scipy<1.15` | basismixer calls `scipy.misc.derivative`, removed in SciPy 1.15. |
+| `setuptools<81` | basismixer imports `pkg_resources`, removed in setuptools 81. |
+| `pytorch-cpu` | basismixer imports torch. Installing the CPU build from conda-forge keeps pip from pulling the much larger CUDA wheels. |
+
+### Upgrading from an older ACCompanion
+
+Environments created before the move to matchmaker run Python 3.9, which
+matchmaker does not support. Recreate rather than update:
+
 ```shell
+conda env remove -n accompanion
+conda env create -f environment.yml
 conda activate accompanion
 pip install -e .
 ```
@@ -103,6 +134,153 @@ To Find out the arguments you can use with the ACCompanion, run the following co
 python ./bin/launch_acc.py --help
 ```
 
+### Score followers
+
+The ACCompanion follows the soloist with a score follower from
+[matchmaker](https://github.com/pymatchmaker/matchmaker). Which one is used is
+set by two config keys (or the equivalent command line flags): `follower`
+chooses the ACCompanion variant, `score_follower` the tracker itself.
+
+| `follower` | `score_follower` | |
+| --- | --- | --- |
+| `hmm` | `PitchIOIHMM`, `PitchIOIKHMM` | Hidden Markov models over pitch and inter-onset intervals. Best for a monophonic solo part. |
+| `oltw` | `OnlineTimeWarping` | On-line time warping against one or more reference performances. Best for dense, polyphonic parts. |
+| `matchmaker` | any matchmaker method | Every other score follower matchmaker provides. |
+
+The first two are wired up with the ACCompanion's own tuning, and are what the
+config files in `config_files/` use. The `matchmaker` variant instead builds
+whatever matchmaker's registry declares, so score followers added to matchmaker
+later are usable without any change here:
+
+```shell
+python ./bin/launch_acc.py --follower matchmaker --score-follower arzt \
+    --input Your_MIDI_Input --output Your_MIDI_Output
+```
+
+To list every score follower available in your installation:
+
+```shell
+python ./bin/launch_acc.py --list-followers   # names --score-follower accepts
+python ./bin/test_followers.py --list         # the same, plus the test scenarios
+```
+
+### Comparing score followers
+
+`bin/test_followers.py` runs a performance through the followers the same way
+the ACCompanion's main loop does, but offline: no MIDI hardware, no audio, no
+accompaniment. Use it to see which followers work on a piece and how closely
+they track it.
+
+```shell
+# every follower, on a performance played exactly as written
+python ./bin/test_followers.py --piece bach_menuett
+
+# every follower, on realistic playing: bent tempo, smeared timing, wrong notes
+python ./bin/test_followers.py --piece bach_menuett --scenarios all --seeds 3
+
+# a few followers, on a real MIDI recording
+python ./bin/test_followers.py --piece bach_menuett --followers hmm arzt OPTM \
+    --midi-fn path/to/performance.mid
+```
+
+The performance is synthesised from the solo score, so the true score position
+is known at every instant — which is what makes the error and latency columns
+meaningful. It can be synthesised badly on purpose; `--scenarios` picks how the
+part is played:
+
+| scenario | |
+| --- | --- |
+| `clean` | exactly as written, at a constant tempo |
+| `rubato` | tempo bent ±15% over 8-beat phrases, slowing 35% into the final bars |
+| `jitter` | onsets scattered by 30 ms, chords rolled over 25 ms |
+| `errors` | 5% of notes at the wrong pitch, 5% dropped, 3% spurious extras |
+| `human` | all of the above, milder — roughly an amateur run-through |
+| `fermata` | otherwise metronomic, but every fermata and free section is taken in the player's own time |
+| `freehand` | `human`, with those same holds |
+
+`clean` is deterministic; the others are averaged over `--seeds` random draws.
+Ranking followers on `clean` alone is misleading: it measures whether a
+follower stays locked, not whether it recovers, and the ranking does change
+under the other scenarios.
+
+### Fermatas and free sections
+
+At a fermata the notated durations stop meaning anything: the soloist holds for
+as long as they feel like, and how long that is differs from player to player
+and from run to run. The ACCompanion waits with them. It plays the accompaniment
+up to and including the fermata, holds that chord under the soloist for as long
+as they hold theirs, and moves on the moment they play the next note — picking
+the tempo up where it was, rather than reading the wait as an enormous beat
+period.
+
+A free section — a cadenza, an *ad libitum* bar, a passage marked *senza
+misura* — is the same suspension of the beat spread over a span of the score,
+and is handled the same way: every solo onset inside it becomes a point to wait
+at, so the passage is taken one note at a time.
+
+Both are read off the score by [partitura] and need no configuration. Fermatas
+come from the notation directly. Free sections are guessed from the words in
+the score (*cadenza*, *ad libitum*, *senza misura*, *a piacere*, *freely*, …),
+running from the marking to the next word or tempo direction — a guess, because
+scores do not mark where a free passage ends. What was found is printed at
+startup:
+
+```
+Waiting for the soloist at 15 onsets: 84, 112, 237, 237.5, 238, 238.5, ...
+  free section: beats 236 to 244
+```
+
+A fermata over a rest, or one on the final chord, is dropped: waiting is ended
+by the soloist arriving at the next onset, and those have none.
+
+This costs nothing on a piece with no fermatas, and on one with them it is the
+difference between an accompaniment that waits and one that plays on alone.
+Measured with `bin/test_accompaniment.py` on the Badinerie, whose six fermatas
+the synthesised soloist holds for a second or three each (median error of the
+accompaniment against where it should have sounded, over three seeds):
+
+| score follower | counting through | waiting |
+| --- | --- | --- |
+| `PitchIOIHMM` | 6840 ms early | 5 ms |
+| `outerhmm` | 1 ms, but a quarter of the piece more than 200 ms out | 0 ms, none out |
+| `arzt` | 3164 ms early | 36 ms |
+
+Note that the score followers themselves track these performances perfectly
+(`bin/test_followers.py --scenarios fermata` reports no error at all): what
+fails without this is not the following but the accompanist's dead reckoning
+between onsets.
+
+To turn it off, or to correct what the score says, put a `fermata_kwargs` block
+in the config file:
+
+```yaml
+    fermata_kwargs:
+        enabled: True             # False counts through fermatas as before
+        detect_free_sections: True  # read free sections from the score's words
+        free_sections: [[236, 244]] # extra free spans, in score beats
+        fermata_onsets: [25, 27]    # extra points to wait at, in score beats
+        max_silence: 5.0          # give up waiting after this much silence
+        max_lost: 0.4             # ...or this long after the soloist plays on
+                                  #    without the follower reporting it
+```
+
+Both timeouts are there so that a wait can never hang the piece: whichever
+expires first, the accompaniment resumes in tempo, which is exactly what it
+would have done without any of this. `max_silence` covers a soloist who stops
+altogether; `max_lost` covers a soloist who plays on while the score follower
+loses them. Waiting makes the accompaniment purely reactive at every point it
+waits at, so on a piece with a long run of fermatas played strictly in time,
+`enabled: False` is the safer setting.
+
+To hear the difference offline:
+
+```shell
+python ./bin/test_accompaniment.py --piece badinerie --scenarios fermata
+python ./bin/test_accompaniment.py --piece badinerie --scenarios fermata --no-fermata
+```
+
+[partitura]: https://github.com/CPJKU/partitura
+
 ### MIDI Input and Output
 
 To find out which MIDI input and output ports are available on your system, run the following command:
@@ -113,11 +291,43 @@ python -c "import mido; print(mido.get_input_names()); print(mido.get_output_nam
 
 ## Using the ACCompanion with a GUI
 
-The ACCompanion can be used with a GUI. To do so, run the following command:
+The ACCompanion can be configured and started from a GUI. To do so, run:
 ```shell
 cd Path/to/accompanion/bin
 python app.py
 ```
+
+It opens two windows. The first asks which follower should listen to the
+soloist:
+
+| | |
+| --- | --- |
+| `HMM` | the ACCompanion's own hidden Markov model follower |
+| `OLTW` | the ACCompanion's own on-line time warping follower |
+| `Matchmaker` | any score follower the installed Matchmaker registers |
+
+For Matchmaker the list of methods is read from Matchmaker's registry at
+startup -- the same list `python bin/launch_acc.py --list-followers` prints --
+so a method added to `methods.yaml`, or registered with
+`matchmaker.register_method`, appears without any change to the GUI. Picking
+one shows what it does with its input: which feature processor it uses, whether
+it is fed frames or one MIDI message at a time, and what its own defaults are.
+
+The second window configures the run, grouped into tabs:
+
+| tab | |
+| --- | --- |
+| `Piece` | pick one of the pieces under `accompanion_pieces` or `sample_pieces`, or browse for the two scores |
+| `Score follower` | the method, and its options -- for Matchmaker, its `kwargs` dict |
+| `MIDI` | the input and output ports, read from the devices connected right now |
+| `Performance` | tempo, velocity, the tempo model and the performance codec |
+| `Advanced` | polling period and the following parameters |
+
+**Load...** reads any file from `config_files/`, resolving its `piece_dir` into
+the scores it names, and switches to the ACCompanion that file asks for.
+**Save as...** writes the configuration back out in the same format, into
+`gui_config_files/`, so it can be replayed with
+`python bin/launch_acc.py -f <name>` once it is moved to `config_files/`.
 
 ## Adding new pieces
 
@@ -192,7 +402,7 @@ If you want to include any of these files (or a variation or modification thereo
 [*The ACCompanion v0.1: An Expressive Accompaniment System*](https://arxiv.org/abs/1711.02427). Proceedings of the Late-Breaking Demo Session of the 18th International Society for Music Information Retrieval Conference (ISMIR 2017), Suzhou, China, 2017
 
 ## Acknowledgments
-This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (["Whither Music?"](https://www.jku.at/en/institute-of-computational-perception/research/projects/whither-music/)).
+This work is supported by the European Research Council (ERC) under the EU’s Horizon 2020 research & innovation programme, grant agreement No. 10101937 (["Whither Music?"](https://www.jku.at/en/institute-of-computational-perception/research/projects/whither-music/)) and by the Austrian Science Fund (FWF) grant agreement PIN 1347924 (AURA: Augmenting musical interaction via EVAs).
 
 <p align="center">
     <img src="docs/source/images/acknowledge_logo.png#gh-light-mode-only" height="200">

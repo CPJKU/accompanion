@@ -1,9 +1,6 @@
-from distutils.extension import Extension
 from sys import platform
 
-import numpy
 import setuptools
-from Cython.Build import cythonize
 from setuptools import setup
 
 # Package meta-data.
@@ -12,34 +9,35 @@ DESCRIPTION = "An expressive accompaniment system"
 KEYWORDS = "music alignment accompaniment"
 URL = "https://github.com/CPJKU/accompanion"
 EMAIL = "carloscancinochacon@gmail.com"
-AUTHOR = "Carlos Cancino-Chacón, Silvan Peter, Florian Henkel, Martin Bonev"
-REQUIRES_PYTHON = ">=3.7"
-VERSION = "0.3.0"
-
-include_dirs = [numpy.get_include()]
-
-extensions = [
-    Extension(
-        "accompanion.mtchmkr.dtw_loop",
-        ["accompanion/mtchmkr/dtw_loop.pyx"],
-        include_dirs=include_dirs,
-    ),
-    Extension(
-        "accompanion.mtchmkr.distances",
-        ["accompanion/mtchmkr/distances.pyx"],
-        include_dirs=include_dirs,
-    ),
-]
+AUTHOR = "Carlos Cancino-Chacón, Silvan Peter, Florian Henkel, Martin Bonev, Emmanouil Karystinaios, Francesco Foscarin, Patricia Hu, Nimrod Varga, Alexander Neuhauser"
+# matchmaker supports 3.10 - 3.13; the rest of the ACCompanion's dependencies
+# have not been tried on 3.13 yet.
+REQUIRES_PYTHON = ">=3.10,<3.13"
+VERSION = "0.4.0"
 
 REQUIRED = [
-    "python-rtmidi",
     "mido",
-    "cython",
-    "numpy",
-    "scipy",
-    "madmom",
-    "partitura",
-    "tqdm",
+    # mido's MIDI I/O backend. Imported by mido at runtime, not by name here.
+    "python-rtmidi",
+    "numpy>=1.26.3",
+    # basismixer.performance_codec calls scipy.misc.derivative, which SciPy
+    # removed in 1.15.
+    "scipy>=1.11.4,<1.15",
+    "partitura>=1.9.0",
+    "pyyaml",
+    # basismixer.utils.music imports torch, though basismixer does not declare
+    # it. Install the CPU build first (see environment.yml) to avoid pulling
+    # the much larger CUDA wheels.
+    "torch",
+    # The ACCompanion still needs basismixer for `get_performance_codec`, which
+    # partitura does not provide.
+    "basismixer @ git+https://github.com/OFAI/basismixer.git",
+    # Score followers. 0.4 introduced the method registry the ACCompanion
+    # builds its followers from.
+    "pymatchmaker>=0.4,<0.5",
+    # Used by bin/app.py, the GUI launcher. Pinned because PySimpleGUI 5
+    # changed to a licensed distribution model.
+    "PySimpleGUI==4.60.5.1",
 ]
 
 EXTRAS = {"fluid": ["pyfluidsynth"]}
@@ -60,11 +58,6 @@ setup(
     url=URL,
     install_requires=REQUIRED,
     extras_require=EXTRAS,
-    ext_modules=cythonize(
-        extensions,
-        annotate=True,
-        language_level=3,
-    ),  # enables generation of the html annotation file
     scripts=SCRIPTS if platform not in ["win32", "win64", "cygwin"] else None,
     classifiers=[
         "Development Status :: 3 - Alpha",

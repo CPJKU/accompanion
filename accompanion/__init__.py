@@ -2,10 +2,9 @@
 """
 Top level of the package
 """
+import importlib.resources
 import importlib.util
 import platform
-
-import pkg_resources
 
 # OS: Linux, Mac or Windows
 PLATFORM = platform.system()
@@ -16,7 +15,7 @@ SOUNDFONT = None
 spec = importlib.util.find_spec("fluidsynth")
 HAS_FLUIDSYNTH = spec is not None
 if HAS_FLUIDSYNTH:
-    SOUNDFONT = pkg_resources.resource_filename(
-        "accompanion",
-        "sound_fonts/Acoustic_Piano.sf2",
+    # `pkg_resources` was removed in setuptools 81
+    SOUNDFONT = str(
+        importlib.resources.files("accompanion") / "sound_fonts" / "Acoustic_Piano.sf2"
     )

@@ -65,10 +65,12 @@ class OnsetTracker(object):
             return self.unique_onsets[-1]
 
     def acc_onset(self, acc_score_time) -> Tuple[float, int]:
-        min_idx: int = np.argmax(
-            acc_score_time >= self.unique_onsets[self.current_idx :]
-        )  # np.where(acc_score_time >= self.unique_onsets)[0]
         try:
+            # Empty once the cursor has passed the last onset, which argmax
+            # raises on -- hence the guard the fallback below always intended.
+            min_idx: int = np.argmax(
+                acc_score_time >= self.unique_onsets[self.current_idx :]
+            )  # np.where(acc_score_time >= self.unique_onsets)[0]
             c_idx: int = self.current_idx + min_idx
             return self.unique_onsets[c_idx], c_idx
         except (ValueError, IndexError):
