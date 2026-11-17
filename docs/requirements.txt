@@ -1,0 +1,9 @@
+# Requirements for building the documentation (also used by Read the Docs).
+# The ACCompanion itself is not installed: its heavy or compiled dependencies
+# (torch, basismixer, matchmaker, partitura, rtmidi, ...) are mocked in
+# docs/source/conf.py, so the API reference builds without them.
+sphinx>=7.2
+furo>=2024.1.29
+myst-parser>=2.0
+numpy
+scipy<1.15
